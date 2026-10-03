@@ -5,6 +5,7 @@ __pycache__/
 .superpowers/
 *.db
 history/
+research/.cache/
 web/node_modules/
 web/dist/
 web/public/data/
