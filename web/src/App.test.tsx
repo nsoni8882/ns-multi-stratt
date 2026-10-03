@@ -251,6 +251,27 @@ describe("strategy page", () => {
     window.localStorage.removeItem("showSmc");
   });
 
+  it("fetches a card's chart once the pointer settles on it, before any click", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const card = await screen.findByRole("button", { name: /XOM/ });
+    const asked = () => (fetch as unknown as { mock: { calls: string[][] } }).mock.calls.some((c) => String(c[0]).includes("charts/1d/XOM.json"));
+    expect(asked()).toBe(false);
+    await user.hover(card);
+    await waitFor(() => expect(asked()).toBe(true));
+  });
+
+  it("does not fetch a chart for a card the pointer only passes over", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const card = await screen.findByRole("button", { name: /XOM/ });
+    await user.hover(card);
+    await user.unhover(card);
+    await new Promise((r) => setTimeout(r, 250)); // longer than the settle delay
+    const calls = (fetch as unknown as { mock: { calls: string[][] } }).mock.calls;
+    expect(calls.some((c) => String(c[0]).includes("charts/1d/XOM.json"))).toBe(false);
+  });
+
   it("shows an error inside the modal when the chart file is missing", async () => {
     stubFetch(["charts/1d/XOM.json"]);
     const user = userEvent.setup();

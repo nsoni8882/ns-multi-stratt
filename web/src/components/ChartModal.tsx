@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { getChart } from "../api";
 import { useAsync } from "../hooks";
 import type { CandleStyle, ChartConfig, SignalRow, Timeframe } from "../types";
-import { ChartView } from "./ChartView";
+import { chartView, loadChartView } from "../lib/chartViewLoader";
 import { COLORS } from "../lib/chartData";
 import { SMC_COLORS } from "../lib/smc";
 import { ErrorState, Loading } from "./Feedback";
@@ -50,6 +50,9 @@ export function ChartModal({ row, tf, strategyId, config, onClose }: Props) {
   const closeBtn = useRef<HTMLButtonElement>(null);
   const [style, setStyle] = useState<CandleStyle>(readStyle);
   const [showSmc, setShowSmc] = useState<boolean>(readSmc);
+  // StrategyPage warms this while the browser is idle, so it is usually here already and the
+  // chart draws on the first frame. If it is not, the loading state covers the one-off wait.
+  const [ChartView, setChartView] = useState(() => chartView());
   const pick = (next: CandleStyle) => {
     setStyle(next);
     remember(PREF_KEY, next);
@@ -60,6 +63,15 @@ export function ChartModal({ row, tf, strategyId, config, onClose }: Props) {
       return !on;
     });
   };
+
+  useEffect(() => {
+    if (ChartView) return;
+    let alive = true;
+    void loadChartView().then(() => alive && setChartView(() => chartView()));
+    return () => {
+      alive = false;
+    };
+  }, [ChartView]);
 
   useEffect(() => {
     // Stop the page behind the modal from scrolling (iOS Safari scrolls it otherwise).
@@ -105,7 +117,10 @@ export function ChartModal({ row, tf, strategyId, config, onClose }: Props) {
         </div>
         {chart.loading && <Loading what="chart" />}
         {chart.error && <ErrorState error={chart.error} onRetry={chart.retry} />}
-        {chart.data && <ChartView data={chart.data} config={config} strategyId={strategyId} candleStyle={style} showSmc={showSmc} />}
+        {chart.data && !ChartView && <Loading what="chart" />}
+        {chart.data && ChartView && (
+          <ChartView data={chart.data} config={config} strategyId={strategyId} candleStyle={style} showSmc={showSmc} />
+        )}
         <div className="why">
           <div className="whysig"><SignalPill side={row.side} conviction={row.conviction} /></div>
           <p>{signalReason(strategyId, row)}</p>

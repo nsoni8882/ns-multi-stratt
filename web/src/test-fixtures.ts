@@ -1,3 +1,4 @@
+import { clearCache } from "./api";
 import type { ChartFile, MarketFile, SignalRow, SignalsFile, StrategiesFile } from "./types";
 
 export const UPDATED = new Date().toISOString();
@@ -80,6 +81,7 @@ export const chart: ChartFile = {
 
 /** fetch stub serving the fixtures; any key in `fail` returns HTTP 500. */
 export function stubFetch(fail: string[] = [], overrides: Record<string, unknown> = {}) {
+  clearCache(); // api.ts keeps responses for the session, so each case starts from nothing
   const table: Record<string, unknown> = { "strategies.json": strategies, "market.json": market, "charts/1d/XOM.json": chart, ...signals, ...overrides };
   vi.stubGlobal(
     "fetch",

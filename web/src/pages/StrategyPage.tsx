@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import { getSignals } from "../api";
+import { getSignals, prefetchChart } from "../api";
 import { ChartModal } from "../components/ChartModal";
 import { ErrorState, Loading } from "../components/Feedback";
 import { HistoryModal } from "../components/HistoryModal";
 import { StockCard } from "../components/StockCard";
 import { useAsync, useTimeframe } from "../hooks";
+import { loadChartView } from "../lib/chartViewLoader";
+import { whenIdle } from "../lib/prefetch";
 import { ALL_SECTORS, DEFAULT_FILTERS, filterSignals, sectorsOf, type Filters } from "../lib/filters";
 import { useStrategies } from "../strategiesContext";
 import type { SignalRow } from "../types";
@@ -20,6 +22,9 @@ export function StrategyPage() {
   const [showHistory, setShowHistory] = useState(false);
   const close = useCallback(() => setOpen(null), []);
   const closeHistory = useCallback(() => setShowHistory(false), []);
+  const warmChart = useCallback((r: SignalRow) => prefetchChart(tf, r.ticker), [tf]);
+  // Fetch the chart code before anyone clicks, so opening the first chart is one request, not two.
+  useEffect(() => whenIdle(loadChartView), []);
 
   const rows = signals.data?.signals ?? [];
   const sectors = useMemo(() => sectorsOf(rows), [rows]);
@@ -105,7 +110,7 @@ export function StrategyPage() {
           </p>
         ) : (
           <div className="grid">
-            {shown.map((r) => <StockCard key={`${r.ticker}-${r.side}`} row={r} onOpen={setOpen} />)}
+            {shown.map((r) => <StockCard key={`${r.ticker}-${r.side}`} row={r} onOpen={setOpen} onPrefetch={warmChart} />)}
           </div>
         )
       )}

@@ -11,6 +11,25 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:wght@500;600&display=swap" rel="stylesheet" />
+    <script>
+      // Ask for the data now rather than after the bundle has downloaded, parsed and mounted
+      // React — on a cold load that was about 200ms of doing nothing. The route is already in
+      // the hash at this point, so the list a visitor actually asked for can be fetched too.
+      // api.ts adopts these requests; see headStart() there.
+      (function () {
+        var hash = location.hash;
+        var paths = ["strategies.json", "market.json", "health.json"];
+        var onStrategy = hash.match(/^#\/strategy\/([^/?#]+)/);
+        if (onStrategy) paths.push(onStrategy[1] + "/" + (/[?&]tf=4h/.test(hash) ? "4h" : "1d") + ".json");
+        var started = {};
+        paths.forEach(function (path) {
+          var request = fetch("%BASE_URL%data/" + path);
+          request.catch(function () {}); // marks it handled; the real consumer still sees it reject
+          started[path] = request;
+        });
+        window.__preload = started;
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

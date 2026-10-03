@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { convictionLabel, convictionTitle, sparkColor } from "../lib/conviction";
 import { barsAgoLabel } from "../lib/filters";
 import type { SignalRow } from "../types";
@@ -11,7 +12,23 @@ const STALE_WHY =
   "This fired on an earlier bar and RSI has since crossed back past the level that triggered it, " +
   "so the setup described above no longer holds.";
 
-export function StockCard({ row, onOpen }: { row: SignalRow; onOpen: (row: SignalRow) => void }) {
+interface Props {
+  row: SignalRow;
+  onOpen: (row: SignalRow) => void;
+  /** Called once the pointer settles, to fetch this ticker's chart before it is asked for. */
+  onPrefetch?: (row: SignalRow) => void;
+}
+
+export function StockCard({ row, onOpen, onPrefetch }: Props) {
+  // Sweeping the mouse across the grid should not request forty charts, so the pointer has
+  // to rest on a card before its chart is fetched.
+  const timer = useRef<number | undefined>(undefined);
+  const cool = () => window.clearTimeout(timer.current);
+  const warm = () => {
+    cool();
+    if (onPrefetch) timer.current = window.setTimeout(() => onPrefetch(row), 150);
+  };
+  useEffect(() => cool, []);
   const badge = convictionLabel(row.conviction);
   const fired = `Fired ${new Date(row.fired_at).toLocaleString()}`;
   const why = convictionTitle(row.conviction, row.side);
@@ -20,6 +37,10 @@ export function StockCard({ row, onOpen }: { row: SignalRow; onOpen: (row: Signa
       type="button"
       className={`scard${row.conviction === "low" ? " weak" : ""}`}
       onClick={() => onOpen(row)}
+      onMouseEnter={warm}
+      onMouseLeave={cool}
+      onFocus={warm}
+      onBlur={cool}
       title={why ? `${fired}\n${why}` : fired}
     >
       <span className="row between">
