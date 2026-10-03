@@ -90,3 +90,46 @@ def test_daily_accepts_tz_aware_index():
     raw.index = raw.index.tz_localize(ET)
     out = to_daily(raw, AFTER_CLOSE)
     assert out.index.tolist() == [pd.Timestamp("2026-09-29", tz="UTC"), pd.Timestamp("2026-09-30", tz="UTC")]
+
+
+# ---- fetch_bars: retries and stale-bar detection ----
+from scanner import data as data_module  # noqa: E402
+
+
+def _multi(frames):
+    return pd.concat(frames, axis=1, sort=True)
+
+
+@pytest.fixture
+def no_sleep(monkeypatch):
+    monkeypatch.setattr(data_module, "RETRY_PAUSE", 0)
+    monkeypatch.setattr(data_module, "BATCH_PAUSE", 0)
+
+
+def test_fetch_retries_tickers_that_come_back_empty(monkeypatch, no_sleep):
+    calls = []
+
+    def fake_download(tickers, timeframe, now, attempts=3):
+        calls.append(list(tickers))
+        if len(calls) == 1:
+            return _multi({"AAA": _daily(["2026-09-29", "2026-09-30"])})  # BBB silently missing (throttled)
+        return _multi({"BBB": _daily(["2026-09-29", "2026-09-30"])})
+
+    monkeypatch.setattr(data_module, "_download", fake_download)
+    bars, failed = data_module.fetch_bars(["AAA", "BBB"], "1d", AFTER_CLOSE)
+    assert sorted(bars) == ["AAA", "BBB"] and failed == []
+    assert calls == [["AAA", "BBB"], ["BBB"]]  # only the missing ticker is re-requested
+
+
+def test_fetch_gives_up_after_three_attempts(monkeypatch, no_sleep):
+    calls = []
+    monkeypatch.setattr(data_module, "_download", lambda t, tf, now, attempts=3: calls.append(list(t)) or pd.DataFrame())
+    bars, failed = data_module.fetch_bars(["AAA"], "1d", AFTER_CLOSE)
+    assert bars == {} and failed == ["AAA"] and len(calls) == 3
+
+
+def test_fetch_flags_ticker_whose_last_bar_is_older_than_the_rest(monkeypatch, no_sleep):
+    raw = _multi({"AAA": _daily(["2026-09-29", "2026-09-30"]), "BBB": _daily(["2026-09-28", "2026-09-29"])})
+    monkeypatch.setattr(data_module, "_download", lambda t, tf, now, attempts=3: raw)
+    bars, failed = data_module.fetch_bars(["AAA", "BBB"], "1d", AFTER_CLOSE)
+    assert list(bars) == ["AAA"] and failed == ["BBB"]  # BBB (halted/delisted) must not look "fresh"

@@ -12,6 +12,9 @@ import yfinance as yf
 ET = "America/New_York"
 OHLCV = ["open", "high", "low", "close", "volume"]
 BATCH_SIZE = 50
+FETCH_ATTEMPTS = 3
+BATCH_PAUSE = 1.0  # seconds between batches, to stay under Yahoo's rate limit
+RETRY_PAUSE = 5.0  # multiplied by the attempt number
 HOURLY_LOOKBACK_DAYS = 729  # Yahoo rejects requests reaching back 730 days
 MIDDAY = pd.Timedelta(hours=13, minutes=30)  # end of the first 4H bar (ET)
 CLOSE = pd.Timedelta(hours=16)  # end of the second 4H bar / daily bar (ET)
@@ -81,22 +84,48 @@ def _download(tickers: "list[str]", timeframe: str, now: pd.Timestamp, attempts:
     return pd.DataFrame()
 
 
+def _frames(raw: pd.DataFrame, tickers: "list[str]", shape, now: pd.Timestamp) -> "dict[str, pd.DataFrame]":
+    out = {}
+    for ticker in tickers:
+        try:
+            sub = raw[ticker].dropna(how="all") if ticker in raw.columns.get_level_values(0) else None
+            frame = shape(sub, now) if sub is not None and not sub.empty else None
+        except Exception as exc:
+            log.warning("%s: %s", ticker, exc)
+            frame = None
+        if frame is not None and not frame.empty:
+            out[ticker] = frame
+    return out
+
+
 def fetch_bars(tickers: "list[str]", timeframe: str, now: pd.Timestamp) -> "tuple[dict[str, pd.DataFrame], list[str]]":
-    """Return ({ticker: closed-bar frame}, [tickers that returned no usable data])."""
+    """Return ({ticker: closed-bar frame}, [tickers with no usable or up-to-date data]).
+
+    yfinance rarely raises when throttled; it returns empty frames for some tickers instead, so
+    tickers that come back empty are re-requested (up to FETCH_ATTEMPTS). A ticker whose last
+    closed bar is older than the newest one in the universe (halted, delisted) is reported as
+    failed rather than shown as a fresh signal.
+    """
     shape = to_daily if timeframe == "1d" else to_four_hour
-    bars, failed = {}, []
+    bars: "dict[str, pd.DataFrame]" = {}
     for i in range(0, len(tickers), BATCH_SIZE):
-        chunk = tickers[i : i + BATCH_SIZE]
-        raw = _download(chunk, timeframe, now)
-        for ticker in chunk:
-            try:
-                sub = raw[ticker].dropna(how="all") if ticker in raw.columns.get_level_values(0) else None
-                frame = shape(sub, now) if sub is not None and not sub.empty else None
-            except Exception as exc:
-                log.warning("%s %s: %s", ticker, timeframe, exc)
-                frame = None
-            if frame is None or frame.empty:
-                failed.append(ticker)
-            else:
-                bars[ticker] = frame
+        pending = tickers[i : i + BATCH_SIZE]
+        for attempt in range(FETCH_ATTEMPTS):
+            if attempt:
+                time.sleep(RETRY_PAUSE * attempt)
+            got = _frames(_download(pending, timeframe, now), pending, shape, now)
+            bars.update(got)
+            pending = [t for t in pending if t not in got]
+            if not pending:
+                break
+        if i + BATCH_SIZE < len(tickers):
+            time.sleep(BATCH_PAUSE)
+    failed = [t for t in tickers if t not in bars]
+    if bars:
+        latest = max(df["close_time"].iloc[-1] for df in bars.values())
+        stale = [t for t, df in bars.items() if df["close_time"].iloc[-1] < latest]
+        for t in stale:
+            log.warning("%s %s: last bar %s is older than the universe's %s", t, timeframe, bars[t]["close_time"].iloc[-1], latest)
+            del bars[t]
+        failed += stale
     return bars, failed
