@@ -1,4 +1,4 @@
-import { SMC_COLORS, smc } from "./smc";
+import { SMC_COLORS, orderBlockFill, smc } from "./smc";
 import type { ChartFile } from "../types";
 
 type Bar = ChartFile["bars"][number];
@@ -101,6 +101,27 @@ describe("internal order blocks", () => {
 
   it("keeps no more blocks than asked for", () => {
     expect(smc(path(dip), { ...opts, internalObCount: 0 }).orderBlocks).toEqual([]);
+  });
+});
+
+describe("order block shading", () => {
+  const alpha = (fill: string) => Number(fill.match(/([\d.]+)\)$/)![1]);
+
+  it("draws the newest block darkest and fades the rest, without changing the hue", () => {
+    const fills = [0, 1, 2, 3, 4].map((i) => orderBlockFill("bull", i, 5));
+    expect(fills.map(alpha)).toEqual([0.24, 0.225, 0.21, 0.195, 0.18]);
+    expect(new Set(fills.map((f) => f.slice(0, f.lastIndexOf(","))))).toEqual(new Set(["rgba(49,121,245"]));
+  });
+
+  it("keeps the fade narrow enough that two overlapping blocks still read darker", () => {
+    const oldest = alpha(orderBlockFill("bear", 4, 5));
+    const overlap = 1 - (1 - oldest) ** 2; // two of the palest, composited
+    expect(overlap).toBeGreaterThan(alpha(orderBlockFill("bear", 0, 5)));
+  });
+
+  it("gives a lone block the freshest shade", () => {
+    expect(orderBlockFill("bear", 0, 1)).toBe(SMC_COLORS.internalBearOb);
+    expect(orderBlockFill("bull", 0, 1)).toBe(SMC_COLORS.internalBullOb);
   });
 });
 

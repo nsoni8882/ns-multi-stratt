@@ -21,12 +21,29 @@ type Bar = ChartFile["bars"][number]; // [time, open, high, low, close, volume]
 const BULLISH = 1;
 const BEARISH = -1;
 
+/**
+ * Order blocks fade slightly with age. LuxAlgo gives every block one colour per bias; this
+ * is a deliberate divergence, kept narrow on purpose. Two blocks that overlap still composite
+ * to something darker than either, and that overlap — a level reached twice — is the stronger
+ * signal, so the age fade must not drown it out.
+ */
+const OB_ALPHA = { newest: 0.24, oldest: 0.18 };
+const OB_RGB = { bull: "49,121,245", bear: "247,124,128" };
+
+/** Fill for the block at `index` of `count`, newest first. */
+export function orderBlockFill(bias: "bull" | "bear", index: number, count: number): string {
+  const age = count < 2 ? 0 : index / (count - 1);
+  const alpha = OB_ALPHA.newest + (OB_ALPHA.oldest - OB_ALPHA.newest) * age;
+  return `rgba(${OB_RGB[bias]},${Number(alpha.toFixed(3))})`;
+}
+
 /** LuxAlgo's defaults for the settings this chart leaves at their factory values. */
 export const SMC_COLORS = {
   bull: "#089981",
   bear: "#F23645",
-  internalBullOb: "rgba(49,121,245,0.2)",
-  internalBearOb: "rgba(247,124,128,0.2)",
+  /** The freshest shade of each; older blocks are drawn lighter. See orderBlockFill. */
+  internalBullOb: orderBlockFill("bull", 0, 1),
+  internalBearOb: orderBlockFill("bear", 0, 1),
   bullFvg: "rgba(0,255,104,0.3)",
   bearFvg: "rgba(255,0,8,0.3)",
   premium: "rgba(242,54,69,0.2)",
@@ -321,6 +338,7 @@ export function smc(bars: Bar[], options: SmcOptions = {}): Smc {
     }
   }
 
+  const blocks = orderBlocks.slice(0, obCount);
   const last = bars.length - 1;
   const zones: SmcZone[] = [];
   const trailing: TrailingLine[] = [];
@@ -347,12 +365,12 @@ export function smc(bars: Bar[], options: SmcOptions = {}): Smc {
 
   return {
     structure,
-    orderBlocks: orderBlocks.slice(0, obCount).map((ob) => ({
+    orderBlocks: blocks.map((ob, i) => ({
       from: ob.index,
       to: null,
       top: ob.high,
       bottom: ob.low,
-      fill: ob.bias === BULLISH ? SMC_COLORS.internalBullOb : SMC_COLORS.internalBearOb,
+      fill: orderBlockFill(ob.bias === BULLISH ? "bull" : "bear", i, blocks.length),
     })),
     fvgs: gaps.map((g) => ({
       from: g.from,

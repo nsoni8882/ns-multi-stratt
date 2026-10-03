@@ -135,7 +135,7 @@ export function ChartModal({ row, tf, strategyId, config, onClose }: Props) {
           {showSmc && (
             <>
               <span><i className="sw" style={{ background: SMC_COLORS.bull }} />BOS / CHoCH — a close through the last swing high or low</span>
-              <span><i className="sw" style={{ background: SMC_COLORS.internalBullOb }} />Order blocks, drawn until price trades through them</span>
+              <span><i className="sw" style={{ background: SMC_COLORS.internalBullOb }} />Order blocks, newest darkest, drawn until price trades through them</span>
               <span><i className="sw" style={{ background: SMC_COLORS.bullFvg }} />Fair value gaps</span>
               <span>Premium / Equilibrium / Discount split the last swing range</span>
             </>
