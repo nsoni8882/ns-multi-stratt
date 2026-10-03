@@ -4,8 +4,8 @@ import App from "./App";
 import { UPDATED, row, strategies, stubFetch } from "./test-fixtures";
 
 vi.mock("./components/ChartView", () => ({
-  ChartView: ({ data, strategyId, candleStyle }: { data: { ticker: string }; strategyId: string; candleStyle: string }) => (
-    <div data-testid="chart">{data.ticker}:{strategyId}:{candleStyle}</div>
+  ChartView: ({ data, strategyId, candleStyle, showSmc }: { data: { ticker: string }; strategyId: string; candleStyle: string; showSmc: boolean }) => (
+    <div data-testid="chart">{data.ticker}:{strategyId}:{candleStyle}:{showSmc ? "smc" : "plain"}</div>
   ),
 }));
 
@@ -232,6 +232,23 @@ describe("strategy page", () => {
     await user.click(screen.getByRole("button", { name: /XOM/ }));
     expect(within(await screen.findByRole("dialog")).getByRole("button", { name: "Real" })).toHaveAttribute("aria-pressed", "true");
     window.localStorage.removeItem("candleStyle");
+  });
+
+  it("draws the SMC overlay by default, turns it off, and remembers that", async () => {
+    const user = userEvent.setup();
+    window.localStorage.removeItem("showSmc");
+    render(<App />);
+    await user.click(await screen.findByRole("button", { name: /XOM/ }));
+    const dialog = await screen.findByRole("dialog");
+    const smc = within(dialog).getByRole("button", { name: "SMC" });
+    expect(smc).toHaveAttribute("aria-pressed", "true");
+    await within(dialog).findByText(/:smc/);
+    await user.click(smc);
+    await within(dialog).findByText(/:plain/);
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: /XOM/ }));
+    expect(within(await screen.findByRole("dialog")).getByRole("button", { name: "SMC" })).toHaveAttribute("aria-pressed", "false");
+    window.localStorage.removeItem("showSmc");
   });
 
   it("shows an error inside the modal when the chart file is missing", async () => {

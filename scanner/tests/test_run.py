@@ -76,12 +76,13 @@ def test_too_many_failed_tickers_aborts_before_writing(tmp_path):
     assert not out.exists()
 
 
-def test_chart_is_capped_at_250_bars(tmp_path):
-    long_buy = [100.0] * 100 + buy_closes()  # 295 bars, ends on the BUY bounce
+def test_chart_is_capped_at_500_bars(tmp_path):
+    long_buy = [100.0] * 400 + buy_closes()  # 595 bars, ends on the BUY bounce
     fetch = lambda t, tf, n: ({"AAA": make_df(long_buy)}, [])  # noqa: E731
     run(tmp_path / "data", tmp_path / "s.db", now=NOW, universe=UNIVERSE.iloc[:1], fetch=fetch)
     chart = json.loads((tmp_path / "data" / "charts" / "1d" / "AAA.json").read_text())
-    assert len(chart["bars"]) == 250
+    assert len(chart["bars"]) == 500
+    assert len(chart["rsi"]) == 500
 
 
 def test_run_writes_market_calendar_json(tmp_path):

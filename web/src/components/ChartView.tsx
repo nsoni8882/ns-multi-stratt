@@ -10,6 +10,8 @@ import {
 import { useEffect, useRef } from "react";
 import { COLORS, buildChartData } from "../lib/chartData";
 import { SignalLabelPrimitive } from "../lib/signalLabel";
+import { smc } from "../lib/smc";
+import { SmcOverlay } from "../lib/smcDraw";
 import type { CandleStyle, ChartConfig, ChartFile } from "../types";
 
 const ET = "America/New_York";
@@ -22,10 +24,12 @@ interface Props {
   config: ChartConfig;
   strategyId: string;
   candleStyle: CandleStyle;
+  /** Smart Money Concepts overlay: structure, order blocks, gaps and zones. */
+  showSmc: boolean;
 }
 
 /** TradingView-style chart: candles + signal marker, RSI pane with strategy levels, MACD pane. */
-export function ChartView({ data, config, strategyId, candleStyle }: Props) {
+export function ChartView({ data, config, strategyId, candleStyle, showSmc }: Props) {
   const host = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -62,6 +66,9 @@ export function ChartView({ data, config, strategyId, candleStyle }: Props) {
     }, 0);
     candles.setData(b.candles);
     b.markers.forEach((m) => candles.attachPrimitive(new SignalLabelPrimitive(m)));
+    // Structure is read off real OHLC even when Heikin-Ashi candles are drawn, the same way
+    // RSI and MACD are. Bar indices line up either way, so the overlay still registers.
+    if (showSmc) candles.attachPrimitive(new SmcOverlay(smc(data.bars)));
     if (b.showEmas) {
       chart.addSeries(LineSeries, { color: COLORS.ema50, lineWidth: 2, priceLineVisible: false, lastValueVisible: false, title: "" }, 0).setData(b.ema50);
       chart.addSeries(LineSeries, { color: COLORS.ema200, lineWidth: 2, priceLineVisible: false, lastValueVisible: false, title: "" }, 0).setData(b.ema200);
@@ -110,7 +117,7 @@ export function ChartView({ data, config, strategyId, candleStyle }: Props) {
     chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, b.candles.length - 130), to: b.candles.length + 6 });
 
     return () => chart.remove();
-  }, [data, config, strategyId, candleStyle]);
+  }, [data, config, strategyId, candleStyle, showSmc]);
 
   const last = data.signals.find((s) => s.strategy_id === strategyId);
   return (

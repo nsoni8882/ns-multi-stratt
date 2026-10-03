@@ -7,7 +7,10 @@ import pandas as pd
 
 from scanner.indicators import ema, macd, rsi
 
-CHART_BARS = 250
+# The site's Smart Money Concepts overlay confirms a swing pivot with 50 bars either side,
+# so 250 bars left it with three or four pivots to work from. Both feeds carry more than
+# this: daily fetches 2y (~500 sessions) and 4h resamples 729 days of hourly.
+CHART_BARS = 500
 
 
 def unix(ts: pd.Timestamp) -> int:

@@ -4,6 +4,7 @@ import { useAsync } from "../hooks";
 import type { CandleStyle, ChartConfig, SignalRow, Timeframe } from "../types";
 import { ChartView } from "./ChartView";
 import { COLORS } from "../lib/chartData";
+import { SMC_COLORS } from "../lib/smc";
 import { ErrorState, Loading } from "./Feedback";
 import { SignalPill } from "./SignalPill";
 import { signalReason } from "../lib/signalReason";
@@ -17,12 +18,30 @@ interface Props {
 }
 
 const PREF_KEY = "candleStyle";
+const SMC_KEY = "showSmc";
 
+/** Both preferences fall back to their default when storage is blocked (private mode). */
 function readStyle(): CandleStyle {
   try {
     return window.localStorage.getItem(PREF_KEY) === "real" ? "real" : "ha";
   } catch {
-    return "ha"; // storage can be blocked (private mode)
+    return "ha";
+  }
+}
+
+function readSmc(): boolean {
+  try {
+    return window.localStorage.getItem(SMC_KEY) !== "off";
+  } catch {
+    return true;
+  }
+}
+
+function remember(key: string, value: string): void {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    /* the preference just isn't remembered */
   }
 }
 
@@ -30,13 +49,16 @@ export function ChartModal({ row, tf, strategyId, config, onClose }: Props) {
   const chart = useAsync(() => getChart(tf, row.ticker), [tf, row.ticker]);
   const closeBtn = useRef<HTMLButtonElement>(null);
   const [style, setStyle] = useState<CandleStyle>(readStyle);
+  const [showSmc, setShowSmc] = useState<boolean>(readSmc);
   const pick = (next: CandleStyle) => {
     setStyle(next);
-    try {
-      window.localStorage.setItem(PREF_KEY, next);
-    } catch {
-      /* preference just isn't remembered */
-    }
+    remember(PREF_KEY, next);
+  };
+  const toggleSmc = () => {
+    setShowSmc((on) => {
+      remember(SMC_KEY, on ? "off" : "on");
+      return !on;
+    });
   };
 
   useEffect(() => {
@@ -77,10 +99,13 @@ export function ChartModal({ row, tf, strategyId, config, onClose }: Props) {
             <button type="button" aria-pressed={style === "ha"} onClick={() => pick("ha")}>Heikin-Ashi</button>
             <button type="button" aria-pressed={style === "real"} onClick={() => pick("real")}>Real</button>
           </div>
+          <div className="seg" role="group" aria-label="Overlays">
+            <button type="button" aria-pressed={showSmc} onClick={toggleSmc} title="Structure, order blocks, fair value gaps and premium/discount zones">SMC</button>
+          </div>
         </div>
         {chart.loading && <Loading what="chart" />}
         {chart.error && <ErrorState error={chart.error} onRetry={chart.retry} />}
-        {chart.data && <ChartView data={chart.data} config={config} strategyId={strategyId} candleStyle={style} />}
+        {chart.data && <ChartView data={chart.data} config={config} strategyId={strategyId} candleStyle={style} showSmc={showSmc} />}
         <div className="why">
           <div className="whysig"><SignalPill side={row.side} conviction={row.conviction} /></div>
           <p>{signalReason(strategyId, row)}</p>
@@ -92,8 +117,16 @@ export function ChartModal({ row, tf, strategyId, config, onClose }: Props) {
               <span><i className="sw" style={{ background: COLORS.ema200 }} />EMA 200</span>
             </>
           )}
+          {showSmc && (
+            <>
+              <span><i className="sw" style={{ background: SMC_COLORS.bull }} />BOS / CHoCH — a close through the last swing high or low</span>
+              <span><i className="sw" style={{ background: SMC_COLORS.internalBullOb }} />Order blocks, drawn until price trades through them</span>
+              <span><i className="sw" style={{ background: SMC_COLORS.bullFvg }} />Fair value gaps</span>
+              <span>Premium / Equilibrium / Discount split the last swing range</span>
+            </>
+          )}
           <span>The BUY / SELL box marks the candle where the signal fired</span>
-          <span>RSI, MACD and EMAs always use real closing prices</span>
+          <span>RSI, MACD, EMAs{showSmc && " and the SMC overlay"} always use real prices, not Heikin-Ashi</span>
           <span>Terracotta lines = this strategy's RSI levels and MACD thresholds</span>
         </div>
       </div>
