@@ -85,9 +85,20 @@ export function ChartView({ data, config, strategyId, candleStyle, showSmc }: Pr
       price: 0, color: COLORS.rsi, lineWidth: 1, lineStyle: LineStyle.Dotted,
       axisLabelVisible: false, title: "",
     });
+    // The crosshair's own price tag reports wherever the pointer happens to sit on that pane's
+    // scale. Over the candles that is the price under the cursor, which is worth having. Over
+    // RSI or MACD it is an arbitrary y value, and it lands on a gridline label and covers half
+    // of it. So it follows the pointer between panes; the tags below carry the real numbers.
+    let priceTagOn = true;
     chart.subscribeCrosshairMove((param) => {
       const v = param.time === undefined ? undefined : rsiAt.get(param.time as number);
       hover.applyOptions(v === undefined ? { axisLabelVisible: false } : { price: v, axisLabelVisible: true });
+      if (param.paneIndex === undefined) return; // pointer left the chart; the crosshair is gone anyway
+      const onPrice = param.paneIndex === 0;
+      if (onPrice !== priceTagOn) {
+        priceTagOn = onPrice;
+        chart.applyOptions({ crosshair: { horzLine: { labelVisible: onPrice } } });
+      }
     });
     [30, 50, 70].forEach((price) =>
       rsi.createPriceLine({ price, color: "#E0D6C8", lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: false, title: "" }),
