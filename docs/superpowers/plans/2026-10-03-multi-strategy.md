@@ -12,6 +12,8 @@
 
 **Verified:** every code block below was run in a scratch copy before being written here (49 scanner tests incl. a live-Yahoo smoke test, 24 web tests, a production build, a 250-ticker real scan, browser screenshots of the real charts, and the workflow's `data`-branch shell logic against a local bare repo). If a block fails when you paste it, that is a bug in this plan: stop and report rather than improvising.
 
+**Post-review changes (after execution):** a whole-branch review led to these changes, which supersede the code blocks below where they differ: `SignalStore` creates its parent directory; `fetch_bars` retries empty tickers (3 attempts), pauses between batches, and reports tickers with stale last bars as failed; the stale banner counts weekday hours only (threshold 48, not 36); the sector filter resets when the timeframe changes; scheduled workflow runs skip the test steps. See `git log` and the spec.
+
 ## Global Constraints
 
 - Project root: `/Users/niksoni/Development/NS-Multi-Stratt`. Python tests run as `.venv/bin/python -m pytest -q` from the root; web commands run from `web/`.
