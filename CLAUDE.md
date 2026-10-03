@@ -10,6 +10,7 @@ timeframes, writes static JSON, and a React site renders it. No server, no live 
 cd web && npm test -- --run                                  # web tests (~2s)
 .venv/bin/python -m scanner.run --out web/public/data --db signals.db   # full scan (network)
 .venv/bin/python -m research.measure                         # backtest variants (network, cached)
+.venv/bin/python -m research.news_judgment --dry-run         # news state for live signals, no API call
 ```
 
 Always use `.venv/bin/python` — there is no activated environment, and the system Python

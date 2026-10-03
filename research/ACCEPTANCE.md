@@ -20,3 +20,26 @@ not shipped and not quietly re-tried with a different threshold.
 
 Anything that only tightens entry criteria also has to justify its cost in signal count: a
 gate that halves n to buy 2bp of alpha makes the screener quieter without making it better.
+
+## The bar for the news judgment (written 2026-10-03, before any judgments existed)
+
+`research/news_judgment.py` records a model's reading of the news behind each live signal. It
+is a recorder today and must stay one until all of the following hold. Written now, while the
+sample is empty, for the same reason as the rules above: so the threshold cannot be chosen
+once the numbers are in.
+
+1. **A real sample.** n_independent ≥ 500 judged signals, accumulated forward. Judgments made
+   about a bar after the fact do not count, whatever the source claims.
+2. **The usual five**, unchanged, applied to the filtered variant against the shipped rule.
+3. **The judgment has to be answerable.** Signals where `substantive_company_news` is low are
+   excluded from the test rather than counted as "no adverse event" — an empty feed is missing
+   evidence, not a verdict.
+4. **Stability across the probability threshold.** The result must hold over a range of cutoffs
+   (say 0.6 to 0.9), not at one tuned value. A finding that exists only at p > 0.83 is a
+   fitted threshold, not an effect.
+5. **A model version is part of the rule.** The answers carry the model that produced them.
+   If that version changes mid-sample, the sample splits; results do not carry across it.
+
+Ship order if it ever clears the bar: flag first (extend the existing "Setup changed" label),
+conviction demotion second, entry gate last and only on its own evidence. Each step goes into
+`params` and needs its own history entry.

@@ -121,6 +121,28 @@ So they are flagged, not dropped. The defect was never that the signal lost mone
 leg loses money by construction — it was that the card described a setup that no longer
 held. That is a labelling bug with a labelling fix.
 
+## Open, unmeasured: does the *reason* for a dip matter? (news judgment)
+
+Every gate tried so far asks the price series a sharper question, and every one has failed.
+The one question the price series cannot answer is *why* the dip happened. Trend Pullback
+assumes an RSI dip inside an uptrend is noise; the failure mode it cannot see is the dip that
+is a company coming apart — guidance pulled, an investigation opened, a trial failed.
+
+`research/news_judgment.py` records a semantic judgment of that, per live signal, using
+TypeSafe's Jev model (two Nouls: is there a company-specific adverse event, and is this feed
+substantive at all). **It is a recorder, not a gate.** It reads the published lists, writes to
+`research/judgments/`, and touches nothing in `scanner/`.
+
+It is built forward rather than backtested on purpose. A 12-year news corpus that can be
+obtained today is edited after the fact and missing de-listed names, so measuring against it
+would manufacture an edge instead of testing one. The sample therefore accumulates in real
+time and cannot be scored until it is large enough — see `ACCEPTANCE.md` for the bar, which
+was written before any of these numbers exist.
+
+Known weakness to fix before the sample is worth much: the news source is Yahoo's RSS feed,
+which throttles hard (429 after a handful of requests) and carries a lot of listicle noise.
+`fetch_headlines` is one function, so swapping in a real news API changes nothing else.
+
 ## Standing guards
 
 Two things from these runs should stay regardless of what is tested next: score the
