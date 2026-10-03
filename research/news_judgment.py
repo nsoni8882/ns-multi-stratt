@@ -37,6 +37,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import requests
+from curl_cffi import requests as curl_requests
 from lxml import etree
 
 JUDGMENTS_DIR = Path(__file__).parent / "judgments"
@@ -127,13 +128,19 @@ def parse_feed(xml: bytes, limit: int = MAX_HEADLINES) -> "list[Headline]":
     return out
 
 
-def fetch_headlines(ticker: str, session: "requests.Session | None" = None,
-                    attempts: int = 3) -> "list[Headline]":
-    """Yahoo throttles this feed aggressively -- a few requests in quick succession earn a 429
-    -- so back off and retry rather than dropping the name from the sample."""
-    get = (session or requests).get
+def news_session():
+    """Yahoo 429s plain `requests` on the first call regardless of User-Agent -- it fingerprints
+    the TLS handshake, not the header. curl_cffi impersonates Chrome's and is answered normally;
+    it is already a dependency here because yfinance uses it for the same reason."""
+    return curl_requests.Session(impersonate="chrome")
+
+
+def fetch_headlines(ticker: str, session=None, attempts: int = 3) -> "list[Headline]":
+    """Headlines for one ticker. Still retries on a 429: impersonation gets past the blanket
+    block, not past a genuine rate limit on a long sweep."""
+    session = session or news_session()
     for attempt in range(1, attempts + 1):
-        r = get(NEWS_URL.format(ticker=ticker), headers={"User-Agent": UA}, timeout=TIMEOUT)
+        r = session.get(NEWS_URL.format(ticker=ticker), headers={"User-Agent": UA}, timeout=TIMEOUT)
         if r.status_code == 429 and attempt < attempts:
             time.sleep(RETRY_PAUSE * attempt)
             continue
@@ -283,13 +290,13 @@ def run(data_dir: Path, out_dir: Path, dry_run: bool = False, limit: "int | None
         return 0
 
     key = None if dry_run else api_key()
-    session = requests.Session()
+    news, api = news_session(), requests.Session()
     records, failures = [], 0
     for n, (strategy_id, timeframe, row) in enumerate(todo):
         if n:
             time.sleep(PAUSE)  # every iteration, not just the ones that reached the model
         try:
-            headlines = fetch_headlines(row["ticker"], session)
+            headlines = fetch_headlines(row["ticker"], news)
         except Exception as exc:  # a dead feed for one name must not stop the sweep
             log.warning("%s: news fetch failed: %s", row["ticker"], exc)
             failures += 1
@@ -299,7 +306,7 @@ def run(data_dir: Path, out_dir: Path, dry_run: bool = False, limit: "int | None
             print(json.dumps(state, indent=1))
             continue
         try:
-            response = judge(state, key, session)
+            response = judge(state, key, api)
         except Exception as exc:
             log.warning("%s: judgment failed: %s", row["ticker"], exc)
             failures += 1
