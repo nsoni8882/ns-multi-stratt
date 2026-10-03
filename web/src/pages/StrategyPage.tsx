@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { getSignals } from "../api";
 import { ChartModal } from "../components/ChartModal";
 import { ErrorState, Loading } from "../components/Feedback";
+import { HistoryModal } from "../components/HistoryModal";
 import { StockCard } from "../components/StockCard";
 import { useAsync, useTimeframe } from "../hooks";
 import { ALL_SECTORS, DEFAULT_FILTERS, filterSignals, sectorsOf, type Filters } from "../lib/filters";
@@ -16,6 +17,7 @@ export function StrategyPage() {
   const signals = useAsync(() => getSignals(id, tf), [id, tf]);
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [open, setOpen] = useState<SignalRow | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
   const close = useCallback(() => setOpen(null), []);
 
   const rows = signals.data?.signals ?? [];
@@ -32,8 +34,34 @@ export function StrategyPage() {
 
   return (
     <>
+      {showHistory && (
+        <HistoryModal
+          strategyName={strategy.name}
+          history={strategy.history ?? []}
+          onClose={() => setShowHistory(false)}
+        />
+      )}
       <section className="hero">
-        <h1>{strategy.name}</h1>
+        <div className="row title">
+          <h1>{strategy.name}</h1>
+          {strategy.version && (
+          <button
+            type="button"
+            className="histbtn"
+            aria-label={`Change history for ${strategy.name}, currently version ${strategy.version}`}
+            title={`v${strategy.version} — view change history`}
+            onClick={() => setShowHistory(true)}
+          >
+            {/* clock-with-arrow: "history", not "info" */}
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M12 8v4l3 2" />
+              <path d="M3.1 13a9 9 0 1 0 2.6-7.1" />
+              <path d="M3 4v4h4" />
+            </svg>
+            <span className="vtag">v{strategy.version}</span>
+          </button>
+          )}
+        </div>
         <p>{strategy.description}</p>
       </section>
 

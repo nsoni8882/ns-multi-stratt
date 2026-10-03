@@ -108,6 +108,35 @@ main { max-width: 1120px; margin: 0 auto; padding: 12px 32px 40px; min-height: 6
 .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); margin-top: 8px; }
 @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+/* --- strategy change history --- */
+/* The icon sits on the hero title row, so the title stays centred with the button beside it. */
+.hero .title { justify-content: center; gap: 10px; flex-wrap: wrap; }
+.histbtn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px 5px 9px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+  color: var(--muted); min-height: 34px; cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.histbtn:hover, .histbtn:focus-visible { color: var(--accent); border-color: var(--accent-fill); }
+.histbtn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.histbtn .vtag { font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.sheet.narrow { max-width: 560px; }
+.history { list-style: none; display: flex; flex-direction: column; gap: 2px; }
+/* Timeline rail: newest at the top, so the marker column reads downward into the past. */
+.history li { position: relative; padding: 0 0 18px 22px; border-left: 2px solid var(--border); }
+.history li:last-child { border-left-color: transparent; padding-bottom: 2px; }
+.history li::before {
+  content: ""; position: absolute; left: -6px; top: 6px; width: 10px; height: 10px;
+  border-radius: 999px; background: var(--border);
+}
+.history li:first-child::before { background: var(--accent-fill); }
+.history .row { align-items: baseline; gap: 8px; }
+.history .ver { font-weight: 700; font-variant-numeric: tabular-nums; }
+.history .now { font-size: 11px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; color: var(--accent); }
+.history time { font-size: 12.5px; color: var(--muted); margin-left: auto; font-variant-numeric: tabular-nums; }
+.history p { color: var(--muted); margin-top: 3px; max-width: 54ch; }
+
 @media (max-width: 700px) {
   /* Top bar: brand + timeframe on the first row, a swipeable nav row below */
   .top { display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; padding-top: 10px; padding-bottom: 6px; }

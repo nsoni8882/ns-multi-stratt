@@ -247,3 +247,64 @@ describe("strategy page", () => {
     expect(await screen.findByText(/Unknown strategy/)).toBeInTheDocument();
   });
 });
+
+describe("strategy change history", () => {
+  beforeEach(() => {
+    window.location.hash = "#/strategy/trend-pullback";
+  });
+
+  it("shows the current version next to the strategy name", async () => {
+    render(<App />);
+    await screen.findByRole("heading", { name: "Trend Pullback" });
+    expect(screen.getByRole("button", { name: /change history for Trend Pullback/i })).toHaveTextContent("v1.2.0");
+  });
+
+  it("opens the history overlay on click, latest version first", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: "Trend Pullback" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /change history/i }));
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveAccessibleName("Trend Pullback change history");
+    const versions = within(dialog).getAllByRole("listitem").map((li) => li.querySelector(".ver")?.textContent);
+    expect(versions).toEqual(["v1.2.0", "v1.1.0", "v1.0.0"]);
+    expect(within(dialog).getByText(/none beat the current rules/)).toBeInTheDocument();
+  });
+
+  it("closes the overlay again", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: "Trend Pullback" });
+    await user.click(screen.getByRole("button", { name: /change history/i }));
+    await user.click(screen.getByRole("button", { name: /close change history/i }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("shows each strategy its own history", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/strategy/macd-rsi-reversal";
+    render(<App />);
+    await screen.findByRole("heading", { name: "MACD + RSI Reversal" });
+    await user.click(screen.getByRole("button", { name: /change history/i }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getAllByRole("listitem")).toHaveLength(2);
+    expect(within(dialog).getByText(/conviction tier/)).toBeInTheDocument();
+  });
+});
+
+describe("strategy page with data written before versioning shipped", () => {
+  it("renders without a history button instead of showing 'vundefined'", async () => {
+    const legacy = {
+      ...strategies,
+      strategies: strategies.strategies.map(({ version, history, rules_version, ...rest }) => rest),
+    };
+    stubFetch([], { "strategies.json": legacy });
+    window.location.hash = "#/strategy/trend-pullback";
+    render(<App />);
+    await screen.findByRole("heading", { name: "Trend Pullback" });
+    expect(screen.queryByRole("button", { name: /change history/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/vundefined/)).not.toBeInTheDocument();
+  });
+});

@@ -35,6 +35,33 @@ HIGH, STANDARD, LOW = "high", "standard", "low"
 CONVICTION_RANK = {HIGH: 0, STANDARD: 1, LOW: 2}  # sort key: strongest signals listed first
 
 
+@dataclass(frozen=True)
+class Release:
+    """One entry in a strategy's visible change history.
+
+    `summary` is one or two lines at the altitude a reader of the site cares about -- what
+    changed about the signals, not which function moved. `fingerprint` is the
+    `rules_version()` of the params this release shipped with, and only the newest entry
+    needs it: a test asserts it still matches, so changing a threshold without adding a
+    release entry fails the build. That is the whole point -- the history cannot drift out
+    of date, because the thing that would make it stale is what breaks the test.
+    """
+
+    version: str  # "1.2.0"
+    date: str  # ISO date, YYYY-MM-DD
+    summary: str
+    fingerprint: str = ""
+
+    def as_dict(self) -> dict:
+        return {"version": self.version, "date": self.date, "summary": self.summary}
+
+
+def current_version(history: "tuple[Release, ...]") -> str:
+    """The version a strategy is running now. History is declared newest-first, like a
+    CHANGELOG, so new entries are added at the top and this never needs updating."""
+    return history[0].version if history else "0.0.0"
+
+
 def rules_version(params: dict) -> str:
     """Short stable fingerprint of the parameters that decide whether a signal fires.
 
@@ -67,6 +94,7 @@ class Strategy(Protocol):
     min_bars: int
     chart: dict  # how the site draws this strategy's chart: rsi_levels, macd_deep, emas
     params: dict  # the thresholds that decide a signal, fingerprinted by rules_version()
+    history: "tuple[Release, ...]"  # newest first; shown in the site's history overlay
 
     def evaluate(self, df: pd.DataFrame) -> "Signal | None": ...
 

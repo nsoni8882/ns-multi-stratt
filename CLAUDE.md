@@ -53,6 +53,14 @@ every history row, so a stale deploy is detectable and two rule generations neve
 `signals.db`. **A new gate must be added to `params`** or it changes signals without changing
 the fingerprint — there is a test pinning this.
 
+**Every strategy carries a visible change history.** `history` on the strategy class is a
+newest-first tuple of `Release` entries (semver, date, one or two plain-English lines about
+what changed for a signal, no identifiers). It is published in `strategies.json` and shown in
+the site's history overlay behind the clock icon next to the strategy name. The newest entry
+records the `rules_version` fingerprint it shipped with and `scanner/tests/test_history.py`
+asserts it still matches, **so changing a threshold without adding a history entry fails the
+build** — that is deliberate, and it is what keeps the published history honest.
+
 **Conviction tiers** (`base.py`) are `high`/`standard`/`low`, sorted strongest-first by
 `CONVICTION_RANK`. They encode measured edge, not enthusiasm.
 

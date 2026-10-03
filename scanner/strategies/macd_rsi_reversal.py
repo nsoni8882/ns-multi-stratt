@@ -1,7 +1,8 @@
 import pandas as pd
 
 from scanner.indicators import crossed_above, crossed_below, macd, rsi
-from scanner.strategies.base import HIGH, LOW, SIGNAL_WINDOW, STANDARD, Signal, make_signal
+from scanner.strategies.base import (HIGH, LOW, SIGNAL_WINDOW, STANDARD, Release, Signal,
+                                     make_signal)
 
 HIST_WINDOW = 100  # trailing bars used to rank the histogram
 HIST_QUANTILE = 0.10  # "deep" = bottom/top 10% of the trailing window
@@ -54,6 +55,17 @@ class MacdRsiReversal:
         "short leg of this setup did not beat holding cash over 12 years of backtesting."
     )
     min_bars = 150
+    # Newest first. See TrendPullback.history -- the top fingerprint is build-asserted.
+    history = (
+        Release("1.1.0", "2026-10-03",
+                "Signals now carry a conviction tier. An RSI cross below 20 beat the market "
+                "by 3.97% over the next 20 days against 0.78% for a cross below 25, so the "
+                "deeper ones are marked stronger and listed first.",
+                fingerprint="aa531796650b"),
+        Release("1.0.0", "2026-10-03",
+                "First version. Looks for exhaustion: a deeply negative MACD histogram in "
+                "the last 5 bars plus RSI(14) turning up out of oversold territory."),
+    )
     params = {
         "min_bars": 150, "hist_window": HIST_WINDOW, "hist_quantile": HIST_QUANTILE,
         "deep_lookback": DEEP_LOOKBACK, "rsi_low": RSI_LOW, "rsi_low_standard": RSI_LOW_STANDARD,

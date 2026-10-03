@@ -3,7 +3,8 @@ from dataclasses import asdict, dataclass
 import pandas as pd
 
 from scanner.indicators import adx, crossed_above, crossed_below, ema, rising, rsi
-from scanner.strategies.base import HIGH, LOW, SIGNAL_WINDOW, STANDARD, Signal, make_signal
+from scanner.strategies.base import (HIGH, LOW, SIGNAL_WINDOW, STANDARD, Release, Signal,
+                                     make_signal)
 
 # Cardwell's RSI range shift: RSI oscillates 40-80 in an uptrend (40 acts as support) and
 # 20-60 in a downtrend (60 acts as resistance). The classic 30/70 and 20/80 bands were built
@@ -181,6 +182,23 @@ class TrendPullback:
 
     def __init__(self, config: TrendPullbackConfig = DEFAULT_CONFIG):
         self.config = config
+
+    # Newest first. Add an entry at the top whenever `params` changes -- the fingerprint on
+    # the top entry is asserted against the live one, so the build fails otherwise.
+    history = (
+        Release("1.2.0", "2026-10-03",
+                "Tested a deeper RSI trigger, an ADX trend-strength filter and three "
+                "versions of a 'price must come back to the 50 EMA' rule over 12 years. "
+                "None of them beat the current rules, so nothing changed.",
+                fingerprint="165d10977239"),
+        Release("1.1.0", "2026-10-03",
+                "Raised the minimum history from 250 to 400 bars, because the 200 EMA is "
+                "still distorted by its own starting value before then. Short signals are "
+                "now shown as weaker than long ones: over 12 years they did not make money."),
+        Release("1.0.0", "2026-10-03",
+                "First version. Buys a pullback in an uptrend -- price above the 200 EMA "
+                "with the 50 EMA above it, and RSI(14) dipping under 40 then recovering."),
+    )
 
     @property
     def params(self) -> dict:

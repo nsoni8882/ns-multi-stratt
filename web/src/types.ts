@@ -10,12 +10,26 @@ export interface ChartConfig {
   emas: boolean;
 }
 
+/** One entry in a strategy's change history, newest first. See scanner/strategies/base.py. */
+export interface Release {
+  version: string;
+  /** ISO date, YYYY-MM-DD */
+  date: string;
+  summary: string;
+}
+
 export interface StrategySummary {
   id: string;
   name: string;
   description: string;
   chart: ChartConfig;
   timeframes: Record<Timeframe, { buy: number; sell: number }>;
+  /** Semver of the rules that produced these lists. Optional: a cached strategies.json
+   *  written before versioning shipped has no version, and must still render. */
+  version?: string;
+  history?: Release[];
+  /** Fingerprint of the thresholds in force; changes whenever the rules do. */
+  rules_version?: string;
 }
 
 export interface StrategiesFile {

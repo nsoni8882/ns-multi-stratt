@@ -13,7 +13,7 @@ from scanner.export import chart_payload, signal_row, write_json
 from scanner.market import market_payload
 from scanner.store import SignalRecord, SignalStore
 from scanner.strategies import STRATEGIES
-from scanner.strategies.base import CONVICTION_RANK, Signal, rules_version
+from scanner.strategies.base import CONVICTION_RANK, Signal, current_version, rules_version
 from scanner.universe import load_universe
 
 TIMEFRAMES = ("4h", "1d")
@@ -88,7 +88,9 @@ def run(out_dir: Path, db_path: Path, now: "pd.Timestamp | None" = None,
         # produced the lists, and so a stale deploy after an algo change is detectable.
         summaries.append({"id": strat.id, "name": strat.name, "description": strat.description,
                           "chart": strat.chart, "timeframes": counts,
-                          "rules_version": rules_version(strat.params)})
+                          "rules_version": rules_version(strat.params),
+                          "version": current_version(strat.history),
+                          "history": [r.as_dict() for r in strat.history]})
     write_json(out_dir / "strategies.json", {"updated_at": updated_at, "strategies": summaries})
     write_json(out_dir / "market.json", market_payload(now))
 

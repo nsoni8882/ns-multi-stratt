@@ -26,6 +26,12 @@ export const strategies: StrategiesFile = {
       description: "Histogram climbs from a deep low while RSI crosses back above 20.",
       chart: { rsi_levels: [20, 25, 80], macd_deep: true, emas: false },
       timeframes: { "1d": { buy: 1, sell: 1 }, "4h": { buy: 1, sell: 0 } },
+      version: "1.1.0",
+      rules_version: "aa531796650b",
+      history: [
+        { version: "1.1.0", date: "2026-10-03", summary: "Signals now carry a conviction tier." },
+        { version: "1.0.0", date: "2026-10-01", summary: "First version." },
+      ],
     },
     {
       id: "trend-pullback",
@@ -33,6 +39,13 @@ export const strategies: StrategiesFile = {
       description: "Pullback in an established trend.",
       chart: { rsi_levels: [40, 60], macd_deep: false, emas: true },
       timeframes: { "1d": { buy: 0, sell: 0 }, "4h": { buy: 0, sell: 0 } },
+      version: "1.2.0",
+      rules_version: "165d10977239",
+      history: [
+        { version: "1.2.0", date: "2026-10-03", summary: "Tested extra filters; none beat the current rules." },
+        { version: "1.1.0", date: "2026-10-02", summary: "Raised the minimum history to 400 bars." },
+        { version: "1.0.0", date: "2026-10-01", summary: "First version." },
+      ],
     },
   ],
 };
