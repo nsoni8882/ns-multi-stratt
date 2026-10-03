@@ -123,7 +123,7 @@ def test_dip_depth_stops_at_the_level_not_at_an_earlier_dip():
 
 def test_depth_tiers_grade_conviction_by_how_deep_the_pullback_went():
     close, ema50, ema200 = series([110] * 5), series([105] * 5), series([100] * 5)
-    cfg = VARIANTS["tiered"]
+    cfg = VARIANTS["tiered-deep-is-strong"]
     deep = series([50, 45, 38, 28, 41])
     shallow = series([50, 45, 39, 38, 41])
     mid = series([50, 45, 38, 33, 41])

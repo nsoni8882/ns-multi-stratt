@@ -2,15 +2,21 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from research.measure import Row, independent, pick_tickers, scan_ticker, stats, to_markdown
+from research.measure import (Row, by_year, era_midpoints, independent, measure, pick_tickers,
+                              position, scan_ticker, stats, to_markdown, unconditional)
 from scanner.strategies.trend_pullback import MIN_BARS, VARIANTS, TrendPullbackConfig
 from scanner.tests.conftest import make_df
 
 HORIZON = 20
 
 
-def _row(ticker="AAA", bar=0, side="BUY", conviction="standard", fwd=0.0, baseline=0.0):
-    return Row(ticker, bar, side, conviction, fwd, baseline)
+def _meta(tickers=3, bars=9000):
+    return {"tickers": tickers, "years": 12, "horizon": 20, "bars": bars, "generated": "2026-10-03",
+            "base": {"n": 400000, "mean": 0.0148, "win": 0.576}}
+
+
+def _row(ticker="AAA", bar=0, side="BUY", conviction="standard", fwd=0.0, baseline=0.0, year=2020):
+    return Row(ticker, bar, year, side, conviction, fwd, baseline)
 
 
 def test_independent_thins_overlapping_windows_per_ticker_and_side():
@@ -107,7 +113,7 @@ def test_a_lower_rsi_trigger_moves_the_entry_rather_than_filtering_it():
 def test_tiered_variant_keeps_the_same_signals_and_only_relabels_them():
     df = make_df(_uptrend())
     shipped = sorted(r.bar for r in scan_ticker(df, VARIANTS["shipped"], HORIZON) if r.side == "BUY")
-    tiered = scan_ticker(df, VARIANTS["tiered"], HORIZON)
+    tiered = scan_ticker(df, VARIANTS["tiered-deep-is-strong"], HORIZON)
     assert sorted(r.bar for r in tiered if r.side == "BUY") == shipped
     assert {r.conviction for r in tiered if r.side == "BUY"} - {"high", "standard", "low"} == set()
 
@@ -127,14 +133,90 @@ def test_pick_tickers_returns_everything_when_asked_for_more_than_exists():
 
 def test_to_markdown_renders_a_row_per_leg():
     results = {"shipped": {"BUY": stats([_row(fwd=0.01)] * 1, HORIZON), "SELL": {"n": 0}, "by_conviction": {}}}
-    meta = {"tickers": 3, "years": 12, "horizon": 20, "bars": 9000, "generated": "2026-10-03"}
-    out = to_markdown(results, meta)
+    out = to_markdown(results, _meta())
     assert "| shipped | BUY |" in out and "| shipped | SELL | 0 |" in out
     assert "3 S&P names, 12y of daily bars" in out
+    assert "57.6% of the time" in out  # the do-nothing benchmark is stated, not left implicit
 
 
 def test_to_markdown_notes_the_overlap_caveat():
     """The naive t-stat is the main trap in this measurement; the report must say so."""
-    meta = {"tickers": 1, "years": 12, "horizon": 20, "bars": 1, "generated": "2026-10-03"}
-    out = to_markdown({}, meta)
+    out = to_markdown({}, _meta(tickers=1, bars=1))
     assert "overlap" in out.lower() and "ignored" in out.lower()
+
+
+def test_sell_leg_is_scored_as_a_short_against_cash():
+    """A stock rising after a SELL is a loss, and the short's alternative is cash, not
+    holding the name it shorts -- otherwise a losing short scores positive alpha whenever
+    the stock rose less than its own average."""
+    rows = [_row(bar=b * 50, side="SELL", fwd=0.03, baseline=0.05) for b in range(10)]
+    s = stats(rows, HORIZON, "SELL")
+    assert s["mean"] == pytest.approx(-0.03)  # the short lost 3%
+    assert s["baseline"] == 0.0
+    assert s["alpha"] == pytest.approx(-0.03)
+    assert s["win"] == 0.0
+
+
+def test_buy_and_sell_legs_score_the_same_row_in_opposite_directions():
+    r = [_row(bar=0, fwd=0.04, baseline=0.01)]
+    assert stats(r, HORIZON, "BUY")["mean"] == pytest.approx(0.04)
+    assert stats(r, HORIZON, "SELL")["mean"] == pytest.approx(-0.04)
+
+
+def test_position_benchmarks_differ_by_side():
+    r = _row(fwd=0.02, baseline=0.015)
+    assert position(r, "BUY") == (pytest.approx(0.02), pytest.approx(0.015))
+    assert position(r, "SELL") == (pytest.approx(-0.02), 0.0)
+
+
+def test_era_midpoints_split_the_scored_range_not_the_whole_frame():
+    bars = {"AAA": make_df(_uptrend(n=MIN_BARS + 200))}
+    mid = era_midpoints(bars, HORIZON)
+    assert mid["AAA"] == (MIN_BARS + MIN_BARS + 200 - HORIZON) // 2
+    assert MIN_BARS < mid["AAA"] < MIN_BARS + 200 - HORIZON
+
+
+def test_measure_reports_each_cohort_split_into_halves():
+    bars = {"AAA": make_df(_uptrend()), "BBB": make_df(_uptrend(drift=0.007))}
+    out = measure(bars, ["shipped"], HORIZON)
+    eras = out["shipped"]["eras"]
+    assert set(eras) >= {"BUY"}
+    assert set(eras["BUY"]) == {"first", "second"}
+    assert eras["BUY"]["first"]["n"] + eras["BUY"]["second"]["n"] == out["shipped"]["BUY"]["n"]
+
+
+def test_to_markdown_includes_the_sub_period_section():
+    bars = {"AAA": make_df(_uptrend())}
+    out = to_markdown(measure(bars, ["shipped"], HORIZON), _meta(tickers=1, bars=1))
+    assert "Sub-period check" in out and "(first half)" in out and "(second half)" in out
+
+
+def test_by_year_groups_rows_by_signal_year():
+    rows = [_row(bar=0, year=2019, fwd=0.01), _row(bar=50, year=2020, fwd=-0.10),
+            _row(bar=100, year=2020, fwd=-0.08)]
+    out = by_year(rows, HORIZON)
+    assert list(out) == [2019, 2020]
+    assert out[2020]["n"] == 2 and out[2020]["mean"] == pytest.approx(-0.09)
+
+
+def test_scan_ticker_tags_rows_with_the_signal_bar_year():
+    df = make_df(_uptrend(), start="2015-01-01")
+    rows = scan_ticker(df, VARIANTS["shipped"], HORIZON)
+    assert rows and all(r.year == df.index[r.bar].year for r in rows)
+
+
+def test_to_markdown_renders_a_per_year_column_per_year_seen():
+    bars = {"AAA": make_df(_uptrend(), start="2015-01-01")}
+    out = to_markdown(measure(bars, ["shipped"], HORIZON), _meta(tickers=1, bars=1))
+    assert "Per-year alpha by cohort" in out and "2016" in out
+
+
+def test_unconditional_benchmark_covers_every_scored_bar():
+    df = make_df(_uptrend())
+    base = unconditional({"AAA": df}, HORIZON)
+    assert base["n"] == len(df) - HORIZON - MIN_BARS
+    assert 0.0 <= base["win"] <= 1.0 and np.isfinite(base["mean"])
+
+
+def test_unconditional_benchmark_of_too_short_history_is_empty():
+    assert unconditional({"AAA": make_df(_uptrend(n=MIN_BARS))}, HORIZON) == {"n": 0}

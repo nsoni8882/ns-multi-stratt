@@ -59,13 +59,17 @@ def _download(tickers: "list[str]", years: int) -> pd.DataFrame:
 
 
 def fetch_history(tickers: "list[str]", years: int, now: pd.Timestamp) -> "dict[str, pd.DataFrame]":
-    """Daily closed bars per ticker, cached to research/.cache so re-runs are offline."""
+    """Daily closed bars per ticker, cached to research/.cache so re-runs are offline.
+
+    Pickled rather than parquet: the cache is gitignored, local and disposable, which is not
+    worth a pyarrow dependency in requirements.txt.
+    """
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     out, missing = {}, []
     for t in tickers:
-        path = CACHE_DIR / f"{t}_{years}y.parquet"
+        path = CACHE_DIR / f"{t}_{years}y.pkl"
         if path.exists():
-            out[t] = pd.read_parquet(path)
+            out[t] = pd.read_pickle(path)
         else:
             missing.append(t)
 
@@ -82,7 +86,7 @@ def fetch_history(tickers: "list[str]", years: int, now: pd.Timestamp) -> "dict[
                 log.warning("%s: %s", t, exc)
                 continue
             if not frame.empty:
-                frame.to_parquet(CACHE_DIR / f"{t}_{years}y.parquet")
+                frame.to_pickle(CACHE_DIR / f"{t}_{years}y.pkl")
                 out[t] = frame
         log.info("fetched %d/%d", min(i + BATCH, len(missing)), len(missing))
         if i + BATCH < len(missing):
@@ -107,10 +111,36 @@ def pick_tickers(count: int, universe: "pd.DataFrame | None" = None) -> "list[st
 class Row:
     ticker: str
     bar: int  # positional index of the signal bar
+    year: int  # calendar year of the signal bar
     side: str
     conviction: str
     fwd: float  # forward return over the horizon
     baseline: float  # mean forward return of every scored bar of this ticker
+
+
+def unconditional(bars: "dict[str, pd.DataFrame]", horizon: int) -> dict:
+    """The do-nothing benchmark: every scored bar's forward return, signal or not. A signal
+    win rate only means something next to this -- 58% looks strong until you see that any
+    random 20-day hold in this sample wins 58% of the time too."""
+    rets = []
+    for df in bars.values():
+        c = df["close"].to_numpy(dtype=float)
+        last = len(df) - horizon
+        if last > MIN_BARS:
+            rets.append((c[horizon:] / c[:-horizon] - 1.0)[MIN_BARS:last])
+    if not rets:
+        return {"n": 0}
+    all_rets = np.concatenate(rets)
+    return {"n": len(all_rets), "mean": float(all_rets.mean()), "win": float((all_rets > 0).mean())}
+
+
+def by_year(rows: "list[Row]", horizon: int) -> "dict[int, dict]":
+    """Per-calendar-year stats for a BUY cohort. A sub-period split can hide a single bad
+    quarter; the year table is what shows whether one crash is carrying the whole result."""
+    years = {}
+    for r in rows:
+        years.setdefault(r.year, []).append(r)
+    return {y: stats(rs, horizon, "BUY") for y, rs in sorted(years.items())}
 
 
 def scan_ticker(df: pd.DataFrame, cfg, horizon: int) -> "list[Row]":
@@ -128,7 +158,8 @@ def scan_ticker(df: pd.DataFrame, cfg, horizon: int) -> "list[Row]":
         hit = rule_side(**ind, i=i, cfg=cfg)
         if hit:
             side, conviction = hit
-            rows.append(Row(df.attrs.get("ticker", ""), i, side, conviction, float(fwd[i]), baseline))
+            rows.append(Row(df.attrs.get("ticker", ""), i, df.index[i].year, side, conviction,
+                            float(fwd[i]), baseline))
     return rows
 
 
@@ -143,31 +174,52 @@ def independent(rows: "list[Row]", horizon: int) -> "list[Row]":
     return kept
 
 
-def stats(rows: "list[Row]", horizon: int) -> dict:
+def position(r: Row, side: str) -> "tuple[float, float]":
+    """(return to the position, the benchmark it has to beat) for one signal.
+
+    A BUY earns the stock's forward return and has to beat holding that same stock, so its
+    benchmark is the ticker's own drift. A SELL earns the *negated* forward return -- the
+    stock rising is a loss -- and its alternative is sitting in cash, not holding the name
+    it is shorting, so its benchmark is zero. Scoring a short against the long baseline
+    would make a losing short look like a winner whenever the stock rose less than usual.
+    """
+    if side == "BUY":
+        return r.fwd, r.baseline
+    return -r.fwd, 0.0
+
+
+def stats(rows: "list[Row]", horizon: int, side: str = "BUY") -> dict:
     if not rows:
         return {"n": 0}
-    alpha = np.array([r.fwd - r.baseline for r in rows])
-    fwd = np.array([r.fwd for r in rows])
+    scored = [position(r, side) for r in rows]
+    ret = np.array([s[0] for s in scored])
+    base = np.array([s[1] for s in scored])
     ind = independent(rows, horizon)
-    ind_alpha = np.array([r.fwd - r.baseline for r in ind])
+    ind_alpha = np.array([a - b for a, b in (position(r, side) for r in ind)])
 
     def t_stat(x):
         return float(x.mean() / (x.std(ddof=1) / np.sqrt(len(x)))) if len(x) > 1 and x.std(ddof=1) > 0 else float("nan")
 
     return {
         "n": len(rows),
-        "mean": float(fwd.mean()),
-        "baseline": float(np.mean([r.baseline for r in rows])),
-        "alpha": float(alpha.mean()),
-        "win": float((fwd > 0).mean()),
-        "t_naive": t_stat(alpha),
+        "mean": float(ret.mean()),
+        "baseline": float(base.mean()),
+        "alpha": float((ret - base).mean()),
+        "win": float((ret > 0).mean()),
+        "t_naive": t_stat(ret - base),
         "n_independent": len(ind),
         "alpha_independent": float(ind_alpha.mean()),
         "t_independent": t_stat(ind_alpha),
     }
 
 
+def era_midpoints(bars: "dict[str, pd.DataFrame]", horizon: int) -> "dict[str, int]":
+    """The bar that splits each ticker's scored range in half, for the sub-period check."""
+    return {t: (MIN_BARS + len(df) - horizon) // 2 for t, df in bars.items()}
+
+
 def measure(bars: "dict[str, pd.DataFrame]", labels: "list[str]", horizon: int) -> dict:
+    mid = era_midpoints(bars, horizon)
     results = {}
     for label in labels:
         cfg = VARIANTS[label]
@@ -177,12 +229,23 @@ def measure(bars: "dict[str, pd.DataFrame]", labels: "list[str]", horizon: int) 
             rows.extend(scan_ticker(df, cfg, horizon))
         buys = [r for r in rows if r.side == "BUY"]
         sells = [r for r in rows if r.side == "SELL"]
+        tiers = sorted({r.conviction for r in buys})
+        # A finding that only holds in one half of a 12-year sample is a period artefact,
+        # so every BUY cohort is reported split as well as pooled.
+        def eras(subset):
+            first = [r for r in subset if r.bar < mid[r.ticker]]
+            second = [r for r in subset if r.bar >= mid[r.ticker]]
+            return {"first": stats(first, horizon, "BUY"), "second": stats(second, horizon, "BUY")}
+
         results[label] = {
-            "BUY": stats(buys, horizon),
-            "SELL": stats(sells, horizon),
-            "by_conviction": {
-                c: stats([r for r in buys if r.conviction == c], horizon)
-                for c in sorted({r.conviction for r in buys})
+            "BUY": stats(buys, horizon, "BUY"),
+            "SELL": stats(sells, horizon, "SELL"),
+            "by_conviction": {c: stats([r for r in buys if r.conviction == c], horizon, "BUY") for c in tiers},
+            "eras": {"BUY": eras(buys)} | {
+                f"BUY/{c}": eras([r for r in buys if r.conviction == c]) for c in tiers
+            },
+            "by_year": {"BUY": by_year(buys, horizon)} | {
+                f"BUY/{c}": by_year([r for r in buys if r.conviction == c], horizon) for c in tiers
             },
         }
         log.info("%s: %d BUY, %d SELL", label, len(buys), len(sells))
@@ -190,6 +253,11 @@ def measure(bars: "dict[str, pd.DataFrame]", labels: "list[str]", horizon: int) 
 
 
 # --- reporting --------------------------------------------------------------------------
+
+def _all_years(results: dict) -> "list[int]":
+    years = {y for legs in results.values() for c in legs.get("by_year", {}).values() for y in c}
+    return sorted(years)
+
 
 HEADER = "| variant | leg | n | mean | baseline | alpha | win % | n indep | alpha indep | t indep |"
 DIVIDER = "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|"
@@ -211,10 +279,19 @@ def to_markdown(results: dict, meta: dict) -> str:
         f"({meta['bars']:,} scored bars), {meta['horizon']}-bar forward horizon. "
         f"Generated {meta['generated']}.",
         "",
-        "`alpha` is the signal's forward return minus the same ticker's mean forward return "
-        "over the same window. `n indep` thins signals so no two forward windows overlap, and "
-        "`t indep` is the t-stat on that independent sample -- the naive t over all overlapping "
-        "signals runs 2-3x higher and should be ignored.",
+        f"**Do-nothing benchmark:** across all {meta['base']['n']:,} scored bars, a random "
+        f"{meta['horizon']}-bar hold returned {meta['base']['mean']:+.2%} and was positive "
+        f"{meta['base']['win']:.1%} of the time. Any signal's win rate has to be read against "
+        f"that number, not against 50%.",
+        "",
+        "`mean` is the return to the *position*, so a SELL row is the short's P&L: the stock "
+        "rising is a loss. `baseline` is what that position has to beat -- the ticker's own "
+        "mean forward return for a BUY (12 years of drift earns no credit), cash for a SELL. "
+        "`alpha` is `mean` minus `baseline`.",
+        "",
+        "`n indep` thins signals so no two forward windows overlap, and `t indep` is the "
+        "t-stat on that independent sample -- the naive t over all overlapping signals runs "
+        "2-3x higher and should be ignored.",
         "",
         HEADER, DIVIDER,
     ]
@@ -225,6 +302,34 @@ def to_markdown(results: dict, meta: dict) -> str:
     for label, legs in results.items():
         for tier, s in legs["by_conviction"].items():
             lines.append(_row(label, f"BUY/{tier}", s))
+
+    lines += [
+        "",
+        "## Sub-period check (each ticker's scored range split in half)",
+        "",
+        "A cohort that only earns its alpha in one half of the sample is a period artefact.",
+        "",
+        HEADER, DIVIDER,
+    ]
+    for label, legs in results.items():
+        for cohort, halves in legs.get("eras", {}).items():
+            for era, s in halves.items():
+                lines.append(_row(f"{label} ({era} half)", cohort, s))
+
+    lines += [
+        "",
+        "## Per-year alpha by cohort",
+        "",
+        "One bad quarter can carry a pooled result that a half-and-half split still hides.",
+        "",
+        "| variant | cohort | " + " | ".join(str(y) for y in _all_years(results)) + " |",
+        "|---|---|" + "---:|" * len(_all_years(results)),
+    ]
+    for label, legs in results.items():
+        for cohort, years in legs.get("by_year", {}).items():
+            cells = [f"{years[y]['alpha']:+.2%}" if y in years and years[y]["n"] else ""
+                     for y in _all_years(results)]
+            lines.append(f"| {label} | {cohort} | " + " | ".join(cells) + " |")
     return "\n".join(lines) + "\n"
 
 
@@ -258,6 +363,7 @@ def main() -> int:
         "horizon": args.horizon,
         "bars": sum(len(df) for df in usable.values()),
         "generated": now.strftime("%Y-%m-%d"),
+        "base": unconditional(usable, args.horizon),
     }
 
     args.out.mkdir(parents=True, exist_ok=True)

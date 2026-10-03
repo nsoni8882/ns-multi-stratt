@@ -1,0 +1,56 @@
+# NS-Multi-Stratt
+
+A personal multi-strategy stock screener. A Python scanner sweeps the S&P 500 on two
+timeframes, writes static JSON, and a React site renders it. No server, no live trading.
+
+## Commands
+
+```bash
+.venv/bin/python -m pytest scanner/tests research/tests -q   # Python tests (~1s)
+cd web && npm test -- --run                                  # web tests (~2s)
+.venv/bin/python -m scanner.run --out web/public/data --db signals.db   # full scan (network)
+.venv/bin/python -m research.measure                         # backtest variants (network, cached)
+```
+
+Always use `.venv/bin/python` — there is no activated environment, and the system Python
+lacks the deps. `scanner/tests/test_smoke_network.py` is skipped by default; it hits Yahoo.
+
+## Layout
+
+- `scanner/` — fetch (`data.py`), indicators (`indicators.py`), strategies, export, SQLite
+  history (`store.py`), trading-calendar gate (`market.py`). Entry point `run.py`.
+- `scanner/strategies/` — one module per strategy, registered in `__init__.py:STRATEGIES`.
+  Each exposes `id/name/description/min_bars/chart` and `evaluate(df) -> Signal | None`.
+- `research/` — backtesting, kept out of the scan path. `measure.py` is the harness,
+  `FINDINGS.md` is the interpretation, `results/` is generated, `.cache/` is gitignored.
+- `web/` — Vite + React + TypeScript, reads the JSON the scanner writes.
+
+Strategies receive a DataFrame of **closed** bars only (UTC index = bar open, plus a
+`close_time` column). Never evaluate a partial bar.
+
+## Conventions that matter here
+
+**Claims about market behaviour are measured, not asserted.** The comments in
+`scanner/strategies/` carry sample sizes, alphas and t-stats because each one cost a backtest
+to establish. When changing a threshold, a lookback or an MA period, measure it with
+`research/measure.py` and record the number — and when a measurement kills an idea, write
+down that it was killed so it is not re-proposed. Do not add a parameter to a strategy
+without a measurement behind it.
+
+**Two traps this project has already hit**, both guarded in `research/measure.py`:
+- Signals cluster, so their forward windows overlap and a naive t-stat runs 2–3x too high.
+  Judge the non-overlapping (`t indep`) column.
+- A pooled result can be one event in disguise. Check the per-year table before believing a
+  t-stat; a −4.04 in this repo turned out to be February 2020.
+
+**Conviction tiers** (`base.py`) are `high`/`standard`/`low`, sorted strongest-first by
+`CONVICTION_RANK`. They encode measured edge, not enthusiasm.
+
+**Indicator seeding is load-bearing.** EMA200 with `adjust=False` is still seed-biased at 250
+bars, which is why `TrendPullback.min_bars` is 400. RSI and ADX are Wilder-smoothed, matching
+TradingView rather than a simple rolling mean.
+
+## Git
+
+Commit every change and push to `origin main` — leave nothing uncommitted. Commit in logical
+units as the work goes, not one dump at the end.

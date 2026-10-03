@@ -27,6 +27,20 @@ class TrendPullbackConfig:
     """Tunable gates for the setup. The defaults reproduce the shipped rule exactly, so a
     variant is only ever active where it was explicitly asked for -- see research/measure.py,
     which is the only caller that passes a non-default config.
+
+    Every gate below has been measured over 163 S&P names x 12y and *none of them beat the
+    defaults* -- full write-up in research/FINDINGS.md. Short version, 20-bar alpha on the
+    non-overlapping sample, against the shipped rule's +0.11% (t=+0.74):
+
+        RSI trigger 40 -> 35      -0.25%  (t=-1.18)
+        ADX >= 20 gate            -0.08%  (t=-0.44)   ADX >= 25: -0.38% (t=-1.65)
+        rising EMA200 gate        +0.11%  (t=+0.76)   i.e. no effect
+        drop ema50 > ema200       +0.09%  (t=+0.65)   i.e. no effect
+
+    Grading conviction by pullback depth looked like the one real finding (deep dips -1.55%,
+    t=-4.04) but it is the COVID crash: 70 signals in 2020 at -15.16% carry all of it, and
+    every other year sits between -2.25% and +2.44%. Do not ship it. Do not re-propose these
+    gates without reading FINDINGS.md first.
     """
 
     rsi_buy_level: float = RSI_BUY_LEVEL
@@ -56,7 +70,13 @@ VARIANTS = {
     "rising200": TrendPullbackConfig(require_rising_ema200=True),
     "no-ema50": TrendPullbackConfig(require_ema50_above_ema200=False),
     "rsi35+adx20": TrendPullbackConfig(rsi_buy_level=35, rsi_sell_level=65, adx_min=20),
-    "tiered": TrendPullbackConfig(depth_tiers=((30, HIGH), (35, STANDARD), (float("inf"), LOW))),
+    # Two opposite readings of pullback depth. "deep-is-strong" extrapolates the Reversal
+    # strategy's depth table (the deeper the RSI cross, the bigger the edge); measurement
+    # falsified it here and supports "deep-is-weak" -- see research/results/trend_pullback.md.
+    "tiered-deep-is-strong": TrendPullbackConfig(
+        depth_tiers=((30, HIGH), (35, STANDARD), (float("inf"), LOW))),
+    "tiered-deep-is-weak": TrendPullbackConfig(
+        depth_tiers=((30, LOW), (35, STANDARD), (float("inf"), HIGH))),
 }
 
 

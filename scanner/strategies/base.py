@@ -23,6 +23,12 @@ SIGNAL_WINDOW = 3  # a signal stays listed for bars_ago 0, 1, 2
 # none, in both 2015-20 and 2021-26 and on both timeframes. Shorting is kept (it is a real
 # setup, and 12 years of a bull regime is a thin basis for deleting it) but tagged LOW so
 # the site can rank and style it as the weaker signal rather than a peer of the long side.
+#
+# Re-measured for Trend Pullback with a per-ticker baseline and a non-overlapping sample
+# (research/FINDINGS.md): its BUY leg is +0.11% alpha at t=+0.74 -- indistinguishable from
+# holding the same name -- and its SELL leg is -2.08% at t=-8.14. The depth-of-cross pattern
+# in the table above does NOT generalise from Reversal to Trend Pullback; inside an intact
+# uptrend a deep RSI dip is the trend breaking, and grading on it only works because of 2020.
 HIGH, STANDARD, LOW = "high", "standard", "low"
 CONVICTION_RANK = {HIGH: 0, STANDARD: 1, LOW: 2}  # sort key: strongest signals listed first
 

@@ -1,0 +1,128 @@
+# Trend Pullback variant measurement
+
+163 S&P names, 12y of daily bars (476,108 scored bars), 20-bar forward horizon. Generated 2026-10-03.
+
+**Do-nothing benchmark:** across all 407,648 scored bars, a random 20-bar hold returned +1.44% and was positive 57.6% of the time. Any signal's win rate has to be read against that number, not against 50%.
+
+`mean` is the return to the *position*, so a SELL row is the short's P&L: the stock rising is a loss. `baseline` is what that position has to beat -- the ticker's own mean forward return for a BUY (12 years of drift earns no credit), cash for a SELL. `alpha` is `mean` minus `baseline`.
+
+`n indep` thins signals so no two forward windows overlap, and `t indep` is the t-stat on that independent sample -- the naive t over all overlapping signals runs 2-3x higher and should be ignored.
+
+| variant | leg | n | mean | baseline | alpha | win % | n indep | alpha indep | t indep |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| shipped | BUY | 6,258 | +1.53% | +1.48% | +0.05% | 58.5% | 3,589 | +0.11% | +0.74 |
+| shipped | SELL | 2,545 | -1.51% | +0.00% | -1.51% | 43.5% | 1,487 | -2.08% | -8.14 |
+| rsi35 | BUY | 2,558 | +1.26% | +1.48% | -0.21% | 57.4% | 1,769 | -0.25% | -1.18 |
+| rsi35 | SELL | 936 | -0.67% | +0.00% | -0.67% | 45.7% | 643 | -1.20% | -2.77 |
+| adx20 | BUY | 4,108 | +1.36% | +1.47% | -0.11% | 58.5% | 2,473 | -0.08% | -0.44 |
+| adx20 | SELL | 1,334 | -1.31% | +0.00% | -1.31% | 44.7% | 844 | -1.88% | -5.51 |
+| adx25 | BUY | 2,267 | +1.18% | +1.45% | -0.28% | 58.2% | 1,443 | -0.38% | -1.65 |
+| adx25 | SELL | 609 | -1.14% | +0.00% | -1.14% | 47.1% | 416 | -1.43% | -3.12 |
+| rising200 | BUY | 6,211 | +1.53% | +1.48% | +0.05% | 58.6% | 3,562 | +0.11% | +0.76 |
+| rising200 | SELL | 2,513 | -1.54% | +0.00% | -1.54% | 43.4% | 1,462 | -2.13% | -8.27 |
+| no-ema50 | BUY | 6,275 | +1.52% | +1.48% | +0.04% | 58.5% | 3,606 | +0.09% | +0.65 |
+| no-ema50 | SELL | 2,608 | -1.49% | +0.00% | -1.49% | 43.6% | 1,548 | -2.02% | -8.16 |
+| rsi35+adx20 | BUY | 2,076 | +1.16% | +1.47% | -0.31% | 57.7% | 1,448 | -0.27% | -1.19 |
+| rsi35+adx20 | SELL | 681 | -0.95% | +0.00% | -0.95% | 44.9% | 471 | -1.20% | -2.35 |
+| tiered-deep-is-strong | BUY | 6,258 | +1.53% | +1.48% | +0.05% | 58.5% | 3,589 | +0.11% | +0.74 |
+| tiered-deep-is-strong | SELL | 2,545 | -1.51% | +0.00% | -1.51% | 43.5% | 1,487 | -2.08% | -8.14 |
+| tiered-deep-is-weak | BUY | 6,258 | +1.53% | +1.48% | +0.05% | 58.5% | 3,589 | +0.11% | +0.74 |
+| tiered-deep-is-weak | SELL | 2,545 | -1.51% | +0.00% | -1.51% | 43.5% | 1,487 | -2.08% | -8.14 |
+
+## BUY leg by conviction tier
+
+| variant | leg | n | mean | baseline | alpha | win % | n indep | alpha indep | t indep |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| shipped | BUY/standard | 6,258 | +1.53% | +1.48% | +0.05% | 58.5% | 3,589 | +0.11% | +0.74 |
+| rsi35 | BUY/standard | 2,558 | +1.26% | +1.48% | -0.21% | 57.4% | 1,769 | -0.25% | -1.18 |
+| adx20 | BUY/standard | 4,108 | +1.36% | +1.47% | -0.11% | 58.5% | 2,473 | -0.08% | -0.44 |
+| adx25 | BUY/standard | 2,267 | +1.18% | +1.45% | -0.28% | 58.2% | 1,443 | -0.38% | -1.65 |
+| rising200 | BUY/standard | 6,211 | +1.53% | +1.48% | +0.05% | 58.6% | 3,562 | +0.11% | +0.76 |
+| no-ema50 | BUY/standard | 6,275 | +1.52% | +1.48% | +0.04% | 58.5% | 3,606 | +0.09% | +0.65 |
+| rsi35+adx20 | BUY/standard | 2,076 | +1.16% | +1.47% | -0.31% | 57.7% | 1,448 | -0.27% | -1.19 |
+| tiered-deep-is-strong | BUY/high | 721 | -0.00% | +1.45% | -1.45% | 54.6% | 692 | -1.55% | -4.04 |
+| tiered-deep-is-strong | BUY/low | 4,033 | +1.74% | +1.48% | +0.26% | 59.4% | 2,687 | +0.28% | +1.79 |
+| tiered-deep-is-strong | BUY/standard | 1,504 | +1.68% | +1.49% | +0.19% | 58.1% | 1,295 | +0.15% | +0.66 |
+| tiered-deep-is-weak | BUY/high | 4,033 | +1.74% | +1.48% | +0.26% | 59.4% | 2,687 | +0.28% | +1.79 |
+| tiered-deep-is-weak | BUY/low | 721 | -0.00% | +1.45% | -1.45% | 54.6% | 692 | -1.55% | -4.04 |
+| tiered-deep-is-weak | BUY/standard | 1,504 | +1.68% | +1.49% | +0.19% | 58.1% | 1,295 | +0.15% | +0.66 |
+
+## Sub-period check (each ticker's scored range split in half)
+
+A cohort that only earns its alpha in one half of the sample is a period artefact.
+
+| variant | leg | n | mean | baseline | alpha | win % | n indep | alpha indep | t indep |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| shipped (first half) | BUY | 3,193 | +1.56% | +1.45% | +0.10% | 60.4% | 1,859 | +0.15% | +0.75 |
+| shipped (second half) | BUY | 3,065 | +1.49% | +1.50% | -0.01% | 56.6% | 1,752 | +0.04% | +0.20 |
+| shipped (first half) | BUY/standard | 3,193 | +1.56% | +1.45% | +0.10% | 60.4% | 1,859 | +0.15% | +0.75 |
+| shipped (second half) | BUY/standard | 3,065 | +1.49% | +1.50% | -0.01% | 56.6% | 1,752 | +0.04% | +0.20 |
+| rsi35 (first half) | BUY | 1,307 | +0.91% | +1.45% | -0.54% | 57.2% | 922 | -0.57% | -1.83 |
+| rsi35 (second half) | BUY | 1,251 | +1.64% | +1.51% | +0.13% | 57.7% | 857 | +0.12% | +0.44 |
+| rsi35 (first half) | BUY/standard | 1,307 | +0.91% | +1.45% | -0.54% | 57.2% | 922 | -0.57% | -1.83 |
+| rsi35 (second half) | BUY/standard | 1,251 | +1.64% | +1.51% | +0.13% | 57.7% | 857 | +0.12% | +0.44 |
+| adx20 (first half) | BUY | 2,169 | +1.26% | +1.45% | -0.19% | 60.0% | 1,325 | -0.19% | -0.79 |
+| adx20 (second half) | BUY | 1,939 | +1.47% | +1.49% | -0.02% | 56.7% | 1,164 | +0.05% | +0.21 |
+| adx20 (first half) | BUY/standard | 2,169 | +1.26% | +1.45% | -0.19% | 60.0% | 1,325 | -0.19% | -0.79 |
+| adx20 (second half) | BUY/standard | 1,939 | +1.47% | +1.49% | -0.02% | 56.7% | 1,164 | +0.05% | +0.21 |
+| adx25 (first half) | BUY | 1,221 | +0.66% | +1.43% | -0.77% | 56.8% | 787 | -0.90% | -2.76 |
+| adx25 (second half) | BUY | 1,046 | +1.78% | +1.48% | +0.30% | 59.8% | 662 | +0.21% | +0.66 |
+| adx25 (first half) | BUY/standard | 1,221 | +0.66% | +1.43% | -0.77% | 56.8% | 787 | -0.90% | -2.76 |
+| adx25 (second half) | BUY/standard | 1,046 | +1.78% | +1.48% | +0.30% | 59.8% | 662 | +0.21% | +0.66 |
+| rising200 (first half) | BUY | 3,169 | +1.57% | +1.46% | +0.11% | 60.5% | 1,845 | +0.15% | +0.75 |
+| rising200 (second half) | BUY | 3,042 | +1.50% | +1.51% | -0.01% | 56.7% | 1,739 | +0.04% | +0.22 |
+| rising200 (first half) | BUY/standard | 3,169 | +1.57% | +1.46% | +0.11% | 60.5% | 1,845 | +0.15% | +0.75 |
+| rising200 (second half) | BUY/standard | 3,042 | +1.50% | +1.51% | -0.01% | 56.7% | 1,739 | +0.04% | +0.22 |
+| no-ema50 (first half) | BUY | 3,201 | +1.55% | +1.46% | +0.10% | 60.4% | 1,867 | +0.14% | +0.68 |
+| no-ema50 (second half) | BUY | 3,074 | +1.49% | +1.50% | -0.02% | 56.6% | 1,761 | +0.03% | +0.14 |
+| no-ema50 (first half) | BUY/standard | 3,201 | +1.55% | +1.46% | +0.10% | 60.4% | 1,867 | +0.14% | +0.68 |
+| no-ema50 (second half) | BUY/standard | 3,074 | +1.49% | +1.50% | -0.02% | 56.6% | 1,761 | +0.03% | +0.14 |
+| rsi35+adx20 (first half) | BUY | 1,071 | +0.86% | +1.45% | -0.58% | 57.3% | 763 | -0.47% | -1.37 |
+| rsi35+adx20 (second half) | BUY | 1,005 | +1.48% | +1.49% | -0.01% | 58.1% | 693 | -0.03% | -0.09 |
+| rsi35+adx20 (first half) | BUY/standard | 1,071 | +0.86% | +1.45% | -0.58% | 57.3% | 763 | -0.47% | -1.37 |
+| rsi35+adx20 (second half) | BUY/standard | 1,005 | +1.48% | +1.49% | -0.01% | 58.1% | 693 | -0.03% | -0.09 |
+| tiered-deep-is-strong (first half) | BUY | 3,193 | +1.56% | +1.45% | +0.10% | 60.4% | 1,859 | +0.15% | +0.75 |
+| tiered-deep-is-strong (second half) | BUY | 3,065 | +1.49% | +1.50% | -0.01% | 56.6% | 1,752 | +0.04% | +0.20 |
+| tiered-deep-is-strong (first half) | BUY/high | 397 | -1.42% | +1.40% | -2.82% | 48.9% | 381 | -2.97% | -5.21 |
+| tiered-deep-is-strong (second half) | BUY/high | 324 | +1.74% | +1.50% | +0.23% | 61.7% | 311 | +0.19% | +0.40 |
+| tiered-deep-is-strong (first half) | BUY/low | 2,052 | +2.02% | +1.46% | +0.56% | 62.7% | 1,366 | +0.64% | +2.85 |
+| tiered-deep-is-strong (second half) | BUY/low | 1,981 | +1.45% | +1.50% | -0.05% | 56.0% | 1,333 | -0.08% | -0.36 |
+| tiered-deep-is-strong (first half) | BUY/standard | 744 | +1.87% | +1.48% | +0.39% | 60.1% | 657 | +0.51% | +1.65 |
+| tiered-deep-is-strong (second half) | BUY/standard | 760 | +1.51% | +1.50% | +0.00% | 56.2% | 640 | -0.23% | -0.70 |
+| tiered-deep-is-weak (first half) | BUY | 3,193 | +1.56% | +1.45% | +0.10% | 60.4% | 1,859 | +0.15% | +0.75 |
+| tiered-deep-is-weak (second half) | BUY | 3,065 | +1.49% | +1.50% | -0.01% | 56.6% | 1,752 | +0.04% | +0.20 |
+| tiered-deep-is-weak (first half) | BUY/high | 2,052 | +2.02% | +1.46% | +0.56% | 62.7% | 1,366 | +0.64% | +2.85 |
+| tiered-deep-is-weak (second half) | BUY/high | 1,981 | +1.45% | +1.50% | -0.05% | 56.0% | 1,333 | -0.08% | -0.36 |
+| tiered-deep-is-weak (first half) | BUY/low | 397 | -1.42% | +1.40% | -2.82% | 48.9% | 381 | -2.97% | -5.21 |
+| tiered-deep-is-weak (second half) | BUY/low | 324 | +1.74% | +1.50% | +0.23% | 61.7% | 311 | +0.19% | +0.40 |
+| tiered-deep-is-weak (first half) | BUY/standard | 744 | +1.87% | +1.48% | +0.39% | 60.1% | 657 | +0.51% | +1.65 |
+| tiered-deep-is-weak (second half) | BUY/standard | 760 | +1.51% | +1.50% | +0.00% | 56.2% | 640 | -0.23% | -0.70 |
+
+## Per-year alpha by cohort
+
+One bad quarter can carry a pooled result that a half-and-half split still hides.
+
+| variant | cohort | 2016 | 2017 | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | 2024 | 2025 | 2026 |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| shipped | BUY | +0.91% | +0.78% | -0.41% | +1.20% | -4.39% | +1.46% | -1.16% | -0.52% | +0.80% | -1.05% | +1.09% |
+| shipped | BUY/standard | +0.91% | +0.78% | -0.41% | +1.20% | -4.39% | +1.46% | -1.16% | -0.52% | +0.80% | -1.05% | +1.09% |
+| rsi35 | BUY | +0.43% | +0.65% | -0.70% | +0.75% | -7.20% | +1.72% | -1.96% | -0.03% | +1.03% | -1.63% | +2.46% |
+| rsi35 | BUY/standard | +0.43% | +0.65% | -0.70% | +0.75% | -7.20% | +1.72% | -1.96% | -0.03% | +1.03% | -1.63% | +2.46% |
+| adx20 | BUY | +0.76% | +0.74% | -0.25% | +1.00% | -5.76% | +1.58% | -1.31% | -0.50% | +0.70% | -1.17% | +1.47% |
+| adx20 | BUY/standard | +0.76% | +0.74% | -0.25% | +1.00% | -5.76% | +1.58% | -1.31% | -0.50% | +0.70% | -1.17% | +1.47% |
+| adx25 | BUY | -0.13% | +0.92% | -0.09% | +0.46% | -7.76% | +2.25% | -2.49% | -0.14% | +0.81% | -1.33% | +2.99% |
+| adx25 | BUY/standard | -0.13% | +0.92% | -0.09% | +0.46% | -7.76% | +2.25% | -2.49% | -0.14% | +0.81% | -1.33% | +2.99% |
+| rising200 | BUY | +0.96% | +0.82% | -0.42% | +1.20% | -4.39% | +1.45% | -1.13% | -0.52% | +0.80% | -1.03% | +1.08% |
+| rising200 | BUY/standard | +0.96% | +0.82% | -0.42% | +1.20% | -4.39% | +1.45% | -1.13% | -0.52% | +0.80% | -1.03% | +1.08% |
+| no-ema50 | BUY | +0.91% | +0.78% | -0.44% | +1.21% | -4.41% | +1.46% | -1.18% | -0.52% | +0.81% | -1.08% | +1.10% |
+| no-ema50 | BUY/standard | +0.91% | +0.78% | -0.44% | +1.21% | -4.41% | +1.46% | -1.18% | -0.52% | +0.81% | -1.08% | +1.10% |
+| rsi35+adx20 | BUY | +0.19% | +0.83% | -0.46% | +0.89% | -7.37% | +1.76% | -2.60% | +0.41% | +0.63% | -1.88% | +3.36% |
+| rsi35+adx20 | BUY/standard | +0.19% | +0.83% | -0.46% | +0.89% | -7.37% | +1.76% | -2.60% | +0.41% | +0.63% | -1.88% | +3.36% |
+| tiered-deep-is-strong | BUY | +0.91% | +0.78% | -0.41% | +1.20% | -4.39% | +1.46% | -1.16% | -0.52% | +0.80% | -1.05% | +1.09% |
+| tiered-deep-is-strong | BUY/high | -0.11% | -1.17% | -1.24% | +2.44% | -15.16% | +1.34% | -2.25% | +2.42% | +0.90% | -1.89% | +1.16% |
+| tiered-deep-is-strong | BUY/low | +1.01% | +0.85% | -0.39% | +1.46% | -1.98% | +1.44% | -0.94% | -0.75% | +0.68% | -0.93% | +0.96% |
+| tiered-deep-is-strong | BUY/standard | +1.10% | +1.30% | +0.08% | -0.21% | -3.33% | +1.57% | -1.14% | -0.79% | +1.07% | -0.91% | +1.49% |
+| tiered-deep-is-weak | BUY | +0.91% | +0.78% | -0.41% | +1.20% | -4.39% | +1.46% | -1.16% | -0.52% | +0.80% | -1.05% | +1.09% |
+| tiered-deep-is-weak | BUY/high | +1.01% | +0.85% | -0.39% | +1.46% | -1.98% | +1.44% | -0.94% | -0.75% | +0.68% | -0.93% | +0.96% |
+| tiered-deep-is-weak | BUY/low | -0.11% | -1.17% | -1.24% | +2.44% | -15.16% | +1.34% | -2.25% | +2.42% | +0.90% | -1.89% | +1.16% |
+| tiered-deep-is-weak | BUY/standard | +1.10% | +1.30% | +0.08% | -0.21% | -3.33% | +1.57% | -1.14% | -0.79% | +1.07% | -0.91% | +1.49% |
