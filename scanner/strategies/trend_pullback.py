@@ -1,8 +1,10 @@
 from dataclasses import asdict, dataclass
 
+import numpy as np
 import pandas as pd
 
-from scanner.indicators import adx, crossed_above, crossed_below, ema, rising, rsi
+from scanner.indicators import (adx, crossed_above, crossed_below, ema, mfi, obv, rel_volume,
+                                rising, rsi)
 from scanner.strategies.base import (HIGH, LOW, SIGNAL_WINDOW, STANDARD, Release, Signal,
                                      make_signal, thesis_negated)
 
@@ -69,6 +71,16 @@ class TrendPullbackConfig:
     # as one sitting on the EMA50. These require price to have actually come back to a mean.
     max_ema50_distance: "float | None" = None  # e.g. 0.02 -> close must be within +2% of EMA50
     require_below_ema20: bool = False  # the dip reached the short-term mean
+    # Volume confluence. The rule so far reads price alone, so a dip on heavy selling and a dip
+    # on no selling at all score the same. Each gate below is one reading of "does the volume
+    # agree with the story", and all are off by default until measured.
+    rvol_window: int = 20  # bars in the rolling median that defines a "normal" bar
+    max_dip_rvol: "float | None" = None  # dry-up: mean volume through the dip, as a multiple
+    min_trigger_rvol: "float | None" = None  # expansion: volume on the bar that crosses back
+    require_obv_above_ema: bool = False  # accumulation: OBV above its own EMA at the signal
+    obv_ema_span: int = 20
+    mfi_confluence: bool = False  # the volume-weighted RSI must cross the same level too
+    mfi_length: int = 14
 
 
 DEFAULT_CONFIG = TrendPullbackConfig()
@@ -97,6 +109,15 @@ VARIANTS = {
     "below-ema20": TrendPullbackConfig(require_below_ema20=True),
     "below-ema20+near-ema50-5pct": TrendPullbackConfig(
         require_below_ema20=True, max_ema50_distance=0.05),
+    # Volume confluence. The rule has only ever read price, so these ask whether the volume
+    # behind a pullback says anything the price does not. Measured against ACCEPTANCE.md.
+    "dryup-0.9": TrendPullbackConfig(max_dip_rvol=0.9),  # dip traded below its own normal
+    "dryup-0.75": TrendPullbackConfig(max_dip_rvol=0.75),  # a strict reading of the same idea
+    "trigger-rvol-1.2": TrendPullbackConfig(min_trigger_rvol=1.2),  # the recovery bar is real
+    "obv-accumulation": TrendPullbackConfig(require_obv_above_ema=True),
+    "mfi-confluence": TrendPullbackConfig(mfi_confluence=True),  # volume-weighted RSI agrees
+    # The textbook setup in full: quiet pullback, loud recovery.
+    "dryup+trigger": TrendPullbackConfig(max_dip_rvol=0.9, min_trigger_rvol=1.2),
 }
 
 
@@ -124,6 +145,61 @@ def _tier(depth: float, tiers) -> str:
     return STANDARD
 
 
+def dip_mean_rvol(rvol: pd.Series, r: pd.Series, i: int, level: float,
+                  max_lookback: int = DIP_LOOKBACK) -> float:
+    """Mean relative volume over the unbroken run of sub-`level` RSI bars ending at bar i-1.
+
+    The same window `dip_depth` measures, asking a different question: how much volume the
+    pullback traded on. A dip nobody sold into is the textbook healthy pullback; whether that
+    textbook is right here is the thing being measured.
+    """
+    vals = []
+    for j in range(i - 1, max(i - 1 - max_lookback, -1), -1):
+        v = r.iloc[j]
+        if pd.isna(v) or v >= level:
+            break
+        rv = rvol.iloc[j]
+        if pd.notna(rv):
+            vals.append(float(rv))
+    return float(np.mean(vals)) if vals else float("nan")
+
+
+def _volume_agrees(i: int, side: str, level: float, r: pd.Series, rvol: "pd.Series | None",
+                   obv_dev: "pd.Series | None", mfi_series: "pd.Series | None",
+                   cfg: TrendPullbackConfig) -> bool:
+    """Whether the volume behind the setup supports it, per cfg. All gates default to off.
+
+    A gate whose input is NaN rejects the signal rather than passing it: early bars and names
+    with gaps in their volume history have not met the condition, they are simply unmeasured,
+    and letting them through would quietly mix gated and ungated signals in one cohort.
+    """
+    if cfg.max_dip_rvol is not None:
+        if rvol is None:
+            raise ValueError("max_dip_rvol is set but no relative-volume series was supplied")
+        mean_rvol = dip_mean_rvol(rvol, r, i, level)
+        if pd.isna(mean_rvol) or mean_rvol > cfg.max_dip_rvol:
+            return False
+    if cfg.min_trigger_rvol is not None:
+        if rvol is None:
+            raise ValueError("min_trigger_rvol is set but no relative-volume series was supplied")
+        v = rvol.iloc[i]
+        if pd.isna(v) or v < cfg.min_trigger_rvol:
+            return False
+    if cfg.require_obv_above_ema:
+        if obv_dev is None:
+            raise ValueError("require_obv_above_ema is set but no OBV series was supplied")
+        d = obv_dev.iloc[i]
+        if pd.isna(d) or (d <= 0 if side == "BUY" else d >= 0):
+            return False
+    if cfg.mfi_confluence:
+        if mfi_series is None:
+            raise ValueError("mfi_confluence is set but no MFI series was supplied")
+        crossed = crossed_above if side == "BUY" else crossed_below
+        if pd.isna(mfi_series.iloc[i]) or not crossed(mfi_series, i, level):
+            return False
+    return True
+
+
 def _reached_the_mean(close: pd.Series, ema50: pd.Series, ema20: "pd.Series | None", i: int,
                       cfg: TrendPullbackConfig) -> bool:
     """Whether the dip actually pulled price back to a moving average, per cfg."""
@@ -140,6 +216,8 @@ def _reached_the_mean(close: pd.Series, ema50: pd.Series, ema20: "pd.Series | No
 
 def rule_side(close: pd.Series, ema50: pd.Series, ema200: pd.Series, r: pd.Series, i: int,
               adx_series: "pd.Series | None" = None, ema20: "pd.Series | None" = None,
+              rvol: "pd.Series | None" = None, obv_dev: "pd.Series | None" = None,
+              mfi_series: "pd.Series | None" = None,
               *, cfg: TrendPullbackConfig = DEFAULT_CONFIG) -> "tuple[str, str] | None":
     """Return (side, conviction) for bar i, or None. The 5-bar RSI lookback in the spec is
     implied by the cross on bar i (bar i-1 was beyond the level)."""
@@ -158,11 +236,15 @@ def rule_side(close: pd.Series, ema50: pd.Series, ema200: pd.Series, r: pd.Serie
             return None
         if not _reached_the_mean(close, ema50, ema20, i, cfg):
             return None
+        if not _volume_agrees(i, "BUY", cfg.rsi_buy_level, r, rvol, obv_dev, mfi_series, cfg):
+            return None
         if not cfg.depth_tiers:
             return "BUY", STANDARD
         return "BUY", _tier(dip_depth(r, i, cfg.rsi_buy_level), cfg.depth_tiers)
     if close.iloc[i] < ema200.iloc[i] and dn_structure and crossed_below(r, i, cfg.rsi_sell_level):
         if cfg.require_rising_ema200 and rising(ema200, i, cfg.rising_lookback):
+            return None
+        if not _volume_agrees(i, "SELL", cfg.rsi_sell_level, r, rvol, obv_dev, mfi_series, cfg):
             return None
         return "SELL", LOW  # see base.py: the short leg showed no measurable edge
     return None
@@ -194,9 +276,12 @@ class TrendPullback:
                 "since crossed back past the level that triggered it, so a card never describes "
                 "a setup that no longer holds. They are still listed, not hidden: over 12 years "
                 "these did no worse than signals still intact.",
-                # Fingerprint updated in place, not a new release: `params` was widened to cover the
-                # indicator periods it had been missing, and no shipped signal changes.
-                fingerprint="bfd4669f58fe"),
+                # Fingerprint updated in place, not a new release: `params` was widened twice --
+                # first to cover the indicator periods it had been missing, then for the volume
+                # gates added for measurement. Both are off by default, so no shipped signal
+                # changes; the fingerprint moves because the set of things that *could* change a
+                # signal did, which is exactly what it is there to track.
+                fingerprint="91632aa5f154"),
         Release("1.2.0", "2026-10-03",
                 "Tested a deeper RSI trigger, an ADX trend-strength filter and three "
                 "versions of a 'price must come back to the 50 EMA' rule over 12 years. "
@@ -229,11 +314,24 @@ class TrendPullback:
             "r": rsi(close, RSI_LENGTH),
             "adx_series": None,
             "ema20": None,
+            "rvol": None,
+            "obv_dev": None,
+            "mfi_series": None,
         }
-        if self.config.adx_min is not None:
-            out["adx_series"] = adx(df["high"], df["low"], close, self.config.adx_length)
-        if self.config.require_below_ema20:
+        cfg = self.config
+        if cfg.adx_min is not None:
+            out["adx_series"] = adx(df["high"], df["low"], close, cfg.adx_length)
+        if cfg.require_below_ema20:
             out["ema20"] = ema(close, EMA_SHORT)
+        if cfg.max_dip_rvol is not None or cfg.min_trigger_rvol is not None:
+            out["rvol"] = rel_volume(df["volume"], cfg.rvol_window)
+        if cfg.require_obv_above_ema:
+            # The deviation, not the level: OBV's absolute value depends on where the series
+            # happens to start, so only its position against its own average is meaningful.
+            o = obv(close, df["volume"])
+            out["obv_dev"] = o - ema(o, cfg.obv_ema_span)
+        if cfg.mfi_confluence:
+            out["mfi_series"] = mfi(df["high"], df["low"], close, df["volume"], cfg.mfi_length)
         return out
 
     def evaluate(self, df: pd.DataFrame) -> "Signal | None":

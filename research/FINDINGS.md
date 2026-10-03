@@ -121,6 +121,41 @@ So they are flagged, not dropped. The defect was never that the signal lost mone
 leg loses money by construction — it was that the card described a setup that no longer
 held. That is a labelling bug with a labelling fix.
 
+## Volume: the quiet pullback is the best thing measured here, and it still does not ship
+
+Five volume gates, 163 names x 12y, 20-bar horizon, against the shipped rule's +0.11%
+(t indep +0.74, n indep 3,589). Independent sample:
+
+| variant | n indep | alpha indep | t indep |
+|---|---:|---:|---:|
+| **dryup-0.9** (dip trades under 0.9x its own median volume) | 705 | **+0.50%** | **+1.75** |
+| dryup-0.75 (same idea, stricter) | 263 | +0.75% | +1.56 |
+| trigger-rvol-1.2 (recovery bar trades 1.2x normal) | 1,913 | −0.03% | −0.14 |
+| obv-accumulation (OBV above its 20-EMA) | 1,257 | +0.04% | +0.17 |
+| mfi-confluence (volume-weighted RSI crosses too) | 798 | −0.32% | −1.09 |
+
+**Half the textbook is wrong here.** "Loud recovery bar" is worthless (−0.03%) and the
+volume-weighted RSI is actively harmful (−0.32%). Only the *quiet pullback* half carries
+anything, and it is dose-responsive: tightening 0.9 → 0.75 raises alpha +0.50% → +0.75%
+while thinning the sample, which is the shape a real effect has.
+
+Against `ACCEPTANCE.md`, `dryup-0.9` scores 3 of 5:
+
+1. Positive and above shipped — **pass** (+0.50% vs +0.11%).
+2. |t indep| ≥ 2.5 — **fail, 1.75.** This is the one that decides it.
+3. Positive in both halves — pass on the letter, fail on the meaning: first half +1.02%
+   (t +2.63), second half **+0.05%** (t +0.12). The edge lives in the early years.
+4. Survives dropping its best year — **pass, and comfortably**: +0.42% without 2019. Worth
+   noting that the *shipped* rule fails this test outright (−0.21% without 2021).
+5. n indep ≥ 500 — pass, 705.
+
+So it is recorded, not shipped, and not re-tried at a third threshold. The honest reading is
+that a pullback nobody sells into was worth something up to about 2020 and has not been worth
+much since — which is what you would expect of an edge that became widely known.
+
+The gates stay in `TrendPullbackConfig`, all defaulting to off, so the result can be
+re-measured when there is more out-of-sample data rather than rebuilt from scratch.
+
 ## Open, unmeasured: does the *reason* for a dip matter? (news judgment)
 
 Every gate tried so far asks the price series a sharper question, and every one has failed.

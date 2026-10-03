@@ -105,3 +105,45 @@ def crossed_above(series: pd.Series, i: int, level: float) -> bool:
 def crossed_below(series: pd.Series, i: int, level: float) -> bool:
     """True if series closed above `level` on bar i-1 and at/below it on bar i."""
     return bool(series.iloc[i - 1] > level >= series.iloc[i])
+
+
+# --- volume ------------------------------------------------------------------------------
+# yfinance's auto_adjust rescales OHLC for splits but leaves volume alone, so a split inside
+# the window halves or doubles the raw series. Every measure below is a *ratio to a rolling
+# median*, which absorbs that after a few bars and ignores single-bar spikes, rather than a
+# ratio to a long mean, which a split would distort for the whole lookback.
+
+def rel_volume(volume: pd.Series, window: int = 20) -> pd.Series:
+    """Volume as a multiple of its rolling median. 1.0 is a typical bar for this name."""
+    med = volume.rolling(window, min_periods=max(5, window // 2)).median()
+    return (volume / med.replace(0, np.nan)).astype(float)
+
+
+def obv(close: pd.Series, volume: pd.Series) -> pd.Series:
+    """On-balance volume: the running total of volume signed by the direction of the close.
+
+    Measures whether the volume in a move is arriving on up bars or down bars -- the point of
+    looking at volume at all, which raw volume (unsigned) cannot tell you.
+    """
+    direction = np.sign(close.diff().fillna(0.0))
+    return (direction * volume.fillna(0.0)).cumsum()
+
+
+def mfi(high: pd.Series, low: pd.Series, close: pd.Series, volume: pd.Series,
+        length: int = 14) -> pd.Series:
+    """Money Flow Index: RSI computed on price x volume instead of price alone.
+
+    Same 0-100 scale and the same cross-a-level reading as RSI, so it drops straight into the
+    existing rule as a confluence. Uses a simple rolling sum, which is how MFI is defined --
+    it is not Wilder-smoothed, unlike `rsi` here.
+    """
+    typical = (high + low + close) / 3.0
+    flow = typical * volume.fillna(0.0)
+    up = flow.where(typical > typical.shift(1), 0.0)
+    down = flow.where(typical < typical.shift(1), 0.0)
+    pos = up.rolling(length).sum()
+    neg = down.rolling(length).sum()
+    # All-down windows give neg=0: MFI is 100 there by definition, not undefined.
+    ratio = pos / neg.replace(0, np.nan)
+    out = 100 - (100 / (1 + ratio))
+    return out.where(neg != 0, 100.0).where(pos.notna())

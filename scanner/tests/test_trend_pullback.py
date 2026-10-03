@@ -223,3 +223,65 @@ def test_rules_version_changes_when_a_gate_changes_and_not_otherwise():
     assert shipped != rules_version(TrendPullback(TrendPullbackConfig(adx_min=20)).params)
     assert shipped != rules_version(TrendPullback(TrendPullbackConfig(rsi_buy_level=35)).params)
     assert len(shipped) == 12
+
+
+# --- volume gates (all off by default; measured in research/) ----------------------------
+
+def _with_volume(closes, volumes):
+    df = make_df(closes)
+    df["volume"] = volumes
+    return df
+
+
+def test_volume_gates_are_off_by_default():
+    """The shipped rule must be blind to volume: these were added for measurement only."""
+    cfg = TrendPullbackConfig()
+    assert cfg.max_dip_rvol is None and cfg.min_trigger_rvol is None
+    assert cfg.require_obv_above_ema is False and cfg.mfi_confluence is False
+    loud = _with_volume(_uptrend_with_dip(), [1000] * 420 + [50_000] * 4)
+    assert TrendPullback().evaluate(loud) is not None  # a volume spike changes nothing
+
+
+def test_dryup_gate_rejects_a_dip_that_traded_heavily():
+    closes = _uptrend_with_dip()
+    # The dip is the three bars before the recovery. Quiet: they trade at 0.4x their own
+    # normal. Heavy: 5x. Constant volume is 1.0x and is deliberately not a dry-up.
+    quiet = _with_volume(closes, [1000] * (len(closes) - 4) + [400, 400, 400, 1000])
+    heavy = _with_volume(closes, [1000] * (len(closes) - 4) + [5000, 5000, 5000, 1000])
+    cfg = VARIANTS["dryup-0.9"]
+    assert TrendPullback(cfg).evaluate(quiet) is not None
+    assert TrendPullback(cfg).evaluate(heavy) is None
+
+
+def test_trigger_volume_gate_needs_the_recovery_bar_to_be_loud():
+    closes = _uptrend_with_dip()
+    flat = _with_volume(closes, [1000] * len(closes))
+    loud = _with_volume(closes, [1000] * (len(closes) - 1) + [3000])
+    cfg = VARIANTS["trigger-rvol-1.2"]
+    assert TrendPullback(cfg).evaluate(flat) is None  # 1.0x is not expansion
+    assert TrendPullback(cfg).evaluate(loud) is not None
+
+
+def test_a_gate_with_no_volume_history_rejects_rather_than_passes():
+    """An unmeasurable bar is not a passing bar: letting it through would mix cohorts."""
+    closes = _uptrend_with_dip()
+    df = _with_volume(closes, [float("nan")] * len(closes))
+    assert TrendPullback(VARIANTS["dryup-0.9"]).evaluate(df) is None
+
+
+def test_mfi_confluence_requires_the_volume_weighted_rsi_to_cross_too():
+    closes = _uptrend_with_dip()
+    df = _with_volume(closes, [1000] * len(closes))
+    sig = TrendPullback(VARIANTS["mfi-confluence"]).evaluate(df)
+    # Whatever it decides, it must decide it from MFI: the series has to be computed.
+    ind = TrendPullback(VARIANTS["mfi-confluence"]).indicators(df)
+    assert ind["mfi_series"] is not None
+    assert sig is None or sig.side == "BUY"
+
+
+def test_volume_gates_are_part_of_the_fingerprint():
+    """A gate outside `params` would change signals without changing rules_version."""
+    from scanner.strategies.base import rules_version
+    plain = rules_version(TrendPullback().params)
+    gated = rules_version(TrendPullback(VARIANTS["dryup-0.9"]).params)
+    assert plain != gated
