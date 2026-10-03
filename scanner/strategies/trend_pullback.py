@@ -57,6 +57,11 @@ class TrendPullbackConfig:
     # The 50-above-200 condition is near-collinear with close-above-200 and flips ~10-15%
     # after the actual turn; the flag exists so its contribution can be measured.
     require_ema50_above_ema200: bool = True
+    # Structural pullback: is this a pullback at all? The shipped rule fires on an RSI dip
+    # wherever it happens, so a name 25% above its EMA50 that ticked 39 -> 41 scores the same
+    # as one sitting on the EMA50. These require price to have actually come back to a mean.
+    max_ema50_distance: "float | None" = None  # e.g. 0.02 -> close must be within +2% of EMA50
+    require_below_ema20: bool = False  # the dip reached the short-term mean
 
 
 DEFAULT_CONFIG = TrendPullbackConfig()
@@ -77,6 +82,14 @@ VARIANTS = {
         depth_tiers=((30, HIGH), (35, STANDARD), (float("inf"), LOW))),
     "tiered-deep-is-weak": TrendPullbackConfig(
         depth_tiers=((30, LOW), (35, STANDARD), (float("inf"), HIGH))),
+    # Structural pullback: require price to have come back to a mean, rather than taking any
+    # RSI dip wherever it happens. Measured against research/ACCEPTANCE.md.
+    "near-ema50-2pct": TrendPullbackConfig(max_ema50_distance=0.02),
+    "near-ema50-5pct": TrendPullbackConfig(max_ema50_distance=0.05),
+    "at-ema50": TrendPullbackConfig(max_ema50_distance=0.0),  # close at or below the EMA50
+    "below-ema20": TrendPullbackConfig(require_below_ema20=True),
+    "below-ema20+near-ema50-5pct": TrendPullbackConfig(
+        require_below_ema20=True, max_ema50_distance=0.05),
 }
 
 
@@ -104,9 +117,23 @@ def _tier(depth: float, tiers) -> str:
     return STANDARD
 
 
+def _reached_the_mean(close: pd.Series, ema50: pd.Series, ema20: "pd.Series | None", i: int,
+                      cfg: TrendPullbackConfig) -> bool:
+    """Whether the dip actually pulled price back to a moving average, per cfg."""
+    if cfg.max_ema50_distance is not None:
+        if close.iloc[i] > ema50.iloc[i] * (1 + cfg.max_ema50_distance):
+            return False
+    if cfg.require_below_ema20:
+        if ema20 is None:
+            raise ValueError("require_below_ema20 is set but no EMA20 series was supplied")
+        if pd.isna(ema20.iloc[i]) or close.iloc[i] >= ema20.iloc[i]:
+            return False
+    return True
+
+
 def rule_side(close: pd.Series, ema50: pd.Series, ema200: pd.Series, r: pd.Series, i: int,
-              adx_series: "pd.Series | None" = None,
-              cfg: TrendPullbackConfig = DEFAULT_CONFIG) -> "tuple[str, str] | None":
+              adx_series: "pd.Series | None" = None, ema20: "pd.Series | None" = None,
+              *, cfg: TrendPullbackConfig = DEFAULT_CONFIG) -> "tuple[str, str] | None":
     """Return (side, conviction) for bar i, or None. The 5-bar RSI lookback in the spec is
     implied by the cross on bar i (bar i-1 was beyond the level)."""
     if cfg.adx_min is not None:
@@ -121,6 +148,8 @@ def rule_side(close: pd.Series, ema50: pd.Series, ema200: pd.Series, r: pd.Serie
 
     if close.iloc[i] > ema200.iloc[i] and up_structure and crossed_above(r, i, cfg.rsi_buy_level):
         if cfg.require_rising_ema200 and not rising(ema200, i, cfg.rising_lookback):
+            return None
+        if not _reached_the_mean(close, ema50, ema20, i, cfg):
             return None
         if not cfg.depth_tiers:
             return "BUY", STANDARD
@@ -159,9 +188,12 @@ class TrendPullback:
             "ema200": ema(close, 200),
             "r": rsi(close),
             "adx_series": None,
+            "ema20": None,
         }
         if self.config.adx_min is not None:
             out["adx_series"] = adx(df["high"], df["low"], close, self.config.adx_length)
+        if self.config.require_below_ema20:
+            out["ema20"] = ema(close, 20)
         return out
 
     def evaluate(self, df: pd.DataFrame) -> "Signal | None":

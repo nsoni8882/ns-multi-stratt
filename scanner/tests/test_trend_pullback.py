@@ -77,22 +77,22 @@ def test_adx_gate_blocks_a_signal_in_chop():
     close, ema50, ema200 = series([110, 110]), series([105, 105]), series([100, 100])
     r = series([38, 41])
     cfg = TrendPullbackConfig(adx_min=20)
-    assert rule_side(close, ema50, ema200, r, 1, series([30, 30]), cfg) == ("BUY", STANDARD)
-    assert rule_side(close, ema50, ema200, r, 1, series([30, 12]), cfg) is None
-    assert rule_side(close, ema50, ema200, r, 1, series([30, np.nan]), cfg) is None
+    assert rule_side(close, ema50, ema200, r, 1, series([30, 30]), cfg=cfg) == ("BUY", STANDARD)
+    assert rule_side(close, ema50, ema200, r, 1, series([30, 12]), cfg=cfg) is None
+    assert rule_side(close, ema50, ema200, r, 1, series([30, np.nan]), cfg=cfg) is None
 
 
 def test_adx_gate_requires_an_adx_series():
     close, ema50, ema200 = series([110, 110]), series([105, 105]), series([100, 100])
     with pytest.raises(ValueError, match="no ADX series"):
-        rule_side(close, ema50, ema200, series([38, 41]), 1, None, TrendPullbackConfig(adx_min=20))
+        rule_side(close, ema50, ema200, series([38, 41]), 1, None, cfg=TrendPullbackConfig(adx_min=20))
 
 
 def test_rsi_level_is_configurable():
     close, ema50, ema200 = series([110, 110]), series([105, 105]), series([100, 100])
     cfg = TrendPullbackConfig(rsi_buy_level=35)
-    assert rule_side(close, ema50, ema200, series([38, 41]), 1, None, cfg) is None  # never reached 35
-    assert rule_side(close, ema50, ema200, series([33, 36]), 1, None, cfg) == ("BUY", STANDARD)
+    assert rule_side(close, ema50, ema200, series([38, 41]), 1, None, cfg=cfg) is None  # never reached 35
+    assert rule_side(close, ema50, ema200, series([33, 36]), 1, None, cfg=cfg) == ("BUY", STANDARD)
 
 
 def test_dropping_the_ema50_condition_admits_a_signal_it_blocked():
@@ -100,14 +100,14 @@ def test_dropping_the_ema50_condition_admits_a_signal_it_blocked():
     ema50 = series([95, 95])  # 50 still below 200
     assert rule_side(close, ema50, ema200, r, 1) is None
     cfg = TrendPullbackConfig(require_ema50_above_ema200=False)
-    assert rule_side(close, ema50, ema200, r, 1, None, cfg) == ("BUY", STANDARD)
+    assert rule_side(close, ema50, ema200, r, 1, None, cfg=cfg) == ("BUY", STANDARD)
 
 
 def test_rising_ema200_gate_blocks_a_falling_trend_line():
     close, ema50, r = series([110] * 4), series([105] * 4), series([0, 0, 38, 41])
     cfg = TrendPullbackConfig(require_rising_ema200=True, rising_lookback=2)
-    assert rule_side(close, ema50, series([100, 100, 101, 102]), r, 3, None, cfg) == ("BUY", STANDARD)
-    assert rule_side(close, ema50, series([100, 100, 99, 98]), r, 3, None, cfg) is None
+    assert rule_side(close, ema50, series([100, 100, 101, 102]), r, 3, None, cfg=cfg) == ("BUY", STANDARD)
+    assert rule_side(close, ema50, series([100, 100, 99, 98]), r, 3, None, cfg=cfg) is None
 
 
 def test_dip_depth_traces_the_unbroken_sub_level_run():
@@ -127,9 +127,9 @@ def test_depth_tiers_grade_conviction_by_how_deep_the_pullback_went():
     deep = series([50, 45, 38, 28, 41])
     shallow = series([50, 45, 39, 38, 41])
     mid = series([50, 45, 38, 33, 41])
-    assert rule_side(close, ema50, ema200, deep, 4, None, cfg) == ("BUY", HIGH)
-    assert rule_side(close, ema50, ema200, mid, 4, None, cfg) == ("BUY", STANDARD)
-    assert rule_side(close, ema50, ema200, shallow, 4, None, cfg) == ("BUY", LOW)
+    assert rule_side(close, ema50, ema200, deep, 4, None, cfg=cfg) == ("BUY", HIGH)
+    assert rule_side(close, ema50, ema200, mid, 4, None, cfg=cfg) == ("BUY", STANDARD)
+    assert rule_side(close, ema50, ema200, shallow, 4, None, cfg=cfg) == ("BUY", LOW)
 
 
 def test_evaluate_with_adx_gate_reports_adx_in_details():
@@ -145,3 +145,58 @@ def test_every_variant_evaluates_without_error():
     df = make_df(_uptrend_with_dip())
     for label, cfg in VARIANTS.items():
         TrendPullback(cfg).evaluate(df)  # must not raise
+
+
+# --- structural pullback: did price actually come back to a mean? ---
+
+def test_near_ema50_gate_rejects_an_extended_name():
+    """Same RSI dip, two very different setups: one sitting on the EMA50, one 25% above it."""
+    ema50, ema200, r = series([105, 105]), series([100, 100]), series([38, 41])
+    cfg = TrendPullbackConfig(max_ema50_distance=0.02)
+    assert rule_side(series([106, 106]), ema50, ema200, r, 1, None, None, cfg=cfg) == ("BUY", STANDARD)
+    assert rule_side(series([131, 131]), ema50, ema200, r, 1, None, None, cfg=cfg) is None
+    # unchanged without the gate
+    assert rule_side(series([131, 131]), ema50, ema200, r, 1) == ("BUY", STANDARD)
+
+
+def test_near_ema50_gate_boundary_is_inclusive():
+    ema50, ema200, r = series([100, 100]), series([90, 90]), series([38, 41])
+    cfg = TrendPullbackConfig(max_ema50_distance=0.02)
+    assert rule_side(series([102, 102]), ema50, ema200, r, 1, None, None, cfg=cfg) is not None
+    assert rule_side(series([102.01, 102.01]), ema50, ema200, r, 1, None, None, cfg=cfg) is None
+
+
+def test_at_ema50_gate_requires_price_at_or_under_the_mean():
+    ema50, ema200, r = series([100, 100]), series([90, 90]), series([38, 41])
+    cfg = VARIANTS["at-ema50"]
+    assert rule_side(series([99, 99]), ema50, ema200, r, 1, None, None, cfg=cfg) is not None
+    assert rule_side(series([101, 101]), ema50, ema200, r, 1, None, None, cfg=cfg) is None
+
+
+def test_below_ema20_gate_requires_the_dip_to_reach_the_short_mean():
+    ema50, ema200, r = series([105, 105]), series([100, 100]), series([38, 41])
+    cfg = TrendPullbackConfig(require_below_ema20=True)
+    close = series([110, 110])
+    assert rule_side(close, ema50, ema200, r, 1, None, series([112, 112]), cfg=cfg) == ("BUY", STANDARD)
+    assert rule_side(close, ema50, ema200, r, 1, None, series([108, 108]), cfg=cfg) is None
+    assert rule_side(close, ema50, ema200, r, 1, None, series([np.nan, np.nan]), cfg=cfg) is None
+
+
+def test_below_ema20_gate_requires_an_ema20_series():
+    ema50, ema200, r = series([105, 105]), series([100, 100]), series([38, 41])
+    with pytest.raises(ValueError, match="no EMA20 series"):
+        rule_side(series([110, 110]), ema50, ema200, r, 1, None, None,
+                  cfg=TrendPullbackConfig(require_below_ema20=True))
+
+
+def test_structural_gates_do_not_touch_the_short_leg():
+    """These conditions describe a pullback in an uptrend; the SELL leg must be unaffected."""
+    close, ema50, ema200, r = series([90, 90]), series([95, 95]), series([100, 100]), series([62, 59])
+    for cfg in (VARIANTS["at-ema50"], VARIANTS["below-ema20"], VARIANTS["near-ema50-2pct"]):
+        assert rule_side(close, ema50, ema200, r, 1, None, series([80, 80]), cfg=cfg) == ("SELL", LOW)
+
+
+def test_evaluate_supplies_ema20_when_the_gate_needs_it():
+    strat = TrendPullback(TrendPullbackConfig(require_below_ema20=True))
+    assert strat.indicators(make_df(_uptrend_with_dip()))["ema20"] is not None
+    assert TrendPullback().indicators(make_df(_uptrend_with_dip()))["ema20"] is None
