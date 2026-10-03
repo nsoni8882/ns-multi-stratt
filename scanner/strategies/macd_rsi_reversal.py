@@ -101,6 +101,7 @@ class MacdRsiReversal:
                 # The level that fired it: the deep tier for a HIGH buy, else the standard one.
                 level = RSI_HIGH if side == "SELL" else (RSI_LOW if conviction == HIGH else RSI_LOW_STANDARD)
                 dead = thesis_negated(r, i, last, side, level)
-                return make_signal(df, i, side, {"macd_hist": hist.iloc[i], "rsi": r.iloc[i]},
+                return make_signal(df, i, side,
+                                   {"macd_hist": hist.iloc[i], "rsi": r.iloc[i], "rsi_level": level},
                                    conviction, invalidated=dead)
         return None

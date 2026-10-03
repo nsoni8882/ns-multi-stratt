@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 from scanner.strategies.base import HIGH, LOW, STANDARD
-from scanner.strategies.macd_rsi_reversal import MacdRsiReversal, rule_side
+from scanner.strategies.macd_rsi_reversal import RSI_LOW, RSI_LOW_STANDARD, MacdRsiReversal, rule_side
 from scanner.tests.conftest import make_df
 
 
@@ -88,6 +88,9 @@ def test_evaluate_buy_on_crash_then_bounce():
     assert sig.entry_price == closes[-1]
     assert sig.fired_at == make_df(closes)["close_time"].iloc[-1]
     assert sig.details["rsi"] > 20 and sig.details["macd_hist"] <= 0
+    # The level that fired it travels with the signal, so the site can say why without
+    # restating a threshold of its own.
+    assert sig.details["rsi_level"] in (RSI_LOW, RSI_LOW_STANDARD)
     assert sig.conviction in (HIGH, STANDARD)
 
 

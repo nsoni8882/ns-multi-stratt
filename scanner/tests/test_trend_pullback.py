@@ -3,7 +3,8 @@ import pandas as pd
 import pytest
 
 from scanner.strategies.base import HIGH, LOW, STANDARD
-from scanner.strategies.trend_pullback import TrendPullback, TrendPullbackConfig, VARIANTS, dip_depth, rule_side
+from scanner.strategies.trend_pullback import (RSI_BUY_LEVEL, TrendPullback, TrendPullbackConfig, VARIANTS,
+                                               dip_depth, rule_side)
 from scanner.tests.conftest import make_df
 
 
@@ -42,6 +43,9 @@ def test_evaluate_buy_on_pullback_in_uptrend():
     sig = TrendPullback().evaluate(make_df(_uptrend_with_dip()))
     assert sig is not None and sig.side == "BUY" and sig.bars_ago == 0
     assert sig.details["ema50"] > sig.details["ema200"]
+    # The level that fired it travels with the signal, so the site can say why without
+    # restating a threshold of its own.
+    assert sig.details["rsi_level"] == RSI_BUY_LEVEL
     assert sig.conviction == STANDARD
 
 

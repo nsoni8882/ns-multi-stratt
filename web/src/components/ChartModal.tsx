@@ -6,6 +6,7 @@ import { ChartView } from "./ChartView";
 import { COLORS } from "../lib/chartData";
 import { ErrorState, Loading } from "./Feedback";
 import { SignalPill } from "./SignalPill";
+import { signalReason } from "../lib/signalReason";
 
 interface Props {
   row: SignalRow;
@@ -80,6 +81,10 @@ export function ChartModal({ row, tf, strategyId, config, onClose }: Props) {
         {chart.loading && <Loading what="chart" />}
         {chart.error && <ErrorState error={chart.error} onRetry={chart.retry} />}
         {chart.data && <ChartView data={chart.data} config={config} strategyId={strategyId} candleStyle={style} />}
+        <div className="why">
+          <div className="whysig"><SignalPill side={row.side} conviction={row.conviction} /></div>
+          <p>{signalReason(strategyId, row)}</p>
+        </div>
         <div className="legend">
           {config.emas && (
             <>

@@ -248,7 +248,8 @@ class TrendPullback:
                 side, conviction = hit
                 level = self.config.rsi_sell_level if side == "SELL" else self.config.rsi_buy_level
                 dead = thesis_negated(ind["r"], i, last, side, level)
-                details = {"rsi": ind["r"].iloc[i], "ema50": ind["ema50"].iloc[i], "ema200": ind["ema200"].iloc[i]}
+                details = {"rsi": ind["r"].iloc[i], "rsi_level": level,
+                           "ema50": ind["ema50"].iloc[i], "ema200": ind["ema200"].iloc[i]}
                 if ind["adx_series"] is not None:
                     details["adx"] = ind["adx_series"].iloc[i]
                 return make_signal(df, i, side, details, conviction, invalidated=dead)
