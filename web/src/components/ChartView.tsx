@@ -9,6 +9,7 @@ import {
 } from "lightweight-charts";
 import { useEffect, useRef } from "react";
 import { COLORS, buildChartData } from "../lib/chartData";
+import { PaneValue } from "../lib/paneValue";
 import { SignalLabelPrimitive } from "../lib/signalLabel";
 import { smc } from "../lib/smc";
 import { SmcOverlay } from "../lib/smcDraw";
@@ -75,30 +76,14 @@ export function ChartView({ data, config, strategyId, candleStyle, showSmc }: Pr
     }
 
     // Pane 1: RSI with the strategy's own levels (solid lines, no tags) plus faint 30/50/70 references
-    const rsi = chart.addSeries(LineSeries, { color: COLORS.rsi, lineWidth: 2, priceLineVisible: false, lastValueVisible: true, title: "" }, 1);
+    const rsi = chart.addSeries(LineSeries, { color: COLORS.rsi, lineWidth: 2, priceLineVisible: false, lastValueVisible: false, title: "" }, 1);
     rsi.setData(b.rsi);
-    // RSI at the crosshair, as a tag on that pane's scale. The crosshair's own label only
-    // appears in the pane the pointer is in, and the pointer is almost always over the candles,
-    // so reading "what was RSI on that bar" otherwise means counting gridlines.
+    // A dotted guide at the RSI value under the crosshair. Its reading is named in the pane's
+    // corner rather than tagged on the scale; see PaneValue for why the scale will not do.
     const rsiAt = new Map(b.rsi.map((p) => [p.time as number, p.value]));
     const hover = rsi.createPriceLine({
       price: 0, color: COLORS.rsi, lineWidth: 1, lineStyle: LineStyle.Dotted,
       axisLabelVisible: false, title: "",
-    });
-    // The crosshair's own price tag reports wherever the pointer happens to sit on that pane's
-    // scale. Over the candles that is the price under the cursor, which is worth having. Over
-    // RSI or MACD it is an arbitrary y value, and it lands on a gridline label and covers half
-    // of it. So it follows the pointer between panes; the tags below carry the real numbers.
-    let priceTagOn = true;
-    chart.subscribeCrosshairMove((param) => {
-      const v = param.time === undefined ? undefined : rsiAt.get(param.time as number);
-      hover.applyOptions(v === undefined ? { axisLabelVisible: false } : { price: v, axisLabelVisible: true });
-      if (param.paneIndex === undefined) return; // pointer left the chart; the crosshair is gone anyway
-      const onPrice = param.paneIndex === 0;
-      if (onPrice !== priceTagOn) {
-        priceTagOn = onPrice;
-        chart.applyOptions({ crosshair: { horzLine: { labelVisible: onPrice } } });
-      }
     });
     [30, 50, 70].forEach((price) =>
       rsi.createPriceLine({ price, color: "#E0D6C8", lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: false, title: "" }),
@@ -115,9 +100,44 @@ export function ChartView({ data, config, strategyId, candleStyle, showSmc }: Pr
       hist.createPriceLine({ price: b.deepHigh, color: COLORS.accent, lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: false, title: "" });
       hist.createPriceLine({ price: b.deepLow, color: COLORS.accent, lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: false, title: "" });
     }
-    // Only the current MACD and signal values are shown, as coloured tags on the price scale (no names).
-    chart.addSeries(LineSeries, { color: COLORS.macd, lineWidth: 2, priceLineVisible: false, lastValueVisible: true, title: "" }, 2).setData(b.macd);
-    chart.addSeries(LineSeries, { color: COLORS.signal, lineWidth: 2, priceLineVisible: false, lastValueVisible: true, title: "" }, 2).setData(b.signal);
+    chart.addSeries(LineSeries, { color: COLORS.macd, lineWidth: 2, priceLineVisible: false, lastValueVisible: false, title: "" }, 2).setData(b.macd);
+    chart.addSeries(LineSeries, { color: COLORS.signal, lineWidth: 2, priceLineVisible: false, lastValueVisible: false, title: "" }, 2).setData(b.signal);
+
+    // Named readings in each oscillator pane's corner, following the crosshair and falling back
+    // to the latest bar. The crosshair's own price tag stays on the price pane, where the number
+    // under the pointer is the price; on RSI and MACD it is an arbitrary y and only gets in the way.
+    const at: { time: number | null } = { time: null };
+    const macdAt = new Map(b.macd.map((p) => [p.time as number, p.value]));
+    const signalAt = new Map(b.signal.map((p) => [p.time as number, p.value]));
+    const reading = (by: Map<number, number>, series: { value: number }[]) => {
+      const live = at.time === null ? undefined : by.get(at.time);
+      return live ?? (series.length ? series[series.length - 1].value : null);
+    };
+    const chunk = (label: string, value: number | null, color: string) =>
+      value === null ? [] : [{ text: `${label} ${value.toFixed(2)}`, color }];
+
+    const rsiValue = new PaneValue(() => chunk("RSI", reading(rsiAt, b.rsi), COLORS.rsi), COLORS.chartBg);
+    const macdValue = new PaneValue(() => [
+      ...chunk("MACD", reading(macdAt, b.macd), COLORS.macd),
+      ...chunk("signal", reading(signalAt, b.signal), COLORS.signal),
+    ], COLORS.chartBg);
+    rsi.attachPrimitive(rsiValue);
+    hist.attachPrimitive(macdValue);
+
+    let priceTagOn = true;
+    chart.subscribeCrosshairMove((param) => {
+      at.time = param.time === undefined ? null : (param.time as number);
+      const v = at.time === null ? undefined : rsiAt.get(at.time);
+      hover.applyOptions(v === undefined ? { lineVisible: false } : { price: v, lineVisible: true });
+      rsiValue.refresh();
+      macdValue.refresh();
+      if (param.paneIndex === undefined) return; // pointer left the chart; the crosshair is gone anyway
+      const onPrice = param.paneIndex === 0;
+      if (onPrice !== priceTagOn) {
+        priceTagOn = onPrice;
+        chart.applyOptions({ crosshair: { horzLine: { labelVisible: onPrice } } });
+      }
+    });
 
     // Price gets the most room; RSI and MACD share the rest. Stretch factors survive container resizes.
     const [price, rsiPane, macdPane] = chart.panes();
