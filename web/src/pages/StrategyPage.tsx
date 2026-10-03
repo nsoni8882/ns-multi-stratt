@@ -1,0 +1,76 @@
+import { useCallback, useMemo, useState } from "react";
+import { useParams } from "react-router-dom";
+import { getSignals } from "../api";
+import { ChartModal } from "../components/ChartModal";
+import { ErrorState, Loading } from "../components/Feedback";
+import { StockCard } from "../components/StockCard";
+import { useAsync, useTimeframe } from "../hooks";
+import { ALL_SECTORS, DEFAULT_FILTERS, filterSignals, sectorsOf, type Filters } from "../lib/filters";
+import { useStrategies } from "../strategiesContext";
+import type { SignalRow } from "../types";
+
+export function StrategyPage() {
+  const { id = "" } = useParams();
+  const [tf] = useTimeframe();
+  const strategies = useStrategies();
+  const signals = useAsync(() => getSignals(id, tf), [id, tf]);
+  const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
+  const [open, setOpen] = useState<SignalRow | null>(null);
+  const close = useCallback(() => setOpen(null), []);
+
+  const rows = signals.data?.signals ?? [];
+  const sectors = useMemo(() => sectorsOf(rows), [rows]);
+  const shown = useMemo(() => filterSignals(rows, filters), [rows, filters]);
+  const strategy = strategies.data?.strategies.find((s) => s.id === id);
+
+  if (strategies.loading) return <Loading what="strategy" />;
+  if (strategies.error) return <ErrorState error={strategies.error} onRetry={strategies.retry} />;
+  if (!strategy) return <p className="muted center">Unknown strategy "{id}".</p>;
+
+  return (
+    <>
+      <section className="hero">
+        <h1>{strategy.name}</h1>
+        <p>{strategy.description}</p>
+      </section>
+
+      <div className="tools">
+        <div className="seg" role="group" aria-label="Signal filter">
+          {(["ALL", "BUY", "SELL"] as const).map((s) => (
+            <button key={s} type="button" aria-pressed={filters.side === s} onClick={() => setFilters({ ...filters, side: s })}>
+              {s === "ALL" ? "All" : s}
+            </button>
+          ))}
+        </div>
+        <input
+          aria-label="Search ticker or name"
+          placeholder="Search ticker or name"
+          value={filters.query}
+          onChange={(e) => setFilters({ ...filters, query: e.target.value })}
+        />
+        <select aria-label="Sector" value={filters.sector} onChange={(e) => setFilters({ ...filters, sector: e.target.value })}>
+          {sectors.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+      </div>
+
+      {signals.loading && <Loading what="signals" />}
+      {signals.error && <ErrorState error={signals.error} onRetry={signals.retry} />}
+      {signals.data && (
+        shown.length === 0 ? (
+          <p className="muted center">
+            {rows.length === 0 ? "No signals right now." : "No signals match these filters."}
+            {filters !== DEFAULT_FILTERS && rows.length > 0 && (
+              <> <button type="button" className="linkbtn" onClick={() => setFilters({ ...DEFAULT_FILTERS, sector: ALL_SECTORS })}>Clear filters</button></>
+            )}
+          </p>
+        ) : (
+          <div className="grid">
+            {shown.map((r) => <StockCard key={`${r.ticker}-${r.side}`} row={r} onOpen={setOpen} />)}
+          </div>
+        )
+      )}
+
+      {open && <ChartModal row={open} tf={tf} strategyId={strategy.id} config={strategy.chart} onClose={close} />}
+    </>
+  );
+}
