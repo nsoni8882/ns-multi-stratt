@@ -86,14 +86,17 @@ exit zero), strategies that threw on individual names, the duration, and the `ru
 actually published. A scan that *fails* writes nothing, so that case lives only in the Actions
 log — which GitHub deletes after 90 days.
 
-Two failure modes worth knowing because neither is loud:
+Two things that used to be silent and now are not:
 
-- **A scheduled run deploys without tests.** `pytest` and `npm test` are skipped on
-  `schedule` on purpose, so dependency drift cannot block a data refresh. A scheduled run can
-  therefore publish from code that would fail CI on a push.
-- **Nothing in the browser is captured.** A JavaScript error on the live site leaves no trace
-  anywhere. If the site misbehaves but the scan was green, reproduce it locally under
-  *Visual checks* below and read the console there.
+- **A scheduled run can deploy from failing code.** Tests still do not *block* a scheduled
+  refresh — dependency drift must never stop a data update — but they now run, and
+  `scanner.health` folds the outcome into `health.json`. Check
+  `published_with_failing_tests`: true means the live site was built from code whose suite
+  fails, which is the one case worth acting on immediately.
+- **Browser errors are kept by the page itself.** There is no server to receive them, so
+  `web/src/lib/errorLog.ts` keeps the last 10 in `localStorage`, an `ErrorBoundary` replaces
+  the blank-white-screen failure with a message, and the footer offers them as one pasteable
+  blob. Ask the person to press *Copy details*; that text is the stack trace.
 
 ## Visual checks
 

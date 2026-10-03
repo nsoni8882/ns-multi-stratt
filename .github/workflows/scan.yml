@@ -82,9 +82,13 @@ jobs:
           python-version: "3.14"
           cache: pip
       - run: pip install -r requirements.txt
-      # Tests gate pushes and manual runs; scheduled data refreshes must not be blocked by dependency drift.
-      - run: python -m pytest -q
-        if: github.event_name != 'schedule'
+      # Tests gate pushes and manual runs. A scheduled refresh runs them too but does not stop
+      # on them -- dependency drift must never block a data update -- and the outcome is folded
+      # into health.json below, so "deployed from code whose tests fail" is visible rather than
+      # buried in a log that expires.
+      - id: pytest
+        run: python -m pytest -q
+        continue-on-error: ${{ github.event_name == 'schedule' }}
 
       - uses: actions/setup-node@v4
         with:
@@ -93,13 +97,21 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: npm ci
         working-directory: web
-      - run: npm test
+      - id: webtest
+        run: npm test
         working-directory: web
-        if: github.event_name != 'schedule'
+        continue-on-error: ${{ github.event_name == 'schedule' }}
 
       # Exits non-zero (skipping everything below) if >10% of tickers fail to fetch.
       - name: Scan the S&P 500
         run: python -m scanner.run --out web/public/data --db history/signals.db
+
+      - name: Record the test outcomes alongside the scan
+        run: |
+          python -m scanner.health web/public/data/health.json \
+            --event "${{ github.event_name }}" \
+            --test "python=${{ steps.pytest.outcome }}" \
+            --test "web=${{ steps.webtest.outcome }}"
 
       - run: npm run build
         working-directory: web

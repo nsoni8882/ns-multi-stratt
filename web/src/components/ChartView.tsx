@@ -38,8 +38,14 @@ export function ChartView({ data, config, strategyId, candleStyle }: Props) {
     const chart = createChart(el, {
       autoSize: true,
       handleScroll: { vertTouchDrag: false }, // on phones a vertical swipe scrolls the page, not the chart
-      layout: { background: { type: ColorType.Solid, color: "#FFFFFF" }, textColor: "#625C55", fontFamily: "Inter, system-ui, sans-serif", fontSize: 12, panes: { separatorColor: "#EFE6DB" } },
-      grid: { vertLines: { color: "#F3EBE0" }, horzLines: { color: "#F3EBE0" } },
+      // Tinted like the page rather than white, so the chart reads as part of the sheet, and
+      // the three panes are divided by a visible rule instead of a hairline.
+      layout: {
+        background: { type: ColorType.Solid, color: COLORS.chartBg },
+        textColor: "#625C55", fontFamily: "Inter, system-ui, sans-serif", fontSize: 12,
+        panes: { separatorColor: COLORS.paneSeparator, separatorHoverColor: COLORS.accent, enableResize: false },
+      },
+      grid: { vertLines: { color: COLORS.grid }, horzLines: { color: COLORS.grid } },
       rightPriceScale: { borderVisible: false },
       timeScale: {
         borderVisible: false,

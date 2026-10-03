@@ -14,6 +14,11 @@ export const COLORS = {
   signal: "#C98A2B",
   ema50: "#C98A2B",
   ema200: "#2F5D8A",
+  // Chart furniture, matched to theme.css: --bg, a slightly darker --border for the rules
+  // between panes, and a grid faint enough to sit under candles on the tinted background.
+  chartBg: "#FFFBF6",
+  paneSeparator: "#D6C4AC",
+  grid: "#F2E9DD",
 };
 
 type Point = { time: UTCTimestamp; value: number };
