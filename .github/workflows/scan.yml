@@ -1,0 +1,85 @@
+name: Scan and deploy
+
+on:
+  schedule:
+    # Just after each US 4H bar closes (13:30 and 16:00 ET). Cron is UTC, so both DST offsets are
+    # listed; the extra run is harmless because the scanner is idempotent.
+    - cron: "35 17,18 * * 1-5"
+    - cron: "5 20,21 * * 1-5"
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write # push the signal history to the `data` branch
+  pages: write
+  id-token: write
+
+concurrency:
+  group: scan-and-deploy # queue overlapping runs so they never race on the history push
+  cancel-in-progress: false
+
+jobs:
+  scan-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out signal history (data branch)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if git ls-remote --exit-code --heads "$REMOTE" data >/dev/null 2>&1; then
+            git clone --quiet --branch data --single-branch --depth 1 "$REMOTE" history
+          else
+            git init --quiet -b data history
+            git -C history remote add origin "$REMOTE"
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python -m pytest -q
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+      - run: npm test
+        working-directory: web
+
+      # Exits non-zero (skipping everything below) if >10% of tickers fail to fetch.
+      - name: Scan the S&P 500
+        run: python -m scanner.run --out web/public/data --db history/signals.db
+
+      - run: npm run build
+        working-directory: web
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Save signal history
+        run: |
+          cd history
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add signals.db
+          if git diff --cached --quiet; then
+            echo "history unchanged"
+          else
+            git commit --quiet -m "signals $(date -u +%FT%TZ)"
+            git push --quiet origin HEAD:data
+          fi
