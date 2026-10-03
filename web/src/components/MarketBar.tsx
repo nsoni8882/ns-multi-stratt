@@ -14,7 +14,7 @@ export function MarketBar({ market }: { market: MarketFile }) {
   return (
     <div className="marketbar" data-testid="market-status" role="status">
       <span className={`dot ${s.open ? "on" : "off"}`} aria-hidden="true" />
-      {parts.join(" · ")}
+      <span>{parts.join(" · ")}</span>
     </div>
   );
 }

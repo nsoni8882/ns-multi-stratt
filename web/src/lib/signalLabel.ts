@@ -22,6 +22,16 @@ const BOX_H = 20;
 const GAP = 6; // between the candle and the notch tip
 const NOTCH = 6;
 
+/** ctx.roundRect is missing before Safari 16, so build the rounded rectangle from arcs. */
+function roundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
 /** Draws a filled "BUY" / "SELL" box with a small pointer, anchored to a candle on the price pane. */
 export class SignalLabelPrimitive implements ISeriesPrimitive<Time> {
   private param: SeriesAttachedParameter<Time, SeriesType> | null = null;
@@ -59,7 +69,7 @@ export class SignalLabelPrimitive implements ISeriesPrimitive<Time> {
           const h = BOX_H * vr;
           ctx.fillStyle = data.color;
           ctx.beginPath();
-          ctx.roundRect(x - w / 2, boxTop, w, h, 4 * hr);
+          roundedRect(ctx, x - w / 2, boxTop, w, h, 4 * hr);
           ctx.fill();
           ctx.beginPath(); // pointer towards the candle
           ctx.moveTo(x, tipY);

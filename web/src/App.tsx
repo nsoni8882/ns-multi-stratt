@@ -21,7 +21,10 @@ function Shell() {
           <Route path="*" element={<p className="muted center">Page not found.</p>} />
         </Routes>
       </main>
-      <footer className="foot">Not financial advice. Data from Yahoo Finance, may be delayed or inaccurate.</footer>
+      <footer className="foot">
+        {data && <div>Last updated {new Date(data.updated_at).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}</div>}
+        <div>Not financial advice. Data from Yahoo Finance, may be delayed or inaccurate.</div>
+      </footer>
     </>
   );
 }

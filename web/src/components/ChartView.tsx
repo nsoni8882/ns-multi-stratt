@@ -10,7 +10,7 @@ import {
 import { useEffect, useRef } from "react";
 import { COLORS, buildChartData } from "../lib/chartData";
 import { SignalLabelPrimitive } from "../lib/signalLabel";
-import type { ChartConfig, ChartFile } from "../types";
+import type { CandleStyle, ChartConfig, ChartFile } from "../types";
 
 const ET = "America/New_York";
 const dayFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
@@ -21,21 +21,23 @@ interface Props {
   data: ChartFile;
   config: ChartConfig;
   strategyId: string;
+  candleStyle: CandleStyle;
 }
 
 /** TradingView-style chart: candles + signal marker, RSI pane with strategy levels, MACD pane. */
-export function ChartView({ data, config, strategyId }: Props) {
+export function ChartView({ data, config, strategyId, candleStyle }: Props) {
   const host = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const el = host.current;
     if (!el) return;
-    const b = buildChartData(data, config, strategyId);
+    const b = buildChartData(data, config, strategyId, candleStyle);
     const intraday = data.timeframe === "4h";
     const toMs = (t: UTCTimestamp) => (t as number) * 1000;
 
     const chart = createChart(el, {
       autoSize: true,
+      handleScroll: { vertTouchDrag: false }, // on phones a vertical swipe scrolls the page, not the chart
       layout: { background: { type: ColorType.Solid, color: "#FFFFFF" }, textColor: "#625C55", fontFamily: "Inter, system-ui, sans-serif", fontSize: 12, panes: { separatorColor: "#EFE6DB" } },
       grid: { vertLines: { color: "#F3EBE0" }, horzLines: { color: "#F3EBE0" } },
       rightPriceScale: { borderVisible: false },
@@ -90,7 +92,7 @@ export function ChartView({ data, config, strategyId }: Props) {
     chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, b.candles.length - 130), to: b.candles.length + 6 });
 
     return () => chart.remove();
-  }, [data, config, strategyId]);
+  }, [data, config, strategyId, candleStyle]);
 
   const last = data.signals.find((s) => s.strategy_id === strategyId);
   return (

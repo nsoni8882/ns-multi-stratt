@@ -17,7 +17,13 @@
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 var(--sans); }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 var(--sans);
+  /* iPhone notch / home indicator (needs viewport-fit=cover) */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+a, button, input, select { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 h1, h2, h3 { font-family: var(--serif); font-weight: 600; margin: 0; letter-spacing: -0.01em; }
 a { color: inherit; text-decoration: none; }
 button, input, select { font: inherit; color: inherit; }
@@ -33,7 +39,7 @@ button { cursor: pointer; }
 .sell-text { color: var(--sell); }
 
 .top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 32px; flex-wrap: wrap; }
-.brand { font-family: var(--serif); font-size: 22px; font-weight: 600; }
+.brand { font-family: var(--serif); font-size: 22px; font-weight: 600; display: inline-flex; align-items: center; min-height: 44px; }
 .pillnav { display: flex; gap: 6px; background: var(--seg-bg); padding: 4px; border-radius: 999px; flex-wrap: wrap; }
 .pillnav a { padding: 7px 16px; border-radius: 999px; font-weight: 500; color: var(--muted); }
 .pillnav a.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(42, 38, 35, 0.12); }
@@ -49,9 +55,9 @@ main { max-width: 1120px; margin: 0 auto; padding: 12px 32px 40px; min-height: 6
 .foot { padding: 20px 24px; color: var(--muted); font-size: 12.5px; text-align: center; }
 
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; }
-.stat { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 16px 20px; }
+.stat { min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 16px 20px; }
 .stat .n { font-family: var(--serif); font-size: 32px; font-weight: 600; }
-.big { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; }
+.big { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 18px; }
 .bigcard { border-radius: 24px; padding: 26px; display: flex; flex-direction: column; gap: 14px; border: 1px solid var(--border); }
 .bigcard.one { background: #fdefe6; }
 .bigcard.two { background: #eaf2ec; }
@@ -66,7 +72,9 @@ main { max-width: 1120px; margin: 0 auto; padding: 12px 32px 40px; min-height: 6
 .pill.sell { background: var(--sell-bg); color: var(--sell); }
 
 .tools { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin: 6px 0 20px; }
-.tools input, .tools select { padding: 9px 16px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); min-height: 42px; }
+.tools input, .tools select { padding: 9px 16px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); min-height: 44px; height: 44px; }
+/* Safari ignores min-height on native selects, so draw our own chevron */
+.tools select { -webkit-appearance: none; appearance: none; padding-right: 40px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23625c55' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 16px center; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
 .scard { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 16px 18px; text-align: left; display: flex; flex-direction: column; gap: 8px; transition: box-shadow 0.2s, transform 0.2s; }
 .scard:hover { box-shadow: 0 8px 24px rgba(42, 38, 35, 0.09); transform: translateY(-2px); }
@@ -82,18 +90,36 @@ main { max-width: 1120px; margin: 0 auto; padding: 12px 32px 40px; min-height: 6
 .stale { background: #fff4d6; color: #5c4400; padding: 10px 32px; text-align: center; font-size: 14px; }
 .errorbox { max-width: 520px; margin: 32px auto; padding: 18px 22px; border: 1px solid var(--sell-bg); background: #fff; border-radius: 16px; text-align: center; }
 
-.modal { position: fixed; inset: 0; background: rgba(42, 38, 35, 0.45); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 50; }
-.sheet { background: var(--surface); border-radius: 24px; max-width: 880px; width: 100%; max-height: 94vh; overflow: auto; padding: 22px; animation: fade 0.18s ease-out; }
+.modal { position: fixed; top: 0; right: 0; bottom: 0; left: 0; overscroll-behavior: contain; background: rgba(42, 38, 35, 0.45); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 50; }
+.sheet { background: var(--surface); border-radius: 24px; max-width: 880px; width: 100%; max-height: 94vh; max-height: 94dvh; overflow: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 22px; animation: fade 0.18s ease-out; }
 .sheet .head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; margin-bottom: 10px; }
 .sheet h2 { font-size: 26px; }
 .x { border: 1px solid var(--border); background: var(--bg); border-radius: 999px; width: 40px; height: 40px; font-size: 20px; }
-.chart-canvas { width: 100%; height: 560px; }
+.chart-canvas { width: 100%; height: 560px; touch-action: pan-y pinch-zoom; }
+.chartbar { margin: 4px 0 10px; }
 .legend .sw { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
 .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); margin-top: 8px; }
 @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 @media (max-width: 700px) {
-  .stats { grid-template-columns: 1fr; }
+  /* Top bar: brand + timeframe on the first row, a swipeable nav row below */
+  .top { display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; padding-top: 10px; padding-bottom: 6px; }
+  .pillnav { grid-column: 1 / -1; order: 3; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .pillnav::-webkit-scrollbar { display: none; }
+  .pillnav a { white-space: nowrap; flex: 0 0 auto; }
+  .marketbar { align-items: flex-start; text-align: left; padding: 0 16px; }
+  .marketbar .dot { margin-top: 7px; flex: 0 0 auto; }
+  /* iOS Safari zooms the page when an input under 16px is focused, and Apple's minimum touch target is 44px */
+  input, select { font-size: 16px; }
+  .seg button { min-height: 44px; }
+  .pillnav a { min-height: 44px; display: inline-flex; align-items: center; }
+  .x { width: 44px; height: 44px; }
+  .tools > * { flex: 1 1 100%; }
+  .tools .seg { justify-content: center; }
+  .sheet { padding-bottom: calc(22px + env(safe-area-inset-bottom)); }
+  .stats { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .stat { padding: 12px; border-radius: 16px; }
+  .stat .n { font-size: 24px; }
   .hero h1 { font-size: 30px; }
   main, .top { padding-left: 16px; padding-right: 16px; }
   .modal { padding: 0; align-items: flex-end; }

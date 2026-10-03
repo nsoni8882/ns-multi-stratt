@@ -23,7 +23,6 @@ export function Home() {
         <h1>What's moving today</h1>
         <p>
           Strategy scans across every S&amp;P 500 stock, refreshed after each 4H and daily close.
-          Updated {new Date(data.updated_at).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}.
         </p>
       </section>
       <div className="stats">

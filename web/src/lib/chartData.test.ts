@@ -1,6 +1,6 @@
 import { chart } from "../test-fixtures";
 import type { ChartFile } from "../types";
-import { COLORS, buildChartData } from "./chartData";
+import { COLORS, buildChartData, toHeikinAshi } from "./chartData";
 
 const macdCfg = { rsi_levels: [20, 80] as [number, number], macd_deep: true, emas: false };
 const trendCfg = { rsi_levels: [40, 60] as [number, number], macd_deep: false, emas: true };
@@ -55,4 +55,51 @@ it("includes EMAs only when the strategy config asks for them, and carries RSI l
   expect(buildChartData(chart, macdCfg, "x").ema50).toEqual([]);
   expect(buildChartData(chart, trendCfg, "x").ema50).toHaveLength(3);
   expect(buildChartData(chart, trendCfg, "x").rsiLevels).toEqual([40, 60]);
+});
+
+describe("Heikin-Ashi", () => {
+  const bars: ChartFile["bars"] = [
+    [1, 10, 14, 8, 12, 100],
+    [2, 12, 16, 11, 15, 100],
+    [3, 15, 15, 9, 10, 100],
+  ];
+
+  it("computes close = (O+H+L+C)/4, open = midpoint of the previous HA candle, high/low spanning all three", () => {
+    const ha = toHeikinAshi(bars);
+    // bar 1: close (10+14+8+12)/4 = 11, open (10+12)/2 = 11
+    expect(ha[0]).toEqual([1, 11, 14, 8, 11, 100]);
+    // bar 2: close (12+16+11+15)/4 = 13.5, open (11+11)/2 = 11, high max(16,11,13.5), low min(11,11,13.5)
+    expect(ha[1]).toEqual([2, 11, 16, 11, 13.5, 100]);
+    // bar 3: close (15+15+9+10)/4 = 12.25, open (11+13.5)/2 = 12.25, high 15, low 9
+    expect(ha[2]).toEqual([3, 12.25, 15, 9, 12.25, 100]);
+  });
+
+  it("returns an empty list for no bars", () => {
+    expect(toHeikinAshi([])).toEqual([]);
+  });
+
+  it("is the default candle style; 'real' keeps the raw OHLC", () => {
+    const raw = { ...chart, bars };
+    const ha = buildChartData(raw, macdCfg, "x");
+    const real = buildChartData(raw, macdCfg, "x", "real");
+    expect(real.candles.map((c) => c.close)).toEqual([12, 15, 10]);
+    expect(ha.candles.map((c) => c.close)).toEqual([11, 13.5, 12.25]);
+  });
+
+  it("indicators are unchanged by the candle style (they always use real closes)", () => {
+    const a = buildChartData(chart, macdCfg, "x", "ha");
+    const b = buildChartData(chart, macdCfg, "x", "real");
+    expect(a.rsi).toEqual(b.rsi);
+    expect(a.macd).toEqual(b.macd);
+    expect(a.hist).toEqual(b.hist);
+  });
+
+  it("anchors the signal label to the candle that is actually drawn", () => {
+    const sig = { ...chart, bars, signals: [{ strategy_id: "x", side: "BUY" as const, bar_time: 3 }] };
+    expect(buildChartData(sig, macdCfg, "x", "real").markers[0].price).toBe(9); // real low
+    expect(buildChartData(sig, macdCfg, "x", "ha").markers[0].price).toBe(9); // HA low of bar 3 is also 9
+    const sell = { ...chart, bars, signals: [{ strategy_id: "x", side: "SELL" as const, bar_time: 2 }] };
+    expect(buildChartData(sell, macdCfg, "x", "real").markers[0].price).toBe(16);
+    expect(buildChartData(sell, macdCfg, "x", "ha").markers[0].price).toBe(16);
+  });
 });

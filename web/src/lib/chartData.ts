@@ -1,5 +1,5 @@
 import type { UTCTimestamp } from "lightweight-charts";
-import type { ChartConfig, ChartFile, Side } from "../types";
+import type { CandleStyle, ChartConfig, ChartFile, Side } from "../types";
 import { quantile } from "./stats";
 
 // Candle and histogram colours follow TradingView's default theme (teal-green up, red down).
@@ -28,6 +28,24 @@ function line(times: number[], values: (number | null)[]): Point[] {
   return out;
 }
 
+/**
+ * Heikin-Ashi candles: close = (O+H+L+C)/4, open = midpoint of the previous HA candle, and
+ * high/low span the real extremes plus the HA open/close. Smooths noise so trends read more clearly.
+ */
+export function toHeikinAshi(bars: ChartFile["bars"]): ChartFile["bars"] {
+  const out: ChartFile["bars"] = [];
+  let prevOpen = 0;
+  let prevClose = 0;
+  bars.forEach(([time, o, h, l, c, v], i) => {
+    const close = (o + h + l + c) / 4;
+    const open = i === 0 ? (o + c) / 2 : (prevOpen + prevClose) / 2;
+    out.push([time, open, Math.max(h, open, close), Math.min(l, open, close), close, v]);
+    prevOpen = open;
+    prevClose = close;
+  });
+  return out;
+}
+
 export interface BuiltChart {
   candles: { time: UTCTimestamp; open: number; high: number; low: number; close: number }[];
   rsi: Point[];
@@ -45,7 +63,10 @@ export interface BuiltChart {
 }
 
 /** Turn the scanner's chart JSON into ready-to-draw series. Pure, so it is unit-tested. */
-export function buildChartData(chart: ChartFile, config: ChartConfig, strategyId: string): BuiltChart {
+export function buildChartData(chart: ChartFile, config: ChartConfig, strategyId: string, style: CandleStyle = "ha"): BuiltChart {
+  // Only the drawn candles change with the style. RSI, MACD and EMAs always come from real closes,
+  // because those are what the scanner evaluates its signals on.
+  const shown = style === "ha" ? toHeikinAshi(chart.bars) : chart.bars;
   const times = chart.bars.map((b) => b[0]);
   const histValues = chart.macd.hist;
   const hist = histValues.flatMap((v, i) => {
@@ -60,7 +81,7 @@ export function buildChartData(chart: ChartFile, config: ChartConfig, strategyId
   const deep = config.macd_deep && recent.length >= 20;
 
   return {
-    candles: chart.bars.map(([time, open, high, low, close]) => ({ time: t(time), open, high, low, close })),
+    candles: shown.map(([time, open, high, low, close]) => ({ time: t(time), open, high, low, close })),
     rsi: line(times, chart.rsi),
     macd: line(times, chart.macd.macd),
     signal: line(times, chart.macd.signal),
@@ -69,7 +90,7 @@ export function buildChartData(chart: ChartFile, config: ChartConfig, strategyId
     ema200: config.emas ? line(times, chart.ema200) : [],
     markers: chart.signals.flatMap((sig) => {
       if (sig.strategy_id !== strategyId) return [];
-      const bar = chart.bars.find((x) => x[0] === sig.bar_time);
+      const bar = shown.find((x) => x[0] === sig.bar_time);
       if (!bar) return [];
       const buy = sig.side === "BUY";
       return [{ time: t(sig.bar_time), price: buy ? bar[3] : bar[2], side: sig.side, color: buy ? COLORS.up : COLORS.down }];

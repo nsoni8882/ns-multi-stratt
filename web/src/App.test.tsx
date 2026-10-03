@@ -4,8 +4,8 @@ import App from "./App";
 import { strategies, stubFetch } from "./test-fixtures";
 
 vi.mock("./components/ChartView", () => ({
-  ChartView: ({ data, strategyId }: { data: { ticker: string }; strategyId: string }) => (
-    <div data-testid="chart">{data.ticker}:{strategyId}</div>
+  ChartView: ({ data, strategyId, candleStyle }: { data: { ticker: string }; strategyId: string; candleStyle: string }) => (
+    <div data-testid="chart">{data.ticker}:{strategyId}:{candleStyle}</div>
   ),
 }));
 
@@ -61,6 +61,18 @@ describe("home", () => {
     stubFetch([], { "strategies.json": { ...strategies, updated_at: "2020-01-01T00:00:00Z" } });
     render(<App />);
     expect(await screen.findByText(/looks out of date/)).toBeInTheDocument();
+  });
+});
+
+describe("last updated", () => {
+  it("is shown in the footer, not in the page header", async () => {
+    stubFetch([], { "strategies.json": { ...strategies, updated_at: "2026-10-02T20:07:00+00:00" } });
+    render(<App />);
+    await screen.findByText("What's moving today");
+    const footer = document.querySelector("footer")!;
+    expect(footer).toHaveTextContent(/Last updated .*2026/);
+    expect(footer).toHaveTextContent("Not financial advice");
+    expect(document.querySelector(".hero")).not.toHaveTextContent(/Updated/);
   });
 });
 
@@ -164,9 +176,26 @@ describe("strategy page", () => {
     render(<App />);
     await user.click(await screen.findByRole("button", { name: /XOM/ }));
     const dialog = await screen.findByRole("dialog", { name: "XOM chart" });
-    await waitFor(() => expect(within(dialog).getByTestId("chart")).toHaveTextContent("XOM:macd-rsi-reversal"));
+    await waitFor(() => expect(within(dialog).getByTestId("chart")).toHaveTextContent("XOM:macd-rsi-reversal:ha"));
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("defaults to Heikin-Ashi candles, switches to Real, and remembers the choice", async () => {
+    const user = userEvent.setup();
+    window.localStorage.removeItem("candleStyle");
+    render(<App />);
+    await user.click(await screen.findByRole("button", { name: /XOM/ }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("button", { name: "Heikin-Ashi" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(dialog).getByRole("button", { name: "Real" })).toHaveAttribute("aria-pressed", "false");
+    await within(dialog).findByText(/XOM:macd-rsi-reversal:ha/);
+    await user.click(within(dialog).getByRole("button", { name: "Real" }));
+    await within(dialog).findByText(/XOM:macd-rsi-reversal:real/);
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: /XOM/ }));
+    expect(within(await screen.findByRole("dialog")).getByRole("button", { name: "Real" })).toHaveAttribute("aria-pressed", "true");
+    window.localStorage.removeItem("candleStyle");
   });
 
   it("shows an error inside the modal when the chart file is missing", async () => {

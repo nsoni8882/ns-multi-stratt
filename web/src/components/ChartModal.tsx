@@ -1,7 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getChart } from "../api";
 import { useAsync } from "../hooks";
-import type { ChartConfig, SignalRow, Timeframe } from "../types";
+import type { CandleStyle, ChartConfig, SignalRow, Timeframe } from "../types";
 import { ChartView } from "./ChartView";
 import { COLORS } from "../lib/chartData";
 import { ErrorState, Loading } from "./Feedback";
@@ -15,9 +15,37 @@ interface Props {
   onClose: () => void;
 }
 
+const PREF_KEY = "candleStyle";
+
+function readStyle(): CandleStyle {
+  try {
+    return window.localStorage.getItem(PREF_KEY) === "real" ? "real" : "ha";
+  } catch {
+    return "ha"; // storage can be blocked (private mode)
+  }
+}
+
 export function ChartModal({ row, tf, strategyId, config, onClose }: Props) {
   const chart = useAsync(() => getChart(tf, row.ticker), [tf, row.ticker]);
   const closeBtn = useRef<HTMLButtonElement>(null);
+  const [style, setStyle] = useState<CandleStyle>(readStyle);
+  const pick = (next: CandleStyle) => {
+    setStyle(next);
+    try {
+      window.localStorage.setItem(PREF_KEY, next);
+    } catch {
+      /* preference just isn't remembered */
+    }
+  };
+
+  useEffect(() => {
+    // Stop the page behind the modal from scrolling (iOS Safari scrolls it otherwise).
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
 
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
@@ -43,9 +71,15 @@ export function ChartModal({ row, tf, strategyId, config, onClose }: Props) {
             <button ref={closeBtn} type="button" className="x" aria-label="Close chart" onClick={onClose}>×</button>
           </div>
         </div>
+        <div className="row between chartbar">
+          <div className="seg" role="group" aria-label="Candle style">
+            <button type="button" aria-pressed={style === "ha"} onClick={() => pick("ha")}>Heikin-Ashi</button>
+            <button type="button" aria-pressed={style === "real"} onClick={() => pick("real")}>Real</button>
+          </div>
+        </div>
         {chart.loading && <Loading what="chart" />}
         {chart.error && <ErrorState error={chart.error} onRetry={chart.retry} />}
-        {chart.data && <ChartView data={chart.data} config={config} strategyId={strategyId} />}
+        {chart.data && <ChartView data={chart.data} config={config} strategyId={strategyId} candleStyle={style} />}
         <div className="legend">
           {config.emas && (
             <>
@@ -54,6 +88,7 @@ export function ChartModal({ row, tf, strategyId, config, onClose }: Props) {
             </>
           )}
           <span>The BUY / SELL box marks the candle where the signal fired</span>
+          <span>RSI, MACD and EMAs always use real closing prices</span>
           <span>Terracotta lines = this strategy's RSI levels and MACD thresholds</span>
         </div>
       </div>

@@ -63,3 +63,5 @@ export interface MarketFile {
   sessions: MarketSession[];
   holidays: { date: string; name: string }[];
 }
+
+export type CandleStyle = "ha" | "real";
