@@ -2,8 +2,8 @@ import { chart } from "../test-fixtures";
 import type { ChartFile } from "../types";
 import { COLORS, buildChartData, toHeikinAshi } from "./chartData";
 
-const macdCfg = { rsi_levels: [20, 80] as [number, number], macd_deep: true, emas: false };
-const trendCfg = { rsi_levels: [40, 60] as [number, number], macd_deep: false, emas: true };
+const macdCfg = { rsi_levels: [20, 25, 80], macd_deep: true, emas: false };
+const trendCfg = { rsi_levels: [40, 60], macd_deep: false, emas: true };
 
 it("drops null points and keeps candle times", () => {
   const b = buildChartData(chart, macdCfg, "macd-rsi-reversal");

@@ -19,6 +19,10 @@ CREATE TABLE IF NOT EXISTS signals (
 )
 """
 
+# Added after the table shipped, so it is applied as a guarded ALTER rather than folded into
+# SCHEMA. Stored so the history can later answer whether the conviction tiers held up live.
+MIGRATIONS = ("ALTER TABLE signals ADD COLUMN conviction TEXT NOT NULL DEFAULT 'standard'",)
+
 
 @dataclass(frozen=True)
 class SignalRecord:
@@ -30,6 +34,7 @@ class SignalRecord:
     entry_price: float
     details: dict
     recorded_at: str  # ISO-8601 UTC
+    conviction: str = "standard"
 
 
 class SignalStore:
@@ -37,6 +42,11 @@ class SignalStore:
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         self.conn = sqlite3.connect(str(path))
         self.conn.execute(SCHEMA)
+        for statement in MIGRATIONS:
+            try:
+                self.conn.execute(statement)
+            except sqlite3.OperationalError:
+                pass  # already applied
         self.conn.commit()
 
     def record_signals(self, records: "list[SignalRecord]") -> int:
@@ -44,11 +54,11 @@ class SignalStore:
         before = self.conn.total_changes
         self.conn.executemany(
             "INSERT OR IGNORE INTO signals "
-            "(strategy_id, ticker, timeframe, side, fired_at, entry_price, details, recorded_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "(strategy_id, ticker, timeframe, side, fired_at, entry_price, details, recorded_at, conviction) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 (r.strategy_id, r.ticker, r.timeframe, r.side, r.fired_at, r.entry_price,
-                 json.dumps(r.details, sort_keys=True), r.recorded_at)
+                 json.dumps(r.details, sort_keys=True), r.recorded_at, r.conviction)
                 for r in records
             ],
         )

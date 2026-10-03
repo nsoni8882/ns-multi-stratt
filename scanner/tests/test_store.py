@@ -46,3 +46,34 @@ def test_empty_batch_is_fine(tmp_path):
 def test_creates_missing_parent_directories(tmp_path):
     store = SignalStore(tmp_path / "nested" / "history" / "signals.db")
     assert store.record_signals([rec()]) == 1
+
+
+def test_conviction_is_stored(tmp_path):
+    store = SignalStore(tmp_path / "signals.db")
+    store.record_signals([rec(conviction="high"), rec(ticker="MSFT", conviction="low")])
+    rows = dict(store.conn.execute("SELECT ticker, conviction FROM signals").fetchall())
+    assert rows == {"AAPL": "high", "MSFT": "low"}
+    store.close()
+
+
+def test_reopening_an_old_database_adds_the_conviction_column(tmp_path):
+    """The column was added after the table shipped, so opening a pre-existing DB migrates it."""
+    path = tmp_path / "signals.db"
+    import sqlite3
+
+    from scanner.store import SCHEMA
+
+    legacy = sqlite3.connect(str(path))
+    legacy.execute(SCHEMA)
+    legacy.execute(
+        "INSERT INTO signals (strategy_id, ticker, timeframe, side, fired_at, entry_price, details, recorded_at)"
+        " VALUES ('s1', 'OLD', '1d', 'BUY', 'then', 1.0, '{}', 'then')"
+    )
+    legacy.commit()
+    legacy.close()
+
+    store = SignalStore(path)
+    assert store.record_signals([rec(conviction="high")]) == 1
+    assert store.conn.execute("SELECT conviction FROM signals WHERE ticker = 'OLD'").fetchone()[0] == "standard"
+    assert store.count() == 2
+    store.close()

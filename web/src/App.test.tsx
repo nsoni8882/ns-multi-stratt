@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import App from "./App";
-import { strategies, stubFetch } from "./test-fixtures";
+import { UPDATED, row, strategies, stubFetch } from "./test-fixtures";
 
 vi.mock("./components/ChartView", () => ({
   ChartView: ({ data, strategyId, candleStyle }: { data: { ticker: string }; strategyId: string; candleStyle: string }) => (
@@ -138,6 +138,41 @@ describe("strategy page", () => {
     expect(screen.getByText(/No signals match these filters/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Clear filters" }));
     expect(screen.getByText("Exxon Mobil")).toBeInTheDocument();
+  });
+
+  it("marks a low-conviction signal as weaker and leaves ordinary ones unlabelled", async () => {
+    render(<App />);
+    await screen.findByText("Exxon Mobil");
+    const weak = screen.getByText("NVIDIA").closest(".scard")!;
+    const normal = screen.getByText("Exxon Mobil").closest(".scard")!;
+    expect(weak).toHaveClass("weak");
+    expect(within(weak as HTMLElement).getByText("Weaker")).toBeInTheDocument();
+    expect(weak.querySelector(".pill")).toHaveClass("faint");
+    expect(normal).not.toHaveClass("weak");
+    expect(within(normal as HTMLElement).queryByText("Weaker")).not.toBeInTheDocument();
+    expect(normal.querySelector(".pill")).not.toHaveClass("faint");
+  });
+
+  it("explains in the card tooltip why a short is demoted", async () => {
+    render(<App />);
+    await screen.findByText("NVIDIA");
+    expect(screen.getByText("NVIDIA").closest(".scard")).toHaveAttribute(
+      "title",
+      expect.stringContaining("did not beat holding cash"),
+    );
+  });
+
+  it("badges a high-conviction signal as strong", async () => {
+    stubFetch([], {
+      "macd-rsi-reversal/1d.json": {
+        updated_at: UPDATED,
+        signals: [row({ ticker: "DVN", name: "Devon Energy", conviction: "high" })],
+      },
+    });
+    render(<App />);
+    const card = (await screen.findByText("Devon Energy")).closest(".scard")!;
+    expect(within(card as HTMLElement).getByText("Strong")).toBeInTheDocument();
+    expect(card).not.toHaveClass("weak");
   });
 
   it("follows the global timeframe selector", async () => {

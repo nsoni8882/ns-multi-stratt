@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 
+from scanner.strategies.base import HIGH, LOW, STANDARD
 from scanner.strategies.macd_rsi_reversal import MacdRsiReversal, rule_side
 from scanner.tests.conftest import make_df
 
@@ -18,9 +19,27 @@ def buy_inputs():
     return hist, lo, hi, rsi
 
 
-def test_rule_buy():
+def test_rule_buy_below_20_is_high_conviction():
     hist, lo, hi, rsi = buy_inputs()
-    assert rule_side(hist, lo, hi, rsi, 9) == "BUY"
+    assert rule_side(hist, lo, hi, rsi, 9) == ("BUY", HIGH)
+
+
+def test_rule_buy_between_20_and_25_is_standard_conviction():
+    hist, lo, hi, rsi = buy_inputs()
+    rsi.iloc[8], rsi.iloc[9] = 23, 26  # crosses 25 but was never below 20
+    assert rule_side(hist, lo, hi, rsi, 9) == ("BUY", STANDARD)
+
+
+def test_rule_buy_crossing_both_tiers_takes_the_deeper_one():
+    hist, lo, hi, rsi = buy_inputs()
+    rsi.iloc[8], rsi.iloc[9] = 19, 26
+    assert rule_side(hist, lo, hi, rsi, 9) == ("BUY", HIGH)
+
+
+def test_rule_buy_above_25_gives_nothing():
+    hist, lo, hi, rsi = buy_inputs()
+    rsi.iloc[8], rsi.iloc[9] = 28, 31  # a 30 cross is not a tier: the edge is gone by then
+    assert rule_side(hist, lo, hi, rsi, 9) is None
 
 
 def test_rule_buy_needs_deep_histogram():
@@ -42,13 +61,21 @@ def test_rule_buy_needs_histogram_not_above_zero():
 
 def test_rule_buy_needs_rsi_cross_on_signal_bar():
     hist, lo, hi, rsi = buy_inputs()
-    rsi.iloc[8] = 25  # no longer below 20 on the prior bar
+    rsi.iloc[8], rsi.iloc[9] = 26, 27  # above both tiers on the prior bar: no cross
     assert rule_side(hist, lo, hi, rsi, 9) is None
 
 
-def test_rule_sell_is_the_mirror():
+def test_rule_sell_is_the_mirror_and_low_conviction():
     hist, lo, hi, rsi = buy_inputs()
-    assert rule_side(-hist, -hi, -lo, 100 - rsi, 9) == "SELL"
+    assert rule_side(-hist, -hi, -lo, 100 - rsi, 9) == ("SELL", LOW)
+
+
+def test_sell_has_no_standard_tier():
+    """A 75 cross is deliberately not a signal: it added volume with no measurable edge."""
+    hist, lo, hi, rsi = buy_inputs()
+    r = 100 - rsi
+    r.iloc[8], r.iloc[9] = 77, 74
+    assert rule_side(-hist, -hi, -lo, r, 9) is None
 
 
 def test_evaluate_buy_on_crash_then_bounce():
@@ -61,6 +88,7 @@ def test_evaluate_buy_on_crash_then_bounce():
     assert sig.entry_price == closes[-1]
     assert sig.fired_at == make_df(closes)["close_time"].iloc[-1]
     assert sig.details["rsi"] > 20 and sig.details["macd_hist"] <= 0
+    assert sig.conviction in (HIGH, STANDARD)
 
 
 def test_signal_window_is_three_bars():

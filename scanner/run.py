@@ -13,7 +13,7 @@ from scanner.export import chart_payload, signal_row, write_json
 from scanner.market import market_payload
 from scanner.store import SignalRecord, SignalStore
 from scanner.strategies import STRATEGIES
-from scanner.strategies.base import Signal
+from scanner.strategies.base import CONVICTION_RANK, Signal
 from scanner.universe import load_universe
 
 TIMEFRAMES = ("4h", "1d")
@@ -76,7 +76,9 @@ def run(out_dir: Path, db_path: Path, now: "pd.Timestamp | None" = None,
                            bars_by_tf[tf][h.ticker]["close"])
                 for h in hits if h.strategy_id == strat.id and h.timeframe == tf
             ]
-            rows.sort(key=lambda r: (r["bars_ago"], r["ticker"]))
+            # Strongest conviction first, then freshest: a low-conviction short should never
+            # head the list just because it fired on the latest bar.
+            rows.sort(key=lambda r: (CONVICTION_RANK[r["conviction"]], r["bars_ago"], r["ticker"]))
             write_json(out_dir / strat.id / f"{tf}.json", {"updated_at": updated_at, "signals": rows})
             counts[tf] = {
                 "buy": sum(r["side"] == "BUY" for r in rows),
@@ -98,7 +100,7 @@ def run(out_dir: Path, db_path: Path, now: "pd.Timestamp | None" = None,
     store = SignalStore(db_path)
     inserted = store.record_signals([
         SignalRecord(h.strategy_id, h.ticker, h.timeframe, h.signal.side, h.signal.fired_at.isoformat(),
-                     h.signal.entry_price, h.signal.details, updated_at)
+                     h.signal.entry_price, h.signal.details, updated_at, h.signal.conviction)
         for h in hits
     ])
     store.close()

@@ -1,8 +1,11 @@
 export type Timeframe = "1d" | "4h";
 export type Side = "BUY" | "SELL";
+/** How much the backtested edge supports this signal; set by the scanner. See scanner/strategies/base.py. */
+export type Conviction = "high" | "standard" | "low";
 
 export interface ChartConfig {
-  rsi_levels: [number, number];
+  /** Every RSI level this strategy draws: one per threshold, including conviction tiers. */
+  rsi_levels: number[];
   macd_deep: boolean;
   emas: boolean;
 }
@@ -26,6 +29,7 @@ export interface SignalRow {
   sector: string;
   price: number;
   side: Side;
+  conviction: Conviction;
   bars_ago: number;
   fired_at: string;
   bar_time: number;

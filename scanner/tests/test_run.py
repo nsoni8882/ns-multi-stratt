@@ -40,8 +40,9 @@ def test_run_writes_json_and_records_signals(tmp_path):
     rows = json.loads((out / "macd-rsi-reversal" / "1d.json").read_text())["signals"]
     assert [r["ticker"] for r in rows] == ["AAA"]
     assert rows[0]["name"] == "Alpha" and rows[0]["side"] == "BUY" and rows[0]["bars_ago"] == 0
+    assert rows[0]["conviction"] in ("high", "standard")
     assert len(rows[0]["spark"]) == 30 and rows[0]["spark"][-1] == rows[0]["price"]
-    assert s1["chart"] == {"rsi_levels": [20, 80], "macd_deep": True, "emas": False}
+    assert s1["chart"] == {"rsi_levels": [20, 25, 80], "macd_deep": True, "emas": False}
     chart = json.loads((out / "charts" / "1d" / "AAA.json").read_text())
     assert len(chart["bars"]) == len(chart["rsi"]) == len(chart["macd"]["hist"]) == 195  # all bars, under the 250 cap
     assert chart["signals"][0]["side"] == "BUY"

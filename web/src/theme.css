@@ -70,6 +70,8 @@ main { max-width: 1120px; margin: 0 auto; padding: 12px 32px 40px; min-height: 6
 .pill svg { width: 11px; height: 11px; }
 .pill.buy { background: var(--buy-bg); color: var(--buy); }
 .pill.sell { background: var(--sell-bg); color: var(--sell); }
+/* Low conviction: outline instead of a fill, so it reads as secondary to the tiers with a measured edge. */
+.pill.faint { background: transparent; border: 1px solid currentColor; color: var(--muted); font-weight: 500; }
 
 .tools { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin: 6px 0 20px; }
 .tools input, .tools select { padding: 9px 16px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); min-height: 44px; height: 44px; }
@@ -79,6 +81,11 @@ main { max-width: 1120px; margin: 0 auto; padding: 12px 32px 40px; min-height: 6
 .scard { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 16px 18px; text-align: left; display: flex; flex-direction: column; gap: 8px; transition: box-shadow 0.2s, transform 0.2s; }
 .scard:hover { box-shadow: 0 8px 24px rgba(42, 38, 35, 0.09); transform: translateY(-2px); }
 .scard .tk { font-family: var(--serif); font-size: 22px; font-weight: 600; }
+.scard.weak { background: var(--bg); border-style: dashed; }
+.scard.weak .tk { font-weight: 500; color: var(--muted); }
+.conv { align-self: flex-start; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; }
+.conv.high { background: var(--buy-bg); color: var(--buy); }
+.conv.low { background: var(--seg-bg); color: var(--muted); }
 .spark { width: 100%; height: 36px; display: block; }
 .linkbtn { background: none; border: 0; color: var(--accent); font-weight: 600; text-decoration: underline; }
 .btn { background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 8px 18px; font-weight: 600; }

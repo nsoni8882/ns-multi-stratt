@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 
+from scanner.strategies.base import LOW, STANDARD
 from scanner.strategies.trend_pullback import TrendPullback, rule_side
 from scanner.tests.conftest import make_df
 
@@ -11,7 +12,7 @@ def series(values):
 
 def test_rule_buy_in_uptrend_when_rsi_crosses_40():
     close, ema50, ema200 = series([110, 110]), series([105, 105]), series([100, 100])
-    assert rule_side(close, ema50, ema200, series([38, 41]), 1) == "BUY"
+    assert rule_side(close, ema50, ema200, series([38, 41]), 1) == ("BUY", STANDARD)
 
 
 def test_rule_buy_blocked_without_uptrend():
@@ -22,7 +23,7 @@ def test_rule_buy_blocked_without_uptrend():
 
 def test_rule_sell_in_downtrend_when_rsi_crosses_below_60():
     close, ema50, ema200 = series([90, 90]), series([95, 95]), series([100, 100])
-    assert rule_side(close, ema50, ema200, series([62, 59]), 1) == "SELL"
+    assert rule_side(close, ema50, ema200, series([62, 59]), 1) == ("SELL", LOW)
 
 
 def test_rule_no_signal_without_cross():
@@ -31,7 +32,7 @@ def test_rule_no_signal_without_cross():
 
 
 def _uptrend_with_dip():
-    up = 100 * np.cumprod(1 + 0.002 + 0.003 * np.sin(np.arange(260) / 3))
+    up = 100 * np.cumprod(1 + 0.002 + 0.003 * np.sin(np.arange(420) / 3))
     dip = up[-1] * np.cumprod(np.full(3, 1 - 0.015))
     return list(np.concatenate([up, dip, [dip[-1] * 1.01]]))
 
@@ -40,19 +41,23 @@ def test_evaluate_buy_on_pullback_in_uptrend():
     sig = TrendPullback().evaluate(make_df(_uptrend_with_dip()))
     assert sig is not None and sig.side == "BUY" and sig.bars_ago == 0
     assert sig.details["ema50"] > sig.details["ema200"]
+    assert sig.conviction == STANDARD
 
 
 def test_evaluate_sell_on_rally_in_downtrend():
-    dn = 100 * np.cumprod(1 - 0.002 - 0.003 * np.sin(np.arange(260) / 3))
+    dn = 100 * np.cumprod(1 - 0.002 - 0.003 * np.sin(np.arange(420) / 3))
     rally = dn[-1] * np.cumprod(np.full(3, 1 + 0.015))
     closes = list(np.concatenate([dn, rally, [rally[-1] * 0.99]]))
     sig = TrendPullback().evaluate(make_df(closes))
     assert sig is not None and sig.side == "SELL" and sig.bars_ago == 0
+    assert sig.conviction == LOW  # the short leg showed no measurable edge in backtesting
 
 
-def test_needs_250_bars():
-    assert TrendPullback().evaluate(make_df(_uptrend_with_dip()[-200:])) is None
+def test_needs_400_bars():
+    """EMA200 is still seed-biased before ~400 bars, so short histories are skipped."""
+    assert TrendPullback().evaluate(make_df(_uptrend_with_dip()[-399:])) is None
+    assert TrendPullback().evaluate(make_df(_uptrend_with_dip())) is not None
 
 
 def test_flat_prices_give_no_signal():
-    assert TrendPullback().evaluate(make_df([100.0] * 300)) is None
+    assert TrendPullback().evaluate(make_df([100.0] * 500)) is None

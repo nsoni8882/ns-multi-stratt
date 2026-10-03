@@ -33,6 +33,7 @@ def signal_row(ticker: str, name: str, sector: str, sig, closes: pd.Series) -> d
         "sector": sector,
         "price": round(sig.entry_price, 4),
         "side": sig.side,
+        "conviction": sig.conviction,
         "bars_ago": sig.bars_ago,
         "fired_at": sig.fired_at.isoformat(),
         "bar_time": unix(sig.bar_time),

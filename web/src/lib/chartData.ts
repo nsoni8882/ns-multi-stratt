@@ -58,7 +58,7 @@ export interface BuiltChart {
   markers: { time: UTCTimestamp; price: number; side: Side; color: string }[];
   deepLow: number | null;
   deepHigh: number | null;
-  rsiLevels: [number, number];
+  rsiLevels: number[];
   showEmas: boolean;
 }
 

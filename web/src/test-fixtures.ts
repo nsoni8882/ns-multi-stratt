@@ -24,7 +24,7 @@ export const strategies: StrategiesFile = {
       id: "macd-rsi-reversal",
       name: "MACD + RSI Reversal",
       description: "Histogram climbs from a deep low while RSI crosses back above 20.",
-      chart: { rsi_levels: [20, 80], macd_deep: true, emas: false },
+      chart: { rsi_levels: [20, 25, 80], macd_deep: true, emas: false },
       timeframes: { "1d": { buy: 1, sell: 1 }, "4h": { buy: 1, sell: 0 } },
     },
     {
@@ -37,16 +37,20 @@ export const strategies: StrategiesFile = {
   ],
 };
 
-const row = (over: Partial<SignalRow>): SignalRow => ({
-  ticker: "XOM", name: "Exxon Mobil", sector: "Energy", price: 108.42, side: "BUY", bars_ago: 0,
-  fired_at: "2026-10-02T20:00:00+00:00", bar_time: 1790899200, details: {}, spark: [1, 2, 3, 2, 3],
+export const row = (over: Partial<SignalRow> = {}): SignalRow => ({
+  ticker: "XOM", name: "Exxon Mobil", sector: "Energy", price: 108.42, side: "BUY", conviction: "standard",
+  bars_ago: 0, fired_at: "2026-10-02T20:00:00+00:00", bar_time: 1790899200, details: {}, spark: [1, 2, 3, 2, 3],
   ...over,
 });
 
 export const signals: Record<string, SignalsFile> = {
   "macd-rsi-reversal/1d.json": {
     updated_at: UPDATED,
-    signals: [row({}), row({ ticker: "NVDA", name: "NVIDIA", sector: "Information Technology", side: "SELL", bars_ago: 1 })],
+    signals: [
+      row({}),
+      // SELL is always low conviction: see scanner/strategies/base.py.
+      row({ ticker: "NVDA", name: "NVIDIA", sector: "Information Technology", side: "SELL", conviction: "low", bars_ago: 1 }),
+    ],
   },
   "macd-rsi-reversal/4h.json": { updated_at: UPDATED, signals: [row({ ticker: "AAL", name: "American Airlines", sector: "Industrials" })] },
   "trend-pullback/1d.json": { updated_at: UPDATED, signals: [] },

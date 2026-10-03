@@ -20,3 +20,12 @@ cd web && npm ci && npm test && npm run dev        # site at http://localhost:51
 ```
 
 Add a strategy: create a module in `scanner/strategies/`, register it in `scanner/strategies/__init__.py`. The site picks it up from `strategies.json`.
+
+## Thresholds and conviction
+
+Every signal carries a `conviction` of `high`, `standard` or `low`, and the site ranks and styles them accordingly. The tiers come from a sweep over 165 S&P names × 12 years of daily bars plus 63 names × 2 years of 4H bars; the measured numbers and the reasoning behind each threshold are in the comments in `scanner/strategies/base.py` and the two strategy modules. In short:
+
+- **Trend Pullback stays at RSI 40/60**, not 30/70 or 20/80. That is Cardwell's range shift (RSI holds 40–80 in an uptrend, 20–60 in a downtrend); the classic bands barely fire inside a trend — 20/80 produced 17 signals in 12 years across 165 names.
+- **MACD + RSI Reversal keeps 20 as its deepest tier** and adds 25 as a standard tier. The edge is steeply monotonic in depth (+5.3% / +2.1% / +1.9% / −0.3% per 20 bars at 20 / 25 / 30 / 35), so the levels are not loosened further just to fill the page.
+- **The SELL leg of both strategies is tagged `low`.** Across both halves of the sample and both timeframes, shorting these setups did not beat holding cash. The setups are still listed, because 12 years of a bull regime is a thin basis for deleting them, but they are not presented as peers of the long side.
+- **Trend Pullback needs 400 bars**, not 250: EMA200 with `adjust=False` is still seed-biased at 250 bars, which flipped the close-vs-EMA200 trend verdict on 5 of 161 names.
