@@ -86,4 +86,18 @@ export interface MarketFile {
   holidays: { date: string; name: string }[];
 }
 
+/** What the scan that produced this deploy knew about itself (health.json). Every field is
+ *  optional: data published before the health record existed must still render. */
+export interface HealthFile {
+  updated_at?: string;
+  duration_seconds?: number;
+  universe?: number;
+  fetch?: Record<Timeframe, { fetched: number; failed: number; failed_tickers: string[] }>;
+  strategy_error_count?: number;
+  signals?: { found: number; recorded: number };
+  event?: string;
+  tests?: Record<string, string>;
+  published_with_failing_tests?: boolean;
+}
+
 export type CandleStyle = "ha" | "real";

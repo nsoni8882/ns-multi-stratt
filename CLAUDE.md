@@ -75,16 +75,23 @@ There is no server and no error tracker, so "production" means the GitHub Action
 JSON it published. Three places to look, in this order:
 
 ```bash
+gh issue list --label scan-failure                  # a failed run says so here
 gh run list --workflow=scan.yml --limit 10          # did the daily scans pass?
 gh run view <id> --log-failed                       # the failing step's output
 curl -s https://<owner>.github.io/<repo>/data/health.json | python -m json.tool
+git show origin/data:runs.jsonl | tail -20          # every run, success or not
 ```
 
 `health.json` is written by every **successful** scan and is the record of what that run still
 lost: tickers that failed to fetch (a scan is allowed to lose up to 10% of the universe and
-exit zero), strategies that threw on individual names, the duration, and the `rules_versions`
-actually published. A scan that *fails* writes nothing, so that case lives only in the Actions
-log — which GitHub deletes after 90 days.
+exit zero), strategies that threw on individual names, the duration, the test outcomes, and the
+`rules_versions` actually published.
+
+A scan that *fails* publishes nothing, so three things cover that case instead. The `record`
+job runs `if: always()` and appends one line per run — including skipped and failed ones — to
+`runs.jsonl` on the `data` branch (`scanner/ledger.py`, last 500 kept). A failure also opens or
+comments on a single `scan-failure` issue, so it is not silent. Both outlive the 90 days
+GitHub keeps an Actions log.
 
 Two things that used to be silent and now are not:
 
@@ -93,10 +100,13 @@ Two things that used to be silent and now are not:
   `scanner.health` folds the outcome into `health.json`. Check
   `published_with_failing_tests`: true means the live site was built from code whose suite
   fails, which is the one case worth acting on immediately.
+  The site says this out loud too: `FailingTestsNote` in the footer, driven by the same file.
 - **Browser errors are kept by the page itself.** There is no server to receive them, so
-  `web/src/lib/errorLog.ts` keeps the last 10 in `localStorage`, an `ErrorBoundary` replaces
-  the blank-white-screen failure with a message, and the footer offers them as one pasteable
-  blob. Ask the person to press *Copy details*; that text is the stack trace.
+  `web/src/lib/errorLog.ts` keeps the last 10 in `localStorage`, two `ErrorBoundary`s (one
+  around the chrome, one around the routes) replace the blank-white-screen failure with a
+  message, and the footer appears only after something breaks. *Copy details* gives the stack
+  trace; *Report* opens a prefilled issue, which is the only automatic route from a browser to
+  somewhere readable — and it sends nothing unless the person submits it.
 
 ## Visual checks
 

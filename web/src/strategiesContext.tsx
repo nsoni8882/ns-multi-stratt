@@ -1,15 +1,16 @@
 import { createContext, useContext, type ReactNode } from "react";
-import { getMarket, getStrategies } from "./api";
+import { getHealth, getMarket, getStrategies } from "./api";
 import { useAsync, type AsyncState } from "./hooks";
-import type { MarketFile, StrategiesFile } from "./types";
+import type { HealthFile, MarketFile, StrategiesFile } from "./types";
 
-type Value = AsyncState<StrategiesFile> & { market?: MarketFile };
+type Value = AsyncState<StrategiesFile> & { market?: MarketFile; health?: HealthFile };
 const Ctx = createContext<Value | null>(null);
 
 export function StrategiesProvider({ children }: { children: ReactNode }) {
   const strategies = useAsync(getStrategies, []);
   const market = useAsync(getMarket, []); // optional: the site works without the calendar
-  return <Ctx.Provider value={{ ...strategies, market: market.data }}>{children}</Ctx.Provider>;
+  const health = useAsync(getHealth, []); // optional too: absent in data published before it existed
+  return <Ctx.Provider value={{ ...strategies, market: market.data, health: health.data }}>{children}</Ctx.Provider>;
 }
 
 export function useStrategies(): Value {

@@ -28,6 +28,7 @@ permissions:
   contents: write # push the signal history to the `data` branch
   pages: write
   id-token: write
+  issues: write # a failed run opens (or comments on) one tracking issue
 
 concurrency:
   group: scan-and-deploy # queue overlapping runs so they never race on the history push
@@ -146,4 +147,62 @@ jobs:
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git commit --allow-empty -m "chore: keep scheduled workflow active"
             git push origin HEAD:main
+          fi
+
+  # Every run ends here, including the ones that failed before publishing anything. health.json
+  # only exists when a scan succeeded, so without this a failed run would live solely in an
+  # Actions log that GitHub deletes after 90 days -- and nothing would say it out loud.
+  record:
+    needs: [gate, scan-and-deploy]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Append this run to the ledger on the data branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GATE: ${{ needs.gate.result }}
+          GATE_RUN: ${{ needs.gate.outputs.run }}
+          SCAN: ${{ needs.scan-and-deploy.result }}
+        run: |
+          REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if git ls-remote --exit-code --heads "$REMOTE" data >/dev/null 2>&1; then
+            git clone --quiet --branch data --single-branch --depth 1 "$REMOTE" history
+          else
+            git init --quiet -b data history
+            git -C history remote add origin "$REMOTE"
+          fi
+          python3 -m scanner.ledger history/runs.jsonl \
+            --gate "$GATE" --gate-run "$GATE_RUN" --scan "$SCAN"
+          cd history
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add runs.jsonl
+          git commit --quiet -m "run $GITHUB_RUN_ID: scan=${SCAN:-skipped}"
+          # The history push from the scan job may have landed first.
+          for attempt in 1 2 3; do
+            git push --quiet origin HEAD:data && break
+            git pull --quiet --rebase origin data || true
+            sleep $(( attempt * 3 ))
+          done
+
+      # A failed scheduled run is otherwise silent unless someone thinks to look at Actions.
+      - name: Say so, in an issue
+        if: needs.gate.result == 'failure' || needs.scan-and-deploy.result == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          BODY="Run \`${GITHUB_RUN_ID}\` (${GITHUB_EVENT_NAME}, \`${GITHUB_SHA:0:12}\`) failed.
+          gate: ${{ needs.gate.result }} · scan-and-deploy: ${{ needs.scan-and-deploy.result }}
+          ${RUN_URL}
+
+          The published data is whatever the last successful run left; the site keeps serving it."
+          gh label create scan-failure --color B60205 --description "Scan or deploy failed" 2>/dev/null || true
+          EXISTING=$(gh issue list --label scan-failure --state open --limit 1 --json number --jq '.[0].number' || true)
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "$BODY"
+          else
+            gh issue create --title "Scan failed" --label scan-failure --body "$BODY"
           fi

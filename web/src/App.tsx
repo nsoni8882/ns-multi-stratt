@@ -1,7 +1,7 @@
 import { HashRouter, Route, Routes } from "react-router-dom";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ErrorFooter } from "./components/ErrorFooter";
-import { StaleBanner } from "./components/Feedback";
+import { FailingTestsNote, StaleBanner } from "./components/Feedback";
 import { MarketBar } from "./components/MarketBar";
 import { TopBar } from "./components/TopBar";
 import { isDataStale } from "./lib/market";
@@ -10,7 +10,7 @@ import { StrategyPage } from "./pages/StrategyPage";
 import { StrategiesProvider, useStrategies } from "./strategiesContext";
 
 function Shell() {
-  const { data, market } = useStrategies();
+  const { data, market, health } = useStrategies();
   return (
     <>
       <TopBar />
@@ -28,6 +28,7 @@ function Shell() {
       <footer className="foot">
         {data && <div>Last updated {new Date(data.updated_at).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}</div>}
         <div>Not financial advice. Data from Yahoo Finance, may be delayed or inaccurate.</div>
+        <FailingTestsNote tests={health?.tests} />
         <ErrorFooter />
       </footer>
     </>
@@ -37,9 +38,13 @@ function Shell() {
 export default function App() {
   return (
     <HashRouter>
-      <StrategiesProvider>
-        <Shell />
-      </StrategiesProvider>
+      {/* Outer boundary covers the chrome and the data provider; the one inside Shell keeps a
+          page-level error from taking the nav down with it. */}
+      <ErrorBoundary>
+        <StrategiesProvider>
+          <Shell />
+        </StrategiesProvider>
+      </ErrorBoundary>
     </HashRouter>
   );
 }

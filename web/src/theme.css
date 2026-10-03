@@ -120,6 +120,10 @@ main { max-width: 1120px; margin: 0 auto; padding: 12px 32px 40px; min-height: 6
 .errlog .row { gap: 8px; justify-content: center; flex-wrap: wrap; }
 .errlog button { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 3px 11px; color: var(--muted); font-size: 12px; cursor: pointer; }
 .errlog button:hover, .errlog button:focus-visible { color: var(--accent); border-color: var(--accent-fill); }
+.errlog .reportlink { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 3px 11px; color: var(--muted); font-size: 12px; }
+.errlog .reportlink:hover, .errlog .reportlink:focus-visible { color: var(--accent); border-color: var(--accent-fill); }
+/* A quiet line, not a banner: a build whose tests failed still shows the same numbers. */
+.warnline { color: #8a5a00; }
 .errlog pre { margin-top: 8px; max-height: 260px; overflow: auto; text-align: left; white-space: pre-wrap; word-break: break-word; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; font-size: 11.5px; }
 @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }

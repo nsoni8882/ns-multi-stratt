@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { ErrorFooter } from "./ErrorFooter";
+import { FailingTestsNote } from "./Feedback";
 import { clear, read } from "../lib/errorLog";
 
 function Boom(): never {
@@ -47,5 +48,38 @@ describe("ErrorFooter", () => {
     render(<ErrorFooter errors={[{ at: "2026-10-03T18:00:00Z", message: "boom", source: "window", url: "#/" }]} />);
     expect(screen.getByText(/1 error happened in your browser/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy details" })).toBeInTheDocument();
+  });
+});
+
+describe("ErrorFooter reporting", () => {
+  it("offers a prefilled issue, since nothing collects errors automatically", () => {
+    render(<ErrorFooter errors={[{ at: "2026-10-03T18:00:00Z", message: "chart exploded", source: "render", url: "#/strategy/trend-pullback" }]} />);
+    const link = screen.getByRole("link", { name: "Report" });
+    const href = link.getAttribute("href") ?? "";
+    expect(href).toContain("github.com/nsoni8882/ns-multi-stratt/issues/new");
+    expect(decodeURIComponent(href)).toContain("Site error: chart exploded");
+    expect(decodeURIComponent(href)).toContain("#/strategy/trend-pullback");
+  });
+});
+
+describe("FailingTestsNote", () => {
+  it("says nothing when the build's tests passed", () => {
+    const { container } = render(<FailingTestsNote tests={{ python: "success", web: "success" }} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("says nothing when there is no health record at all", () => {
+    const { container } = render(<FailingTestsNote />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("names the suite that failed", () => {
+    render(<FailingTestsNote tests={{ python: "failure", web: "success" }} />);
+    expect(screen.getByRole("status")).toHaveTextContent("failing tests (python)");
+  });
+
+  it("does not treat a step that never ran as a failure", () => {
+    const { container } = render(<FailingTestsNote tests={{ python: "not run" }} />);
+    expect(container).toBeEmptyDOMElement();
   });
 });
