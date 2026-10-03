@@ -251,25 +251,62 @@ describe("strategy page", () => {
     window.localStorage.removeItem("showSmc");
   });
 
-  it("fetches a card's chart once the pointer settles on it, before any click", async () => {
-    const user = userEvent.setup();
+  it("fetches the charts at the top of the list while the browser is idle", async () => {
+    render(<App />);
+    await screen.findByRole("button", { name: /XOM/ });
+    const asked = (t: string) => (fetch as unknown as { mock: { calls: string[][] } }).mock.calls.some((c) => String(c[0]).includes(`charts/1d/${t}.json`));
+    await waitFor(() => expect(asked("XOM")).toBe(true));
+    expect(asked("NVDA")).toBe(true); // the whole visible top of the list, not just the first
+  });
+
+  it("skips speculative fetching when the visitor has asked for less data", async () => {
+    vi.stubGlobal("navigator", Object.create(navigator, { connection: { value: { saveData: true } } }));
     render(<App />);
     const card = await screen.findByRole("button", { name: /XOM/ });
-    const asked = () => (fetch as unknown as { mock: { calls: string[][] } }).mock.calls.some((c) => String(c[0]).includes("charts/1d/XOM.json"));
-    expect(asked()).toBe(false);
+    await userEvent.setup().hover(card);
+    await new Promise((r) => setTimeout(r, 400)); // past both the hover settle and the idle fallback
+    const calls = (fetch as unknown as { mock: { calls: string[][] } }).mock.calls;
+    expect(calls.some((c) => String(c[0]).includes("charts/"))).toBe(false);
+  });
+
+  // Cards past the idle-prefetch window are the only place hover can be observed on its own.
+  const longList = () => stubFetch([], {
+    "macd-rsi-reversal/1d.json": {
+      updated_at: UPDATED,
+      signals: ["XOM", "NVDA", "AAPL", "MSFT", "GOOG", "AMZN", "META", "TSLA"].map((ticker) => row({ ticker })),
+    },
+  });
+  const askedFor = (t: string) =>
+    (fetch as unknown as { mock: { calls: string[][] } }).mock.calls.some((c) => String(c[0]).includes(`charts/1d/${t}.json`));
+
+  it("fetches a card's chart once the pointer settles on it, before any click", async () => {
+    longList();
+    const user = userEvent.setup();
+    render(<App />);
+    const card = await screen.findByRole("button", { name: /TSLA/ });
+    expect(askedFor("TSLA")).toBe(false); // eighth card, past the idle window
     await user.hover(card);
-    await waitFor(() => expect(asked()).toBe(true));
+    await waitFor(() => expect(askedFor("TSLA")).toBe(true));
   });
 
   it("does not fetch a chart for a card the pointer only passes over", async () => {
+    longList();
     const user = userEvent.setup();
     render(<App />);
-    const card = await screen.findByRole("button", { name: /XOM/ });
+    const card = await screen.findByRole("button", { name: /TSLA/ });
     await user.hover(card);
     await user.unhover(card);
-    await new Promise((r) => setTimeout(r, 250)); // longer than the settle delay
-    const calls = (fetch as unknown as { mock: { calls: string[][] } }).mock.calls;
-    expect(calls.some((c) => String(c[0]).includes("charts/1d/XOM.json"))).toBe(false);
+    await new Promise((r) => setTimeout(r, 400)); // past the settle delay and the idle fallback
+    expect(askedFor("TSLA")).toBe(false);
+  });
+
+  it("prefetches only the top of a long list, not all of it", async () => {
+    longList();
+    render(<App />);
+    await screen.findByRole("button", { name: /XOM/ });
+    await waitFor(() => expect(askedFor("XOM")).toBe(true));
+    expect(askedFor("AMZN")).toBe(true); // sixth
+    expect(askedFor("META")).toBe(false); // seventh
   });
 
   it("shows an error inside the modal when the chart file is missing", async () => {

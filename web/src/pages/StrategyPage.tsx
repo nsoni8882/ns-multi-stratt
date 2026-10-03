@@ -7,10 +7,13 @@ import { HistoryModal } from "../components/HistoryModal";
 import { StockCard } from "../components/StockCard";
 import { useAsync, useTimeframe } from "../hooks";
 import { loadChartView } from "../lib/chartViewLoader";
-import { whenIdle } from "../lib/prefetch";
+import { wantsPrefetch, whenIdle } from "../lib/prefetch";
 import { ALL_SECTORS, DEFAULT_FILTERS, filterSignals, sectorsOf, type Filters } from "../lib/filters";
 import { useStrategies } from "../strategiesContext";
 import type { SignalRow } from "../types";
+
+/** Roughly a desktop screenful. At ~21KB gzip a chart, six is about 125KB of guessing. */
+const PREFETCH_CARDS = 6;
 
 export function StrategyPage() {
   const { id = "" } = useParams();
@@ -22,9 +25,9 @@ export function StrategyPage() {
   const [showHistory, setShowHistory] = useState(false);
   const close = useCallback(() => setOpen(null), []);
   const closeHistory = useCallback(() => setShowHistory(false), []);
-  const warmChart = useCallback((r: SignalRow) => prefetchChart(tf, r.ticker), [tf]);
+  const warmChart = useCallback((r: SignalRow) => wantsPrefetch() && prefetchChart(tf, r.ticker), [tf]);
   // Fetch the chart code before anyone clicks, so opening the first chart is one request, not two.
-  useEffect(() => whenIdle(loadChartView), []);
+  useEffect(() => (wantsPrefetch() ? whenIdle(loadChartView) : undefined), []);
 
   const rows = signals.data?.signals ?? [];
   const sectors = useMemo(() => sectorsOf(rows), [rows]);
@@ -32,6 +35,13 @@ export function StrategyPage() {
   const effective = useMemo(() => (sectors.includes(filters.sector) ? filters : { ...filters, sector: ALL_SECTORS }), [filters, sectors]);
   const shown = useMemo(() => filterSignals(rows, effective), [rows, effective]);
   const hasSells = useMemo(() => rows.some((r) => r.side === "SELL"), [rows]);
+  // Touch has no hover, so the cards at the top of the list are fetched on idle instead.
+  // Keyed by ticker rather than by the array, so re-filtering to the same top six is free.
+  const warmList = useMemo(() => shown.slice(0, PREFETCH_CARDS).map((r) => r.ticker).join(" "), [shown]);
+  useEffect(() => {
+    if (!warmList || !wantsPrefetch()) return;
+    return whenIdle(() => warmList.split(" ").forEach((ticker) => prefetchChart(tf, ticker)));
+  }, [warmList, tf]);
   useEffect(() => setFilters((f) => (f.sector === ALL_SECTORS ? f : { ...f, sector: ALL_SECTORS })), [id, tf]);
   // A SELL filter left over from a list that had them would otherwise show an empty page.
   useEffect(() => {
