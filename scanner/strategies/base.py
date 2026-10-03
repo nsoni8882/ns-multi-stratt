@@ -35,6 +35,34 @@ HIGH, STANDARD, LOW = "high", "standard", "low"
 CONVICTION_RANK = {HIGH: 0, STANDARD: 1, LOW: 2}  # sort key: strongest signals listed first
 
 
+def thesis_negated(r: pd.Series, i: int, last: int, side: str, level: float) -> bool:
+    """Has the RSI cross that fired this signal been undone on a later bar?
+
+    Both strategies trigger on RSI crossing a level, so both die the same way: a BUY that
+    crossed up through 40 is dead once RSI closes back at or under 40, and a SELL that was
+    rejected at 60 is dead once RSI closes back at or above it.
+
+    This only matters for a signal still listed from an earlier bar. SIGNAL_WINDOW keeps a
+    signal on the site for three bars so a reader who checks every other day still sees it,
+    but without this the site goes on presenting a setup whose premise has already failed --
+    CCL fired a SELL on 2026-09-30 with RSI at 56.9, and two bars later RSI was 63.6, higher
+    than the 61.6 it had crossed down from, while the site still listed it as live.
+
+    Measured before being wired up, and the result argued against hiding these: over 12y, a
+    stale BUY whose premise had died returned +1.93% from the current bar against +1.52% for
+    one still intact (n=2,717 vs 9,316), because RSI falling back under 40 means price dipped
+    further and you are buying lower. So they are flagged, not dropped -- the problem is that
+    the site described a setup that no longer holds, not that the signal was unprofitable.
+
+    This changes no backtested number: the measurement harness enters at the signal bar,
+    where no later bar exists yet.
+    """
+    after = r.iloc[i + 1 : last + 1]
+    if after.empty:
+        return False
+    return bool((after >= level).any()) if side == "SELL" else bool((after <= level).any())
+
+
 @dataclass(frozen=True)
 class Release:
     """One entry in a strategy's visible change history.
@@ -85,6 +113,7 @@ class Signal:
     entry_price: float  # close of the signal bar
     details: dict = field(default_factory=dict)
     conviction: str = STANDARD  # HIGH, STANDARD or LOW
+    invalidated: bool = False  # fired earlier in the window, premise undone since
 
 
 class Strategy(Protocol):
@@ -99,7 +128,8 @@ class Strategy(Protocol):
     def evaluate(self, df: pd.DataFrame) -> "Signal | None": ...
 
 
-def make_signal(df: pd.DataFrame, i: int, side: str, details: dict, conviction: str = STANDARD) -> Signal:
+def make_signal(df: pd.DataFrame, i: int, side: str, details: dict, conviction: str = STANDARD,
+                invalidated: bool = False) -> Signal:
     return Signal(
         side=side,
         bars_ago=len(df) - 1 - i,
@@ -108,4 +138,5 @@ def make_signal(df: pd.DataFrame, i: int, side: str, details: dict, conviction: 
         entry_price=float(df["close"].iloc[i]),
         details={k: round(float(v), 4) for k, v in details.items()},
         conviction=conviction,
+        invalidated=invalidated,
     )

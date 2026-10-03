@@ -86,6 +86,9 @@ main { max-width: 1120px; margin: 0 auto; padding: 12px 32px 40px; min-height: 6
 .conv { align-self: flex-start; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; }
 .conv.high { background: var(--buy-bg); color: var(--buy); }
 .conv.low { background: var(--seg-bg); color: var(--muted); }
+/* Reports that the described setup no longer holds. Outlined rather than filled: it is a
+   caveat on the card, not a third conviction tier. */
+.conv.stale { background: transparent; border: 1px dashed var(--border); color: var(--muted); }
 .spark { width: 100%; height: 36px; display: block; }
 .linkbtn { background: none; border: 0; color: var(--accent); font-weight: 600; text-decoration: underline; }
 .btn { background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 8px 18px; font-weight: 600; }

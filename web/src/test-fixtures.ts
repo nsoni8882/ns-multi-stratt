@@ -62,7 +62,7 @@ export const signals: Record<string, SignalsFile> = {
     signals: [
       row({}),
       // SELL is always low conviction: see scanner/strategies/base.py.
-      row({ ticker: "NVDA", name: "NVIDIA", sector: "Information Technology", side: "SELL", conviction: "low", bars_ago: 1 }),
+      row({ ticker: "NVDA", name: "NVIDIA", sector: "Information Technology", side: "SELL", conviction: "low", bars_ago: 1, invalidated: true }),
     ],
   },
   "macd-rsi-reversal/4h.json": { updated_at: UPDATED, signals: [row({ ticker: "AAL", name: "American Airlines", sector: "Industrials" })] },

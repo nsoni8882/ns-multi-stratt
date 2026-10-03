@@ -44,6 +44,10 @@ export interface SignalRow {
   price: number;
   side: Side;
   conviction: Conviction;
+  /** Fired on an earlier bar, and RSI has since crossed back past the level that triggered
+   *  it — the setup described no longer holds. Optional: absent in data cached from before
+   *  this shipped. */
+  invalidated?: boolean;
   bars_ago: number;
   fired_at: string;
   bar_time: number;

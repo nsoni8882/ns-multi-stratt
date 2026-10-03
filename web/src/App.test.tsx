@@ -308,3 +308,25 @@ describe("strategy page with data written before versioning shipped", () => {
     expect(screen.queryByText(/vundefined/)).not.toBeInTheDocument();
   });
 });
+
+describe("a signal whose setup has changed since it fired", () => {
+  beforeEach(() => {
+    window.location.hash = "#/strategy/macd-rsi-reversal";
+  });
+
+  it("is still listed, but carries a caveat badge", async () => {
+    render(<App />);
+    await screen.findByText("NVIDIA");
+    const card = screen.getByText("NVIDIA").closest(".scard")!;
+    const badge = within(card as HTMLElement).getByText("Setup changed");
+    expect(badge).toBeInTheDocument();
+    expect(badge).toHaveAttribute("title", expect.stringContaining("no longer holds"));
+  });
+
+  it("leaves a signal whose setup still holds unbadged", async () => {
+    render(<App />);
+    await screen.findByText("Exxon Mobil");
+    const card = screen.getByText("Exxon Mobil").closest(".scard")!;
+    expect(within(card as HTMLElement).queryByText("Setup changed")).not.toBeInTheDocument();
+  });
+});

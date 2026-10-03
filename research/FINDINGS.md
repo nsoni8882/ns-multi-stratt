@@ -99,6 +99,28 @@ If this gets revisited, the honest next step is not another threshold on the sam
 is out-of-sample data — other indices, or the 4H timeframe — because this 12-year S&P window
 has now been queried enough times that another pass through it cannot settle anything.
 
+## Signal invalidation (prompted by a live CCL SELL)
+
+CCL fired a Trend Pullback SELL on 2026-09-30 at 24.54 with RSI 56.9, crossing down through
+60 from 61.6. Two bars later RSI was 63.6 — higher than before the cross — price was +4.97%
+(the short down 4.97%), and the site still listed it as a live SELL. The obvious fix was to
+drop signals whose premise has died. Measured first, and the measurement said not to:
+
+| stale listing (1–2 bars old) | n | return from the current bar |
+|---|---:|---:|
+| BUY, premise still alive | 9,316 | +1.52% |
+| BUY, **premise dead** | 2,717 | **+1.93%** |
+| SELL, premise still alive | 3,628 | −1.59% |
+| SELL, **premise dead** | 1,287 | **−0.71%** |
+
+Hiding dead-premise signals would have thrown away the better half of the stale BUYs, which
+makes mechanical sense: RSI falling back under 40 means price dipped further, so the entry is
+cheaper. 22.6% of stale BUY listings and 26.2% of stale SELL listings have a dead premise.
+
+So they are flagged, not dropped. The defect was never that the signal lost money — the SELL
+leg loses money by construction — it was that the card described a setup that no longer
+held. That is a labelling bug with a labelling fix.
+
 ## Standing guards
 
 Two things from these runs should stay regardless of what is tested next: score the

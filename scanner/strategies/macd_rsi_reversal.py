@@ -2,7 +2,7 @@ import pandas as pd
 
 from scanner.indicators import crossed_above, crossed_below, macd, rsi
 from scanner.strategies.base import (HIGH, LOW, SIGNAL_WINDOW, STANDARD, Release, Signal,
-                                     make_signal)
+                                     make_signal, thesis_negated)
 
 HIST_WINDOW = 100  # trailing bars used to rank the histogram
 HIST_QUANTILE = 0.10  # "deep" = bottom/top 10% of the trailing window
@@ -20,6 +20,7 @@ RSI_HIGH = 80
 # No matching second tier on the SELL side: loosening it to 75 added 504 signals whose
 # short P&L was no better than the 262 at 80 (both indistinguishable from zero edge).
 RSI_HIGH_STANDARD = RSI_HIGH
+
 
 
 def rule_side(hist: pd.Series, lo: pd.Series, hi: pd.Series, r: pd.Series, i: int) -> "tuple[str, str] | None":
@@ -57,11 +58,16 @@ class MacdRsiReversal:
     min_bars = 150
     # Newest first. See TrendPullback.history -- the top fingerprint is build-asserted.
     history = (
+        Release("1.2.0", "2026-10-03",
+                "A signal that fired a day or two ago is now marked 'Setup changed' when RSI has "
+                "since crossed back past the level that triggered it, so a card never describes "
+                "a setup that no longer holds. They are still listed, not hidden: over 12 years "
+                "these did no worse than signals still intact.",
+                fingerprint="aa531796650b"),
         Release("1.1.0", "2026-10-03",
                 "Signals now carry a conviction tier. An RSI cross below 20 beat the market "
                 "by 3.97% over the next 20 days against 0.78% for a cross below 25, so the "
-                "deeper ones are marked stronger and listed first.",
-                fingerprint="aa531796650b"),
+                "deeper ones are marked stronger and listed first."),
         Release("1.0.0", "2026-10-03",
                 "First version. Looks for exhaustion: a deeply negative MACD histogram in "
                 "the last 5 bars plus RSI(14) turning up out of oversold territory."),
@@ -82,10 +88,15 @@ class MacdRsiReversal:
         lo = hist.rolling(HIST_WINDOW).quantile(HIST_QUANTILE)
         hi = hist.rolling(HIST_WINDOW).quantile(1 - HIST_QUANTILE)
         r = rsi(df["close"])
+        last = len(df) - 1
         for k in range(SIGNAL_WINDOW):
-            i = len(df) - 1 - k
+            i = last - k
             hit = rule_side(hist, lo, hi, r, i)
             if hit:
                 side, conviction = hit
-                return make_signal(df, i, side, {"macd_hist": hist.iloc[i], "rsi": r.iloc[i]}, conviction)
+                # The level that fired it: the deep tier for a HIGH buy, else the standard one.
+                level = RSI_HIGH if side == "SELL" else (RSI_LOW if conviction == HIGH else RSI_LOW_STANDARD)
+                dead = thesis_negated(r, i, last, side, level)
+                return make_signal(df, i, side, {"macd_hist": hist.iloc[i], "rsi": r.iloc[i]},
+                                   conviction, invalidated=dead)
         return None

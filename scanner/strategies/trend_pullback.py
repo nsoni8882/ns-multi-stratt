@@ -4,7 +4,7 @@ import pandas as pd
 
 from scanner.indicators import adx, crossed_above, crossed_below, ema, rising, rsi
 from scanner.strategies.base import (HIGH, LOW, SIGNAL_WINDOW, STANDARD, Release, Signal,
-                                     make_signal)
+                                     make_signal, thesis_negated)
 
 # Cardwell's RSI range shift: RSI oscillates 40-80 in an uptrend (40 acts as support) and
 # 20-60 in a downtrend (60 acts as resistance). The classic 30/70 and 20/80 bands were built
@@ -186,11 +186,16 @@ class TrendPullback:
     # Newest first. Add an entry at the top whenever `params` changes -- the fingerprint on
     # the top entry is asserted against the live one, so the build fails otherwise.
     history = (
+        Release("1.3.0", "2026-10-03",
+                "A signal that fired a day or two ago is now marked 'Setup changed' when RSI has "
+                "since crossed back past the level that triggered it, so a card never describes "
+                "a setup that no longer holds. They are still listed, not hidden: over 12 years "
+                "these did no worse than signals still intact.",
+                fingerprint="165d10977239"),
         Release("1.2.0", "2026-10-03",
                 "Tested a deeper RSI trigger, an ADX trend-strength filter and three "
                 "versions of a 'price must come back to the 50 EMA' rule over 12 years. "
-                "None of them beat the current rules, so nothing changed.",
-                fingerprint="165d10977239"),
+                "None of them beat the current rules, so nothing changed."),
         Release("1.1.0", "2026-10-03",
                 "Raised the minimum history from 250 to 400 bars, because the 200 EMA is "
                 "still distorted by its own starting value before then. Short signals are "
@@ -226,13 +231,16 @@ class TrendPullback:
         if len(df) < self.min_bars:
             return None
         ind = self.indicators(df)
+        last = len(df) - 1
         for k in range(SIGNAL_WINDOW):
-            i = len(df) - 1 - k
+            i = last - k
             hit = rule_side(**ind, i=i, cfg=self.config)
             if hit:
                 side, conviction = hit
+                level = self.config.rsi_sell_level if side == "SELL" else self.config.rsi_buy_level
+                dead = thesis_negated(ind["r"], i, last, side, level)
                 details = {"rsi": ind["r"].iloc[i], "ema50": ind["ema50"].iloc[i], "ema200": ind["ema200"].iloc[i]}
                 if ind["adx_series"] is not None:
                     details["adx"] = ind["adx_series"].iloc[i]
-                return make_signal(df, i, side, details, conviction)
+                return make_signal(df, i, side, details, conviction, invalidated=dead)
         return None

@@ -34,6 +34,9 @@ def signal_row(ticker: str, name: str, sector: str, sig, closes: pd.Series) -> d
         "price": round(sig.entry_price, 4),
         "side": sig.side,
         "conviction": sig.conviction,
+        # True when the signal fired on an earlier bar and RSI has since crossed back past
+        # the level that triggered it: the setup the card describes no longer holds.
+        "invalidated": sig.invalidated,
         "bars_ago": sig.bars_ago,
         "fired_at": sig.fired_at.isoformat(),
         "bar_time": unix(sig.bar_time),
