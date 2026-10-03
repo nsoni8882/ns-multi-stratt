@@ -19,6 +19,7 @@ export function StrategyPage() {
   const [open, setOpen] = useState<SignalRow | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const close = useCallback(() => setOpen(null), []);
+  const closeHistory = useCallback(() => setShowHistory(false), []);
 
   const rows = signals.data?.signals ?? [];
   const sectors = useMemo(() => sectorsOf(rows), [rows]);
@@ -38,7 +39,7 @@ export function StrategyPage() {
         <HistoryModal
           strategyName={strategy.name}
           history={strategy.history ?? []}
-          onClose={() => setShowHistory(false)}
+          onClose={closeHistory}
         />
       )}
       <section className="hero">

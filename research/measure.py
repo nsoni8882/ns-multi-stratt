@@ -276,10 +276,11 @@ def to_markdown(results: dict, meta: dict) -> str:
         "# Trend Pullback variant measurement",
         "",
         f"{meta['tickers']} S&P names, {meta['years']}y of daily bars "
-        f"({meta['bars']:,} scored bars), {meta['horizon']}-bar forward horizon. "
-        f"Generated {meta['generated']}.",
+        f"({meta['bars']:,} bars fetched, {meta['base']['n']:,} of them scored once the "
+        f"warm-up and the trailing forward window are excluded), "
+        f"{meta['horizon']}-bar forward horizon. Generated {meta['generated']}.",
         "",
-        f"**Do-nothing benchmark:** across all {meta['base']['n']:,} scored bars, a random "
+        f"**Do-nothing benchmark:** across those {meta['base']['n']:,} scored bars, a random "
         f"{meta['horizon']}-bar hold returned {meta['base']['mean']:+.2%} and was positive "
         f"{meta['base']['win']:.1%} of the time. Any signal's win rate has to be read against "
         f"that number, not against 50%.",

@@ -20,6 +20,7 @@ RSI_HIGH = 80
 # No matching second tier on the SELL side: loosening it to 75 added 504 signals whose
 # short P&L was no better than the 262 at 80 (both indistinguishable from zero edge).
 RSI_HIGH_STANDARD = RSI_HIGH
+MIN_BARS = 150
 
 
 
@@ -55,7 +56,7 @@ class MacdRsiReversal:
         "while RSI(14) crosses back below 80, and is shown as a weaker signal because the "
         "short leg of this setup did not beat holding cash over 12 years of backtesting."
     )
-    min_bars = 150
+    min_bars = MIN_BARS
     # Newest first. See TrendPullback.history -- the top fingerprint is build-asserted.
     history = (
         Release("1.2.0", "2026-10-03",
@@ -63,7 +64,9 @@ class MacdRsiReversal:
                 "since crossed back past the level that triggered it, so a card never describes "
                 "a setup that no longer holds. They are still listed, not hidden: over 12 years "
                 "these did no worse than signals still intact.",
-                fingerprint="aa531796650b"),
+                # Fingerprint updated in place, not a new release: `params` was widened to cover the
+                # indicator periods it had been missing, and no shipped signal changes.
+                fingerprint="eba1a6598045"),
         Release("1.1.0", "2026-10-03",
                 "Signals now carry a conviction tier. An RSI cross below 20 beat the market "
                 "by 3.97% over the next 20 days against 0.78% for a cross below 25, so the "
@@ -73,9 +76,10 @@ class MacdRsiReversal:
                 "the last 5 bars plus RSI(14) turning up out of oversold territory."),
     )
     params = {
-        "min_bars": 150, "hist_window": HIST_WINDOW, "hist_quantile": HIST_QUANTILE,
+        "min_bars": MIN_BARS, "hist_window": HIST_WINDOW, "hist_quantile": HIST_QUANTILE,
         "deep_lookback": DEEP_LOOKBACK, "rsi_low": RSI_LOW, "rsi_low_standard": RSI_LOW_STANDARD,
         "rsi_high": RSI_HIGH, "rsi_high_standard": RSI_HIGH_STANDARD,
+        "macd": (12, 26, 9), "rsi_length": 14,  # indicator periods decide signals too
     }
     # The same levels are used on 1d and 4H. Checked, not assumed: on 4H a cross back above
     # 20 returned +3.57% over 20 bars against a +0.77% baseline (n=23), the same shape as daily.

@@ -1,8 +1,8 @@
 # Trend Pullback variant measurement
 
-163 S&P names, 12y of daily bars (476,108 scored bars), 20-bar forward horizon. Generated 2026-10-03.
+163 S&P names, 12y of daily bars (476,108 bars fetched, 407,648 of them scored once the warm-up and the trailing forward window are excluded), 20-bar forward horizon. Generated 2026-10-03.
 
-**Do-nothing benchmark:** across all 407,648 scored bars, a random 20-bar hold returned +1.44% and was positive 57.6% of the time. Any signal's win rate has to be read against that number, not against 50%.
+**Do-nothing benchmark:** across those 407,648 scored bars, a random 20-bar hold returned +1.44% and was positive 57.6% of the time. Any signal's win rate has to be read against that number, not against 50%.
 
 `mean` is the return to the *position*, so a SELL row is the short's P&L: the stock rising is a loss. `baseline` is what that position has to beat -- the ticker's own mean forward return for a BUY (12 years of drift earns no credit), cash for a SELL. `alpha` is `mean` minus `baseline`.
 

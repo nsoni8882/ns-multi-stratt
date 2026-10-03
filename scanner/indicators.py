@@ -58,7 +58,7 @@ def adx(high: pd.Series, low: pd.Series, close: pd.Series, length: int = 14) -> 
 
     Below ~20 price is chopping rather than trending, which is where a pullback entry has
     nothing to pull back into. Returned on the same index as the inputs, NaN until enough
-    bars exist (ADX needs 2*length bars before its first value).
+    bars exist (the first value lands at index 2*length-1).
     """
     h, l, c = (s.to_numpy(dtype=float) for s in (high, low, close))
     up, dn = np.diff(h, prepend=np.nan), -np.diff(l, prepend=np.nan)
@@ -75,9 +75,12 @@ def adx(high: pd.Series, low: pd.Series, close: pd.Series, length: int = 14) -> 
     dx = np.where(np.isnan(tr_s), np.nan, dx)
 
     out = np.full(len(c), np.nan)
-    first = 2 * length  # length bars of DX are needed to seed the average
+    # Wilder seeds ADX with the mean of the first `length` DX values. DX is first defined at
+    # index `length` (where the smoothed TR/DM are), so the seed spans dx[length : 2*length]
+    # and is published at index 2*length-1 -- 27 for length 14, matching TradingView.
+    first = 2 * length - 1
     if len(c) > first:
-        avg = np.nanmean(dx[length + 1 : first + 1])
+        avg = np.nanmean(dx[length : first + 1])
         out[first] = avg
         for i in range(first + 1, len(c)):
             avg = (avg * (length - 1) + dx[i]) / length

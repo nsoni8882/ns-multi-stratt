@@ -67,10 +67,12 @@ def _hlc(closes, width=0.005):
     return c * (1 + width), c * (1 - width), c
 
 
-def test_adx_is_nan_until_two_lengths_of_bars():
+def test_adx_first_value_lands_where_wilder_puts_it():
+    """Wilder seeds ADX with the mean of dx[length:2*length], published at 2*length-1 (27
+    for length 14). Publishing it at 28 would lag every ADX value by one bar."""
     out = adx(*_hlc(np.arange(100.0, 160.0)), 14)
-    assert out.iloc[:28].isna().all()
-    assert out.iloc[28:].notna().all()
+    assert out.iloc[:27].isna().all()
+    assert out.iloc[27:].notna().all()
 
 
 def test_adx_short_series_is_all_nan():

@@ -21,6 +21,9 @@ RSI_SELL_LEVEL = 60
 MIN_BARS = 400
 
 DIP_LOOKBACK = 60  # how far back to trace a sub-level RSI run when measuring its depth
+# Indicator periods. Not in TrendPullbackConfig because no variant has ever moved them, but
+# they decide which bars fire just as much as the gates do, so they are in `params`.
+EMA_FAST, EMA_SLOW, EMA_SHORT, RSI_LENGTH = 50, 200, 20, 14
 
 
 @dataclass(frozen=True)
@@ -191,7 +194,9 @@ class TrendPullback:
                 "since crossed back past the level that triggered it, so a card never describes "
                 "a setup that no longer holds. They are still listed, not hidden: over 12 years "
                 "these did no worse than signals still intact.",
-                fingerprint="165d10977239"),
+                # Fingerprint updated in place, not a new release: `params` was widened to cover the
+                # indicator periods it had been missing, and no shipped signal changes.
+                fingerprint="bfd4669f58fe"),
         Release("1.2.0", "2026-10-03",
                 "Tested a deeper RSI trigger, an ADX trend-strength filter and three "
                 "versions of a 'price must come back to the 50 EMA' rule over 12 years. "
@@ -208,23 +213,27 @@ class TrendPullback:
     @property
     def params(self) -> dict:
         """Everything that can change which bars fire, for rules_version()."""
-        return {"min_bars": self.min_bars} | asdict(self.config)
+        return {
+            "min_bars": self.min_bars,
+            "ema_fast": EMA_FAST, "ema_slow": EMA_SLOW, "ema_short": EMA_SHORT,
+            "rsi_length": RSI_LENGTH, "dip_lookback": DIP_LOOKBACK,
+        } | asdict(self.config)
 
     def indicators(self, df: pd.DataFrame) -> dict:
         """Everything rule_side needs, computed once per frame."""
         close = df["close"]
         out = {
             "close": close,
-            "ema50": ema(close, 50),
-            "ema200": ema(close, 200),
-            "r": rsi(close),
+            "ema50": ema(close, EMA_FAST),
+            "ema200": ema(close, EMA_SLOW),
+            "r": rsi(close, RSI_LENGTH),
             "adx_series": None,
             "ema20": None,
         }
         if self.config.adx_min is not None:
             out["adx_series"] = adx(df["high"], df["low"], close, self.config.adx_length)
         if self.config.require_below_ema20:
-            out["ema20"] = ema(close, 20)
+            out["ema20"] = ema(close, EMA_SHORT)
         return out
 
     def evaluate(self, df: pd.DataFrame) -> "Signal | None":

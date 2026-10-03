@@ -20,15 +20,19 @@ export function HistoryModal({ strategyName, history, onClose }: Props) {
     };
   }, []);
 
+  // Focus moves once, on open, and is restored once, on close. Deliberately not keyed on
+  // `onClose`: a parent re-render with a fresh callback would otherwise re-run this and yank
+  // focus back out of whatever the reader had tabbed to.
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
     closeBtn.current?.focus();
+    return () => opener?.focus();
+  }, []);
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      opener?.focus();
-    };
+    return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
   return (

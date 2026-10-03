@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -65,5 +66,30 @@ describe("HistoryModal", () => {
     show([]);
     expect(screen.getByText(/no recorded changes yet/i)).toBeInTheDocument();
     expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
+  });
+});
+
+describe("HistoryModal focus handling", () => {
+  it("does not steal focus back when the parent re-renders", async () => {
+    // The overlay has no focus trap, so a reader can Tab out to the page behind it. If the
+    // focus effect is keyed on `onClose` and the parent passes a fresh closure each render,
+    // every keystroke that updates parent state yanks focus back to the close button and the
+    // character is lost.
+    const user = userEvent.setup();
+    function Parent() {
+      const [text, setText] = useState("");
+      return (
+        <>
+          <HistoryModal strategyName="Trend Pullback" history={HISTORY} onClose={() => setText(text)} />
+          <input aria-label="Search" value={text} onChange={(e) => setText(e.target.value)} />
+        </>
+      );
+    }
+    render(<Parent />);
+    const input = screen.getByLabelText("Search");
+    input.focus();
+    await user.keyboard("abc");
+    expect(input).toHaveFocus();
+    expect(input).toHaveValue("abc");
   });
 });
