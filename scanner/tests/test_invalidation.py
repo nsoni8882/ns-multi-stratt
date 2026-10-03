@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 
 from scanner.strategies.base import thesis_negated
-from scanner.strategies.trend_pullback import TrendPullback
+from scanner.strategies.trend_pullback import VARIANTS, TrendPullback
 from scanner.tests.conftest import make_df
 
 
@@ -41,10 +41,15 @@ def test_a_signal_on_the_latest_bar_can_never_be_negated():
 
 
 def test_the_ccl_shape_is_flagged_but_still_listed():
-    """Down-leg, a bounce that trips the SELL, then RSI pushes back through 60."""
+    """Down-leg, a bounce that trips the SELL, then RSI pushes back through 60.
+
+    Uses the `with-shorts` variant: the shipped rule is long-only since the short leg was
+    measured, but flagging rather than hiding a dead premise is the behaviour under test and
+    it applies to both sides.
+    """
     down = list(100 * np.cumprod(1 - 0.004 - 0.004 * np.sin(np.arange(460) / 5)))
     closes = down + [down[-1] * m for m in (1.06, 1.12, 1.10, 1.14, 1.20)]
-    sig = TrendPullback().evaluate(make_df(closes))
+    sig = TrendPullback(VARIANTS["with-shorts"]).evaluate(make_df(closes))
     if sig is None or sig.side != "SELL" or sig.bars_ago == 0:
         pytest.skip("fixture did not produce a stale SELL on this shape")
     assert sig.invalidated is True  # flagged...

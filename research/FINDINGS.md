@@ -156,6 +156,50 @@ much since — which is what you would expect of an edge that became widely know
 The gates stay in `TrendPullbackConfig`, all defaulting to off, so the result can be
 re-measured when there is more out-of-sample data rather than rebuilt from scratch.
 
+## The reversal strategy's exhaustion thesis predicts a volume climax. It isn't there.
+
+Same five gates on MACD + RSI Reversal, 164 names x 12y, against its shipped +1.65%
+(t indep +2.73, n indep 332). Independent sample, BUY leg:
+
+| variant | n indep | alpha indep | t indep |
+|---|---:|---:|---:|
+| **shipped (no volume condition)** | 332 | **+1.65%** | **+2.73** |
+| capitulation-1.5x | 265 | +1.06% | +1.52 |
+| capitulation-2x | 183 | +1.19% | +1.43 |
+| trigger-rvol-1.2 | 157 | +0.59% | +0.63 |
+| obv-divergence | 54 | +0.32% | +0.30 |
+| mfi-confluence | 66 | +3.12% | +2.30 |
+| capitulation+divergence | 36 | −0.10% | −0.07 |
+
+The strategy's own story is that a deep histogram plus oversold RSI marks sellers giving up,
+and giving up is supposed to be loud. **Requiring the volume climax removes good signals**:
+every capitulation threshold lowers alpha, monotonically. The lows worth buying are often
+quiet ones. OBV divergence, the other textbook tell, is worth nothing here either.
+
+`mfi-confluence` looks best on alpha but has n indep 66 against a bar of 500. It is noise
+with a good hairstyle, and is recorded so it is not re-proposed as a discovery.
+
+Nothing shipped. The shipped rule is already the best variant of itself.
+
+## Both short legs are gone
+
+Measured on the same run, and this one was decisive.
+
+| leg | n indep | alpha indep | t indep | win |
+|---|---:|---:|---:|---:|
+| Trend Pullback SELL | 1,487 | **−2.08%** | **−8.14** | 43.5% |
+| MACD + RSI Reversal SELL | 239 | +0.05% | +0.09 | 50.4% |
+
+A short's benchmark is cash, not the stock, so −2.08% means shorting these lost 2.08% over
+20 bars. That is not "no edge", it is **reliably wrong**, and it is the most significant
+result in this repo by a distance: negative in 9 of 11 years, win rate 34–47% in nine of
+them, with only 2021 and a +0.54% 2022 on the other side. The reversal's short leg is simply
+nothing: what little it has comes from one month of 2020.
+
+Both are now off by default (`enable_short=False`), kept as `with-shorts` variants so these
+numbers can be reproduced. The lists lost signals and gained the property that every signal
+on them has measured positive expectancy — which is the trade the owner asked for.
+
 ## Open, unmeasured: does the *reason* for a dip matter? (news judgment)
 
 Every gate tried so far asks the price series a sharper question, and every one has failed.

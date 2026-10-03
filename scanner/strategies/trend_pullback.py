@@ -54,6 +54,10 @@ class TrendPullbackConfig:
 
     rsi_buy_level: float = RSI_BUY_LEVEL
     rsi_sell_level: float = RSI_SELL_LEVEL
+    # The short leg does not just lack an edge, it is reliably wrong: shorting these returned
+    # -2.08% over 20 bars (t = -8.14, n indep 1,487, win 43.5%) and was negative in 9 of 11
+    # years. It is off by default and kept only so the measurement can be reproduced.
+    enable_short: bool = False
     # Trend-quality gate: the dominant failure mode of "above the 200 EMA" is price chopping
     # just above the line, where an RSI dip is noise rather than a pullback into a trend.
     adx_min: "float | None" = None  # None leaves the gate off
@@ -88,6 +92,7 @@ DEFAULT_CONFIG = TrendPullbackConfig()
 # Variants wired up for measurement, keyed by the label the harness reports them under.
 VARIANTS = {
     "shipped": DEFAULT_CONFIG,
+    "with-shorts": TrendPullbackConfig(enable_short=True),  # the leg that was dropped
     "rsi35": TrendPullbackConfig(rsi_buy_level=35, rsi_sell_level=65),
     "adx20": TrendPullbackConfig(adx_min=20),
     "adx25": TrendPullbackConfig(adx_min=25),
@@ -241,7 +246,8 @@ def rule_side(close: pd.Series, ema50: pd.Series, ema200: pd.Series, r: pd.Serie
         if not cfg.depth_tiers:
             return "BUY", STANDARD
         return "BUY", _tier(dip_depth(r, i, cfg.rsi_buy_level), cfg.depth_tiers)
-    if close.iloc[i] < ema200.iloc[i] and dn_structure and crossed_below(r, i, cfg.rsi_sell_level):
+    if (cfg.enable_short and close.iloc[i] < ema200.iloc[i] and dn_structure
+            and crossed_below(r, i, cfg.rsi_sell_level)):
         if cfg.require_rising_ema200 and rising(ema200, i, cfg.rising_lookback):
             return None
         if not _volume_agrees(i, "SELL", cfg.rsi_sell_level, r, rvol, obv_dev, mfi_series, cfg):
@@ -255,9 +261,9 @@ class TrendPullback:
     name = "Trend Pullback"
     description = (
         "BUY when price is in an uptrend (above the 200 EMA, with the 50 EMA above it) "
-        "and RSI(14) dips below 40 then crosses back above it. SELL is the mirror in a "
-        "downtrend with RSI crossing back below 60, and is shown as a weaker signal: "
-        "backtested over 12 years, the short leg of this setup did not beat holding cash."
+        "and RSI(14) dips below 40 then crosses back above it. Long only: the mirror setup "
+        "in a downtrend was backtested over 12 years and lost money reliably, so it is not "
+        "published."
     )
     min_bars = MIN_BARS
     # The same 40/60 levels are used on 1d and 4H. Checked, not assumed: on 4H the BUY leg
@@ -271,17 +277,18 @@ class TrendPullback:
     # Newest first. Add an entry at the top whenever `params` changes -- the fingerprint on
     # the top entry is asserted against the live one, so the build fails otherwise.
     history = (
+        Release("1.4.0", "2026-10-03",
+                "SELL signals are gone. Over 12 years, shorting them lost 2.08% in the next "
+                "20 days and won less than 44% of the time, in 9 years out of 11 — so the "
+                "list only shows the side that measured positive. Fewer signals, each one "
+                "with evidence behind it.",
+                fingerprint="0ea89a61ddfe"),
         Release("1.3.0", "2026-10-03",
                 "A signal that fired a day or two ago is now marked 'Setup changed' when RSI has "
                 "since crossed back past the level that triggered it, so a card never describes "
                 "a setup that no longer holds. They are still listed, not hidden: over 12 years "
                 "these did no worse than signals still intact.",
-                # Fingerprint updated in place, not a new release: `params` was widened twice --
-                # first to cover the indicator periods it had been missing, then for the volume
-                # gates added for measurement. Both are off by default, so no shipped signal
-                # changes; the fingerprint moves because the set of things that *could* change a
-                # signal did, which is exactly what it is there to track.
-                fingerprint="91632aa5f154"),
+                ),
         Release("1.2.0", "2026-10-03",
                 "Tested a deeper RSI trigger, an ADX trend-strength filter and three "
                 "versions of a 'price must come back to the 50 EMA' rule over 12 years. "

@@ -27,7 +27,9 @@ export function Home() {
       </section>
       <div className="stats">
         <div className="stat"><div className="tag">Buy signals</div><div className="n num buy-text">{totals.buy}</div></div>
-        <div className="stat"><div className="tag">Sell signals</div><div className="n num sell-text">{totals.sell}</div></div>
+        {totals.sell > 0 && (
+          <div className="stat"><div className="tag">Sell signals</div><div className="n num sell-text">{totals.sell}</div></div>
+        )}
         <div className="stat"><div className="tag">Timeframe</div><div className="n">{tf === "1d" ? "Daily" : "4 hour"}</div></div>
       </div>
       <div className="big">
@@ -37,7 +39,9 @@ export function Home() {
             <p className="muted">{s.description}</p>
             <div className="row">
               <span className="count-pill"><SignalPill side="BUY" /> {s.timeframes[tf].buy}</span>
-              <span className="count-pill"><SignalPill side="SELL" /> {s.timeframes[tf].sell}</span>
+              {s.timeframes[tf].sell > 0 && (
+                <span className="count-pill"><SignalPill side="SELL" /> {s.timeframes[tf].sell}</span>
+              )}
             </div>
             <Link className="link" to={{ pathname: `/strategy/${s.id}`, search }}>See the stocks →</Link>
           </article>

@@ -21,6 +21,13 @@ not shipped and not quietly re-tried with a different threshold.
 Anything that only tightens entry criteria also has to justify its cost in signal count: a
 gate that halves n to buy 2bp of alpha makes the screener quieter without making it better.
 
+**Amended 2026-10-03, on the owner's instruction:** accuracy is worth more than coverage here,
+so the signal-count clause above no longer blocks a variant on its own. A gate that halves n
+for a real improvement in per-signal edge is acceptable. Nothing else moves — in particular
+the t >= 2.5 bar stands, because it is not a preference about how many signals to show, it is
+the protection against shipping a result that is noise. Wanting fewer, better signals is not a
+reason to lower the standard of evidence for what "better" means.
+
 ## The bar for the news judgment (written 2026-10-03, before any judgments existed)
 
 `research/news_judgment.py` records a model's reading of the news behind each live signal. It

@@ -35,7 +35,8 @@ describe("home", () => {
     await screen.findByText("What's moving today");
     await user.click(screen.getByRole("button", { name: "4H" }));
     expect(screen.getByText("4 hour")).toBeInTheDocument();
-    expect([...document.querySelectorAll(".stat .n")].map((n) => n.textContent)).toEqual(["1", "0", "4 hour"]);
+    // No SELL tile: both strategies are long-only, and a permanent "0" would be furniture.
+    expect([...document.querySelectorAll(".stat .n")].map((n) => n.textContent)).toEqual(["1", "4 hour"]);
     expect(window.location.hash).toContain("tf=4h");
     await user.click(screen.getByRole("button", { name: "1D" }));
     expect(window.location.hash).not.toContain("tf=");
@@ -328,5 +329,27 @@ describe("a signal whose setup has changed since it fired", () => {
     await screen.findByText("Exxon Mobil");
     const card = screen.getByText("Exxon Mobil").closest(".scard")!;
     expect(within(card as HTMLElement).queryByText("Setup changed")).not.toBeInTheDocument();
+  });
+});
+
+describe("long-only lists", () => {
+  it("offers no SELL filter when a strategy has no short signals", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByText("What's moving today");
+    await user.click(screen.getAllByRole("link", { name: /Trend Pullback/ })[0]);
+    await screen.findByRole("group", { name: "Signal filter" });
+    const tabs = within(screen.getByRole("group", { name: "Signal filter" })).getAllByRole("button");
+    expect(tabs.map((b) => b.textContent)).toEqual(["All", "BUY"]);
+  });
+
+  it("still offers it where SELLs exist, so the control is data-driven", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByText("What's moving today");
+    await user.click(screen.getAllByRole("link", { name: /MACD \+ RSI Reversal/ })[0]);
+    await screen.findByRole("group", { name: "Signal filter" });
+    const tabs = within(screen.getByRole("group", { name: "Signal filter" })).getAllByRole("button");
+    expect(tabs.map((b) => b.textContent)).toEqual(["All", "BUY", "SELL"]);
   });
 });

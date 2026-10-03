@@ -2,7 +2,8 @@ import numpy as np
 import pandas as pd
 
 from scanner.strategies.base import HIGH, LOW, STANDARD
-from scanner.strategies.macd_rsi_reversal import RSI_LOW, RSI_LOW_STANDARD, MacdRsiReversal, rule_side
+from scanner.strategies.macd_rsi_reversal import (RSI_LOW, RSI_LOW_STANDARD, VARIANTS,
+                                                  MacdRsiReversal, rule_side)
 from scanner.tests.conftest import make_df
 
 
@@ -67,7 +68,10 @@ def test_rule_buy_needs_rsi_cross_on_signal_bar():
 
 def test_rule_sell_is_the_mirror_and_low_conviction():
     hist, lo, hi, rsi = buy_inputs()
-    assert rule_side(-hist, -hi, -lo, 100 - rsi, 9) == ("SELL", LOW)
+    # Long-only by default: the mirror is kept, and measured at +0.05% (t +0.09), so it is
+    # only reachable under the variant that exists to reproduce that measurement.
+    assert rule_side(-hist, -hi, -lo, 100 - rsi, 9) is None
+    assert rule_side(-hist, -hi, -lo, 100 - rsi, 9, cfg=VARIANTS["with-shorts"]) == ("SELL", LOW)
 
 
 def test_sell_has_no_standard_tier():

@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -24,8 +26,12 @@ def test_rule_buy_blocked_without_uptrend():
 
 
 def test_rule_sell_in_downtrend_when_rsi_crosses_below_60():
+    """The mirror still works -- it is simply switched off in the shipped rule, because
+    shorting these measured -2.08% over 12 years (t -8.14). See research/FINDINGS.md."""
     close, ema50, ema200 = series([90, 90]), series([95, 95]), series([100, 100])
-    assert rule_side(close, ema50, ema200, series([62, 59]), 1) == ("SELL", LOW)
+    assert rule_side(close, ema50, ema200, series([62, 59]), 1) is None
+    assert rule_side(close, ema50, ema200, series([62, 59]), 1,
+                     cfg=VARIANTS["with-shorts"]) == ("SELL", LOW)
 
 
 def test_rule_no_signal_without_cross():
@@ -53,7 +59,8 @@ def test_evaluate_sell_on_rally_in_downtrend():
     dn = 100 * np.cumprod(1 - 0.002 - 0.003 * np.sin(np.arange(420) / 3))
     rally = dn[-1] * np.cumprod(np.full(3, 1 + 0.015))
     closes = list(np.concatenate([dn, rally, [rally[-1] * 0.99]]))
-    sig = TrendPullback().evaluate(make_df(closes))
+    assert TrendPullback().evaluate(make_df(closes)) is None  # long-only by default
+    sig = TrendPullback(VARIANTS["with-shorts"]).evaluate(make_df(closes))
     assert sig is not None and sig.side == "SELL" and sig.bars_ago == 0
     assert sig.conviction == LOW  # the short leg showed no measurable edge in backtesting
 
@@ -196,7 +203,8 @@ def test_below_ema20_gate_requires_an_ema20_series():
 def test_structural_gates_do_not_touch_the_short_leg():
     """These conditions describe a pullback in an uptrend; the SELL leg must be unaffected."""
     close, ema50, ema200, r = series([90, 90]), series([95, 95]), series([100, 100]), series([62, 59])
-    for cfg in (VARIANTS["at-ema50"], VARIANTS["below-ema20"], VARIANTS["near-ema50-2pct"]):
+    for name in ("at-ema50", "below-ema20", "near-ema50-2pct"):
+        cfg = replace(VARIANTS[name], enable_short=True)
         assert rule_side(close, ema50, ema200, r, 1, None, series([80, 80]), cfg=cfg) == ("SELL", LOW)
 
 

@@ -34,7 +34,29 @@ import pandas as pd
 import yfinance as yf
 
 from scanner.data import to_daily
-from scanner.strategies.trend_pullback import VARIANTS, MIN_BARS, TrendPullback, rule_side
+from scanner.strategies import macd_rsi_reversal as reversal
+from scanner.strategies import trend_pullback as pullback
+
+
+@dataclass(frozen=True)
+class Target:
+    """One strategy, in the shape the harness needs. Both strategies expose the same three
+    things -- a config per variant, an `indicators(df)` dict and a pure `rule_side` over it --
+    so the measurement code below never needs to know which one it is scoring."""
+
+    strategy: type
+    rule_side: "callable"
+    variants: dict
+    min_bars: int
+    slug: str
+
+
+TARGETS = {
+    "trend-pullback": Target(pullback.TrendPullback, pullback.rule_side, pullback.VARIANTS,
+                             pullback.MIN_BARS, "trend_pullback"),
+    "macd-rsi-reversal": Target(reversal.MacdRsiReversal, reversal.rule_side, reversal.VARIANTS,
+                                reversal.MIN_BARS, "macd_rsi_reversal"),
+}
 from scanner.universe import load_universe
 
 CACHE_DIR = Path(__file__).parent / ".cache"
@@ -118,7 +140,7 @@ class Row:
     baseline: float  # mean forward return of every scored bar of this ticker
 
 
-def unconditional(bars: "dict[str, pd.DataFrame]", horizon: int) -> dict:
+def unconditional(bars: "dict[str, pd.DataFrame]", horizon: int, min_bars: int) -> dict:
     """The do-nothing benchmark: every scored bar's forward return, signal or not. A signal
     win rate only means something next to this -- 58% looks strong until you see that any
     random 20-day hold in this sample wins 58% of the time too."""
@@ -126,8 +148,8 @@ def unconditional(bars: "dict[str, pd.DataFrame]", horizon: int) -> dict:
     for df in bars.values():
         c = df["close"].to_numpy(dtype=float)
         last = len(df) - horizon
-        if last > MIN_BARS:
-            rets.append((c[horizon:] / c[:-horizon] - 1.0)[MIN_BARS:last])
+        if last > min_bars:
+            rets.append((c[horizon:] / c[:-horizon] - 1.0)[min_bars:last])
     if not rets:
         return {"n": 0}
     all_rets = np.concatenate(rets)
@@ -143,19 +165,19 @@ def by_year(rows: "list[Row]", horizon: int) -> "dict[int, dict]":
     return {y: stats(rs, horizon, "BUY") for y, rs in sorted(years.items())}
 
 
-def scan_ticker(df: pd.DataFrame, cfg, horizon: int) -> "list[Row]":
+def scan_ticker(df: pd.DataFrame, cfg, horizon: int, target: Target) -> "list[Row]":
     """Evaluate every bar with enough history, and score the ones that fire."""
     close = df["close"].to_numpy(dtype=float)
     last = len(df) - horizon  # a signal needs a full forward window to be scorable
-    if last <= MIN_BARS:
+    if last <= target.min_bars:
         return []
     fwd = close[horizon:] / close[:-horizon] - 1.0  # fwd[i] is the return from bar i
-    baseline = float(np.nanmean(fwd[MIN_BARS:last]))
+    baseline = float(np.nanmean(fwd[target.min_bars:last]))
 
-    ind = TrendPullback(cfg).indicators(df)
+    ind = target.strategy(cfg).indicators(df)
     rows = []
-    for i in range(MIN_BARS, last):
-        hit = rule_side(**ind, i=i, cfg=cfg)
+    for i in range(target.min_bars, last):
+        hit = target.rule_side(**ind, i=i, cfg=cfg)
         if hit:
             side, conviction = hit
             rows.append(Row(df.attrs.get("ticker", ""), i, df.index[i].year, side, conviction,
@@ -213,20 +235,21 @@ def stats(rows: "list[Row]", horizon: int, side: str = "BUY") -> dict:
     }
 
 
-def era_midpoints(bars: "dict[str, pd.DataFrame]", horizon: int) -> "dict[str, int]":
+def era_midpoints(bars: "dict[str, pd.DataFrame]", horizon: int, min_bars: int) -> "dict[str, int]":
     """The bar that splits each ticker's scored range in half, for the sub-period check."""
-    return {t: (MIN_BARS + len(df) - horizon) // 2 for t, df in bars.items()}
+    return {t: (min_bars + len(df) - horizon) // 2 for t, df in bars.items()}
 
 
-def measure(bars: "dict[str, pd.DataFrame]", labels: "list[str]", horizon: int) -> dict:
-    mid = era_midpoints(bars, horizon)
+def measure(bars: "dict[str, pd.DataFrame]", labels: "list[str]", horizon: int,
+            target: Target) -> dict:
+    mid = era_midpoints(bars, horizon, target.min_bars)
     results = {}
     for label in labels:
-        cfg = VARIANTS[label]
+        cfg = target.variants[label]
         rows = []
         for ticker, df in bars.items():
             df.attrs["ticker"] = ticker
-            rows.extend(scan_ticker(df, cfg, horizon))
+            rows.extend(scan_ticker(df, cfg, horizon, target))
         buys = [r for r in rows if r.side == "BUY"]
         sells = [r for r in rows if r.side == "SELL"]
         tiers = sorted({r.conviction for r in buys})
@@ -339,39 +362,43 @@ def main() -> int:
     parser.add_argument("--tickers", type=int, default=165)
     parser.add_argument("--years", type=int, default=12)
     parser.add_argument("--horizon", type=int, default=20)
-    parser.add_argument("--variants", nargs="*", default=list(VARIANTS))
+    parser.add_argument("--strategy", choices=list(TARGETS), default="trend-pullback")
+    parser.add_argument("--variants", nargs="*", default=None)
     parser.add_argument("--out", type=Path, default=RESULTS_DIR)
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
-    unknown = [v for v in args.variants if v not in VARIANTS]
+    target = TARGETS[args.strategy]
+    variants = args.variants or list(target.variants)
+    unknown = [v for v in variants if v not in target.variants]
     if unknown:
-        parser.error(f"unknown variants {unknown}; available: {list(VARIANTS)}")
+        parser.error(f"unknown variants {unknown}; available: {list(target.variants)}")
 
     now = pd.Timestamp.now(tz="UTC")
     tickers = pick_tickers(args.tickers)
     bars = fetch_history(tickers, args.years, now)
-    usable = {t: df for t, df in bars.items() if len(df) > MIN_BARS + args.horizon}
+    usable = {t: df for t, df in bars.items() if len(df) > target.min_bars + args.horizon}
     log.info("%d tickers fetched, %d with enough history", len(bars), len(usable))
     if not usable:
         log.error("no usable history")
         return 1
 
-    results = measure(usable, args.variants, args.horizon)
+    results = measure(usable, variants, args.horizon, target)
     meta = {
         "tickers": len(usable),
         "years": args.years,
         "horizon": args.horizon,
         "bars": sum(len(df) for df in usable.values()),
         "generated": now.strftime("%Y-%m-%d"),
-        "base": unconditional(usable, args.horizon),
+        "strategy": args.strategy,
+        "base": unconditional(usable, args.horizon, target.min_bars),
     }
 
     args.out.mkdir(parents=True, exist_ok=True)
-    (args.out / "trend_pullback.md").write_text(to_markdown(results, meta))
-    (args.out / "trend_pullback.json").write_text(json.dumps({"meta": meta, "results": results}, indent=2))
+    (args.out / f"{target.slug}.md").write_text(to_markdown(results, meta))
+    (args.out / f"{target.slug}.json").write_text(json.dumps({"meta": meta, "results": results}, indent=2))
     print(to_markdown(results, meta))
-    log.info("wrote %s", args.out / "trend_pullback.md")
+    log.info("wrote %s", args.out / f"{target.slug}.md")
     return 0
 
 

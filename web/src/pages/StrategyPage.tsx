@@ -26,7 +26,12 @@ export function StrategyPage() {
   // A sector picked on one timeframe may not exist on the other; never filter by an option the user cannot see.
   const effective = useMemo(() => (sectors.includes(filters.sector) ? filters : { ...filters, sector: ALL_SECTORS }), [filters, sectors]);
   const shown = useMemo(() => filterSignals(rows, effective), [rows, effective]);
+  const hasSells = useMemo(() => rows.some((r) => r.side === "SELL"), [rows]);
   useEffect(() => setFilters((f) => (f.sector === ALL_SECTORS ? f : { ...f, sector: ALL_SECTORS })), [id, tf]);
+  // A SELL filter left over from a list that had them would otherwise show an empty page.
+  useEffect(() => {
+    if (!hasSells) setFilters((f) => (f.side === "SELL" ? { ...f, side: "ALL" } : f));
+  }, [hasSells]);
   const strategy = strategies.data?.strategies.find((s) => s.id === id);
 
   if (strategies.loading) return <Loading what="strategy" />;
@@ -68,7 +73,10 @@ export function StrategyPage() {
 
       <div className="tools">
         <div className="seg" role="group" aria-label="Signal filter">
-          {(["ALL", "BUY", "SELL"] as const).map((s) => (
+          {/* The SELL tab appears only when there are SELLs to show. Both strategies are
+              long-only since their short legs were measured, so this is normally two tabs,
+              and it comes back on its own if a short leg ever earns its place again. */}
+          {(hasSells ? (["ALL", "BUY", "SELL"] as const) : (["ALL", "BUY"] as const)).map((s) => (
             <button key={s} type="button" aria-pressed={filters.side === s} onClick={() => setFilters({ ...filters, side: s })}>
               {s === "ALL" ? "All" : s}
             </button>
