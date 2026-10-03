@@ -12,7 +12,7 @@ it("drops null points and keeps candle times", () => {
   expect(b.macd).toHaveLength(2);
 });
 
-it("puts a BUY arrow below the signal candle and a SELL arrow above it, only for this strategy", () => {
+it("places a BUY label under the signal candle's low and a SELL label over its high, only for this strategy", () => {
   const two: ChartFile = {
     ...chart,
     signals: [
@@ -20,10 +20,14 @@ it("puts a BUY arrow below the signal candle and a SELL arrow above it, only for
       { strategy_id: "trend-pullback", side: "SELL", bar_time: 2 },
     ],
   };
-  const mine = buildChartData(two, macdCfg, "macd-rsi-reversal").markers;
-  expect(mine).toEqual([{ time: 3, position: "belowBar", shape: "arrowUp", color: COLORS.up, text: "BUY" }]);
-  const other = buildChartData(two, trendCfg, "trend-pullback").markers;
-  expect(other).toEqual([{ time: 2, position: "aboveBar", shape: "arrowDown", color: COLORS.down, text: "SELL" }]);
+  // bars: time 3 = [open 12, high 14, low 11, close 13]; time 2 = [11, 13, 10, 12]
+  expect(buildChartData(two, macdCfg, "macd-rsi-reversal").markers).toEqual([{ time: 3, price: 11, side: "BUY", color: COLORS.up }]);
+  expect(buildChartData(two, trendCfg, "trend-pullback").markers).toEqual([{ time: 2, price: 13, side: "SELL", color: COLORS.down }]);
+});
+
+it("skips a signal whose candle is not in the chart window", () => {
+  const gone: ChartFile = { ...chart, signals: [{ strategy_id: "macd-rsi-reversal", side: "BUY", bar_time: 999 }] };
+  expect(buildChartData(gone, macdCfg, "macd-rsi-reversal").markers).toEqual([]);
 });
 
 it("colours the histogram in four shades", () => {

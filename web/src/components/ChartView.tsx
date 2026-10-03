@@ -5,11 +5,11 @@ import {
   LineSeries,
   LineStyle,
   createChart,
-  createSeriesMarkers,
   type UTCTimestamp,
 } from "lightweight-charts";
 import { useEffect, useRef } from "react";
 import { COLORS, buildChartData } from "../lib/chartData";
+import { SignalLabelPrimitive } from "../lib/signalLabel";
 import type { ChartConfig, ChartFile } from "../types";
 
 const ET = "America/New_York";
@@ -50,23 +50,23 @@ export function ChartView({ data, config, strategyId }: Props) {
     // Pane 0: price
     const candles = chart.addSeries(CandlestickSeries, {
       upColor: COLORS.up, borderUpColor: COLORS.up, wickUpColor: COLORS.up,
-      downColor: "#FFFFFF", borderDownColor: COLORS.down, wickDownColor: COLORS.down, // hollow = down bar
+      downColor: COLORS.down, borderDownColor: COLORS.down, wickDownColor: COLORS.down, // solid, TradingView style
     }, 0);
     candles.setData(b.candles);
-    createSeriesMarkers(candles, b.markers);
+    b.markers.forEach((m) => candles.attachPrimitive(new SignalLabelPrimitive(m)));
     if (b.showEmas) {
-      chart.addSeries(LineSeries, { color: COLORS.ema50, lineWidth: 2, priceLineVisible: false, lastValueVisible: false, title: "EMA 50" }, 0).setData(b.ema50);
-      chart.addSeries(LineSeries, { color: COLORS.ema200, lineWidth: 2, priceLineVisible: false, lastValueVisible: false, title: "EMA 200" }, 0).setData(b.ema200);
+      chart.addSeries(LineSeries, { color: COLORS.ema50, lineWidth: 2, priceLineVisible: false, lastValueVisible: false, title: "" }, 0).setData(b.ema50);
+      chart.addSeries(LineSeries, { color: COLORS.ema200, lineWidth: 2, priceLineVisible: false, lastValueVisible: false, title: "" }, 0).setData(b.ema200);
     }
 
-    // Pane 1: RSI with the strategy's own levels (solid, labelled) plus faint 30/50/70 references
-    const rsi = chart.addSeries(LineSeries, { color: COLORS.rsi, lineWidth: 2, priceLineVisible: false, title: "RSI 14" }, 1);
+    // Pane 1: RSI with the strategy's own levels (solid lines, no tags) plus faint 30/50/70 references
+    const rsi = chart.addSeries(LineSeries, { color: COLORS.rsi, lineWidth: 2, priceLineVisible: false, lastValueVisible: false }, 1);
     rsi.setData(b.rsi);
     [30, 50, 70].forEach((price) =>
       rsi.createPriceLine({ price, color: "#E0D6C8", lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: false, title: "" }),
     );
     b.rsiLevels.forEach((price) =>
-      rsi.createPriceLine({ price, color: COLORS.accent, lineWidth: 1, lineStyle: LineStyle.Solid, axisLabelVisible: true, title: String(price) }),
+      rsi.createPriceLine({ price, color: COLORS.accent, lineWidth: 1, lineStyle: LineStyle.Solid, axisLabelVisible: false, title: "" }),
     );
 
     // Pane 2: MACD histogram + lines, zero line, and (Strategy 1) the deep-histogram thresholds
@@ -74,11 +74,12 @@ export function ChartView({ data, config, strategyId }: Props) {
     hist.setData(b.hist);
     hist.createPriceLine({ price: 0, color: "#625C55", lineWidth: 1, lineStyle: LineStyle.Solid, axisLabelVisible: false, title: "" });
     if (b.deepLow !== null && b.deepHigh !== null) {
-      hist.createPriceLine({ price: b.deepHigh, color: COLORS.accent, lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: "Deep high" });
-      hist.createPriceLine({ price: b.deepLow, color: COLORS.accent, lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: "Deep low" });
+      hist.createPriceLine({ price: b.deepHigh, color: COLORS.accent, lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: false, title: "" });
+      hist.createPriceLine({ price: b.deepLow, color: COLORS.accent, lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: false, title: "" });
     }
-    chart.addSeries(LineSeries, { color: COLORS.macd, lineWidth: 2, priceLineVisible: false, lastValueVisible: false, title: "MACD" }, 2).setData(b.macd);
-    chart.addSeries(LineSeries, { color: COLORS.signal, lineWidth: 2, priceLineVisible: false, lastValueVisible: false, title: "Signal" }, 2).setData(b.signal);
+    // Only the current MACD and signal values are shown, as coloured tags on the price scale (no names).
+    chart.addSeries(LineSeries, { color: COLORS.macd, lineWidth: 2, priceLineVisible: false, lastValueVisible: true, title: "" }, 2).setData(b.macd);
+    chart.addSeries(LineSeries, { color: COLORS.signal, lineWidth: 2, priceLineVisible: false, lastValueVisible: true, title: "" }, 2).setData(b.signal);
 
     // Price gets the most room; RSI and MACD share the rest. Stretch factors survive container resizes.
     const [price, rsiPane, macdPane] = chart.panes();

@@ -2,11 +2,12 @@ import type { UTCTimestamp } from "lightweight-charts";
 import type { ChartConfig, ChartFile, Side } from "../types";
 import { quantile } from "./stats";
 
+// Candle and histogram colours follow TradingView's default theme (teal-green up, red down).
 export const COLORS = {
-  up: "#27694B",
-  upLight: "rgba(39,105,75,0.38)",
-  down: "#9E2F45",
-  downLight: "rgba(158,47,69,0.38)",
+  up: "#089981",
+  upLight: "rgba(8,153,129,0.4)",
+  down: "#F23645",
+  downLight: "rgba(242,54,69,0.4)",
   accent: "#A5472A",
   rsi: "#6B4FA3",
   macd: "#2F5D8A",
@@ -35,7 +36,8 @@ export interface BuiltChart {
   hist: (Point & { color: string })[];
   ema50: Point[];
   ema200: Point[];
-  markers: { time: UTCTimestamp; position: "aboveBar" | "belowBar"; shape: "arrowUp" | "arrowDown"; color: string; text: Side }[];
+  /** A BUY/SELL label box anchored under the candle's low (BUY) or over its high (SELL). */
+  markers: { time: UTCTimestamp; price: number; side: Side; color: string }[];
   deepLow: number | null;
   deepHigh: number | null;
   rsiLevels: [number, number];
@@ -65,15 +67,13 @@ export function buildChartData(chart: ChartFile, config: ChartConfig, strategyId
     hist,
     ema50: config.emas ? line(times, chart.ema50) : [],
     ema200: config.emas ? line(times, chart.ema200) : [],
-    markers: chart.signals
-      .filter((s) => s.strategy_id === strategyId)
-      .map((s) => ({
-        time: t(s.bar_time),
-        position: s.side === "BUY" ? ("belowBar" as const) : ("aboveBar" as const),
-        shape: s.side === "BUY" ? ("arrowUp" as const) : ("arrowDown" as const),
-        color: s.side === "BUY" ? COLORS.up : COLORS.down,
-        text: s.side,
-      })),
+    markers: chart.signals.flatMap((sig) => {
+      if (sig.strategy_id !== strategyId) return [];
+      const bar = chart.bars.find((x) => x[0] === sig.bar_time);
+      if (!bar) return [];
+      const buy = sig.side === "BUY";
+      return [{ time: t(sig.bar_time), price: buy ? bar[3] : bar[2], side: sig.side, color: buy ? COLORS.up : COLORS.down }];
+    }),
     deepLow: deep ? quantile(recent, 0.1) : null,
     deepHigh: deep ? quantile(recent, 0.9) : null,
     rsiLevels: config.rsi_levels,
