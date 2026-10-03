@@ -10,6 +10,7 @@ import pandas as pd
 
 from scanner.data import fetch_bars
 from scanner.export import chart_payload, signal_row, write_json
+from scanner.market import market_payload
 from scanner.store import SignalRecord, SignalStore
 from scanner.strategies import STRATEGIES
 from scanner.strategies.base import Signal
@@ -84,6 +85,7 @@ def run(out_dir: Path, db_path: Path, now: "pd.Timestamp | None" = None,
         summaries.append({"id": strat.id, "name": strat.name, "description": strat.description,
                           "chart": strat.chart, "timeframes": counts})
     write_json(out_dir / "strategies.json", {"updated_at": updated_at, "strategies": summaries})
+    write_json(out_dir / "market.json", market_payload(now))
 
     flagged = {(h.timeframe, h.ticker) for h in hits}
     for tf, ticker in sorted(flagged):

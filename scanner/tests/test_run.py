@@ -81,3 +81,12 @@ def test_chart_is_capped_at_250_bars(tmp_path):
     run(tmp_path / "data", tmp_path / "s.db", now=NOW, universe=UNIVERSE.iloc[:1], fetch=fetch)
     chart = json.loads((tmp_path / "data" / "charts" / "1d" / "AAA.json").read_text())
     assert len(chart["bars"]) == 250
+
+
+def test_run_writes_market_calendar_json(tmp_path):
+    out = tmp_path / "data"
+    run(out, tmp_path / "s.db", now=NOW, universe=UNIVERSE, fetch=fake_fetch)
+    market = json.loads((out / "market.json").read_text())
+    assert market["updated_at"] == NOW.isoformat()
+    assert market["sessions"] and {"date", "open", "close", "early"} <= set(market["sessions"][0])
+    assert isinstance(market["holidays"], list)

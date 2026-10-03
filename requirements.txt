@@ -3,4 +3,5 @@ numpy>=2
 yfinance>=1.7,<2
 lxml>=5
 requests>=2.32
+exchange-calendars>=4.13,<5
 pytest>=8
