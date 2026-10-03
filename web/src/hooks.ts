@@ -41,3 +41,13 @@ export function useTimeframe(): [Timeframe, (tf: Timeframe) => void] {
   };
   return [tf, setTf];
 }
+
+/** Current time, refreshed every `ms` so open/closed status stays correct while the page stays open. */
+export function useNow(ms: number): Date {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), ms);
+    return () => clearInterval(id);
+  }, [ms]);
+  return now;
+}

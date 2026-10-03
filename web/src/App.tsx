@@ -1,17 +1,19 @@
 import { HashRouter, Route, Routes } from "react-router-dom";
 import { StaleBanner } from "./components/Feedback";
+import { MarketBar } from "./components/MarketBar";
 import { TopBar } from "./components/TopBar";
-import { isStale } from "./lib/filters";
+import { isDataStale } from "./lib/market";
 import { Home } from "./pages/Home";
 import { StrategyPage } from "./pages/StrategyPage";
 import { StrategiesProvider, useStrategies } from "./strategiesContext";
 
 function Shell() {
-  const { data } = useStrategies();
+  const { data, market } = useStrategies();
   return (
     <>
       <TopBar />
-      {data && isStale(data.updated_at, new Date()) && <StaleBanner />}
+      {market && <MarketBar market={market} />}
+      {data && isDataStale(data.updated_at, new Date(), market) && <StaleBanner />}
       <main>
         <Routes>
           <Route path="/" element={<Home />} />

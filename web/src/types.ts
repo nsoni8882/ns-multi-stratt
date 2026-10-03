@@ -49,3 +49,17 @@ export interface ChartFile {
   ema200: (number | null)[];
   signals: { strategy_id: string; side: Side; bar_time: number }[];
 }
+
+export interface MarketSession {
+  date: string;
+  open: string;
+  close: string;
+  early: boolean;
+}
+
+/** NYSE calendar written by the scanner (market.json): about 2 weeks back and 6 weeks ahead. */
+export interface MarketFile {
+  updated_at: string;
+  sessions: MarketSession[];
+  holidays: { date: string; name: string }[];
+}

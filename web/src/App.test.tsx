@@ -13,7 +13,10 @@ beforeEach(() => {
   window.location.hash = "#/";
   stubFetch();
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
 
 describe("home", () => {
   it("defaults to 1D and shows totals for the timeframe", async () => {
@@ -58,6 +61,50 @@ describe("home", () => {
     stubFetch([], { "strategies.json": { ...strategies, updated_at: "2020-01-01T00:00:00Z" } });
     render(<App />);
     expect(await screen.findByText(/looks out of date/)).toBeInTheDocument();
+  });
+});
+
+describe("market awareness", () => {
+  const setNow = (iso: string) => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(iso));
+  };
+
+  it("shows the market as closed on a weekend with the next update time", async () => {
+    setNow("2026-10-03T12:00:00Z");
+    stubFetch([], { "strategies.json": { ...strategies, updated_at: "2026-10-02T20:07:00+00:00" } });
+    render(<App />);
+    const chip = await screen.findByTestId("market-status");
+    expect(chip).toHaveTextContent("Market closed · Weekend · next update Mon 5 Oct, 13:35 ET");
+    expect(screen.queryByText(/looks out of date/)).not.toBeInTheDocument(); // Friday's close is the latest update
+  });
+
+  it("shows the market as open with the next update today", async () => {
+    setNow("2026-10-02T15:00:00Z");
+    stubFetch([], { "strategies.json": { ...strategies, updated_at: "2026-10-02T13:40:00+00:00" } });
+    render(<App />);
+    expect(await screen.findByTestId("market-status")).toHaveTextContent("Market open · next update today 13:35 ET");
+  });
+
+  it("names the holiday", async () => {
+    setNow("2026-11-26T15:00:00Z");
+    stubFetch([], { "strategies.json": { ...strategies, updated_at: "2026-11-25T21:07:00+00:00" } });
+    render(<App />);
+    expect(await screen.findByTestId("market-status")).toHaveTextContent("Market closed · Thanksgiving");
+  });
+
+  it("warns when an update is more than 3 hours overdue", async () => {
+    setNow("2026-10-05T21:00:00Z"); // Monday: the 13:35 ET update is 3h25m late
+    stubFetch([], { "strategies.json": { ...strategies, updated_at: "2026-10-02T20:07:00+00:00" } });
+    render(<App />);
+    expect(await screen.findByText(/looks out of date/)).toBeInTheDocument();
+  });
+
+  it("still works (no chip) when market.json cannot be loaded", async () => {
+    stubFetch(["market.json"]);
+    render(<App />);
+    await screen.findByText("What's moving today");
+    expect(screen.queryByTestId("market-status")).not.toBeInTheDocument();
   });
 });
 

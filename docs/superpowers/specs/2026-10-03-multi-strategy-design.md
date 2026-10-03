@@ -32,12 +32,21 @@ The site is fully static. Browsers only read the generated JSON. The database is
 
 ### 2.1 Workflow (`.github/workflows/scan.yml`)
 - **Triggers:** `schedule`, `workflow_dispatch`, and `push` to `main`.
-- **Schedule:** runs just after each US 4H bar closes (13:30 ET and 16:00 ET, i.e. 5 minutes later). Cron is UTC, so both DST offsets are scheduled (`35 17,18`, `5 20,21` on weekdays); the extra run is harmless because the scanner is idempotent. GitHub cron may be delayed by several minutes; acceptable.
+- **Schedule:** see 2.3. Cron entries are only wake-up calls; a `gate` job decides whether a scheduled run actually scans.
 - **Permissions:** `contents: write` (push to the `data` branch), `pages: write`, `id-token: write`.
 - **Concurrency:** a single concurrency group so overlapping runs queue instead of racing on the database push.
 - **Steps:** checkout `main`, check out the `data` branch into `./history`, set up Python and Node, install, run scanner (reads and updates `history/signals.db`, writes JSON to `public/data/`), build site, upload and deploy the Pages artifact, then commit and push `history/signals.db` to `data` (only after a successful deploy, and only if the file changed).
 - **Failure policy:** scheduled runs skip the test steps (pushes and manual runs run them), so dependency drift cannot block a data refresh; if more than 10% of tickers fail to fetch, or the universe or data step fails entirely, the scanner exits non-zero. The deploy and database push are skipped, and the previous site stays live.
 - **First run:** if the `data` branch does not exist, the workflow creates it as an orphan branch with an empty database.
+
+### 2.3 Trading calendar and schedule
+
+The scanner uses the `exchange_calendars` XNYS calendar (weekends, NYSE holidays, early closes, DST). An **update is due** 5 minutes after each bar close: the first 4H bar (open + 4h, i.e. 13:30 ET) and the final bar at the close (16:00 ET), or a single update at the close on early-close days.
+
+- **Gate job:** runs before the scan. Pushes and manual runs always scan. A scheduled run scans only if an update has come due since the deployed `strategies.json` `updated_at` (read from the live site). Weekends, holidays, the DST duplicate wake-ups and already-up-to-date runs therefore skip themselves, and a missed wake-up is caught by the next one.
+- **Cron wake-ups (UTC):** 17:40/18:40 (13:40 ET), 20:10/21:10 (16:10 ET), 17:10/18:10 (13:10 ET, early-close days), and hourly 14:30-23:30 on weekdays as a catch-up.
+- **Keep-alive:** GitHub disables scheduled workflows after 60 days without repository activity. A scheduled run makes an empty commit on `main` if the last commit there is more than 45 days old.
+- **No manual steps:** everything runs on GitHub Actions (Pages itself is static and runs nothing); nothing needs to be started by hand.
 
 ### 2.2 Repository layout
 ```
@@ -53,6 +62,7 @@ scanner/
     __init__.py        # registry
   store.py             # storage layer over SQLite (record_signals, ...)
   export.py            # JSON writers for the site
+  market.py            # NYSE calendar: sessions, holidays, update-due times, the scan gate
   run.py               # orchestrates, writes JSON, records signals
   tests/
 web/                   # Vite + React + TypeScript
@@ -106,6 +116,7 @@ A strategy is one module exposing `id`, `name`, `description`, `min_bars`, a `ch
 
 ## 5. Output JSON (under `public/data/`)
 
+- `market.json`: `{ updated_at, sessions: [{ date, open, close, early }] (14 days back to 45 ahead, UTC), holidays: [{ date, name }] }`, used by the site for the market status chip and the stale banner.
 - `strategies.json`: `{ updated_at, strategies: [{ id, name, description, chart: { rsi_levels, macd_deep, emas }, timeframes: { "4h": {buy, sell}, "1d": {buy, sell} } }] }`
 - `<strategy_id>/<timeframe>.json`: `{ updated_at, signals: [{ ticker, name, sector, price, side, bars_ago, fired_at, bar_time, details, spark }] }`
 - `charts/<timeframe>/<ticker>.json`: `{ ticker, timeframe, bars: [[t,o,h,l,c,v]...], macd: {macd, signal, hist}, rsi, ema50, ema200 (each aligned with bars, null where undefined), signals: [{ strategy_id, side, bar_time }] }`, written only for tickers flagged by at least one strategy on that timeframe, limited to the most recent 250 bars. `t` and `bar_time` are Unix seconds (bar open); `spark` in a signal row is the last 30 closes.
@@ -140,7 +151,8 @@ Table `signals`:
 - **Home:** one card per strategy: name, one-line description, BUY and SELL counts per timeframe, last updated, link.
 - **Timeframe selector:** a global 1D / 4H segmented control in the top bar of every page, defaulting to 1D. It applies to the home counts, the strategy stock grids, and the chart, and is kept in the URL hash query (`?tf=4h`) so links are shareable.
 - **Strategy page:** BUY / SELL / All filter, sector filter, ticker search, and a grid of stock cards (ticker, name, signal pill, sparkline of recent closes, price, bars ago, fired-at on hover/title). Clicking a card opens the chart modal described in 6.1.
-- **States:** loading, empty ("No signals right now"), and fetch-error states for each data load. A stale-data banner appears if `updated_at` is more than 48 weekday hours old (weekends are not counted because the scanner only runs on weekdays; 48 also covers a Monday market holiday).
+- **States:** loading, empty ("No signals right now"), and fetch-error states for each data load. A stale-data banner appears when a scheduled update (see 2.3) is more than 3 hours overdue and the data predates it; weekends, holidays and early closes never come due, so they cannot trigger it. Without `market.json` it falls back to counting weekday hours (48).
+- **Market status:** a line under the top bar, e.g. "Market open · next update today 16:05 ET" or "Market closed · Thanksgiving · next update Fri 27 Nov, 13:05 ET" (Weekend, Pre-market, After hours and Early close today are also shown). Computed in the browser from `market.json` and refreshed every minute; hidden if `market.json` is unavailable.
 - **Footer:** "Not financial advice. Data from Yahoo Finance, may be delayed or inaccurate."
 
 ### 6.1 Visual design (approved: direction "C · Soft Cards", reference mockup in `design-samples/index.html`)

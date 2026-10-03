@@ -1,16 +1,18 @@
 import { createContext, useContext, type ReactNode } from "react";
-import { getStrategies } from "./api";
+import { getMarket, getStrategies } from "./api";
 import { useAsync, type AsyncState } from "./hooks";
-import type { StrategiesFile } from "./types";
+import type { MarketFile, StrategiesFile } from "./types";
 
-const Ctx = createContext<AsyncState<StrategiesFile> | null>(null);
+type Value = AsyncState<StrategiesFile> & { market?: MarketFile };
+const Ctx = createContext<Value | null>(null);
 
 export function StrategiesProvider({ children }: { children: ReactNode }) {
-  const state = useAsync(getStrategies, []);
-  return <Ctx.Provider value={state}>{children}</Ctx.Provider>;
+  const strategies = useAsync(getStrategies, []);
+  const market = useAsync(getMarket, []); // optional: the site works without the calendar
+  return <Ctx.Provider value={{ ...strategies, market: market.data }}>{children}</Ctx.Provider>;
 }
 
-export function useStrategies(): AsyncState<StrategiesFile> {
+export function useStrategies(): Value {
   const v = useContext(Ctx);
   if (!v) throw new Error("useStrategies must be used inside StrategiesProvider");
   return v;

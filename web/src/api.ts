@@ -1,4 +1,4 @@
-import type { ChartFile, SignalsFile, StrategiesFile, Timeframe } from "./types";
+import type { ChartFile, MarketFile, SignalsFile, StrategiesFile, Timeframe } from "./types";
 
 export async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(`${import.meta.env.BASE_URL}data/${path}`);
@@ -9,3 +9,4 @@ export async function getJson<T>(path: string): Promise<T> {
 export const getStrategies = () => getJson<StrategiesFile>("strategies.json");
 export const getSignals = (strategyId: string, tf: Timeframe) => getJson<SignalsFile>(`${strategyId}/${tf}.json`);
 export const getChart = (tf: Timeframe, ticker: string) => getJson<ChartFile>(`charts/${tf}/${ticker}.json`);
+export const getMarket = () => getJson<MarketFile>("market.json");

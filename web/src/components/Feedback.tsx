@@ -14,7 +14,7 @@ export function ErrorState({ error, onRetry }: { error: Error; onRetry: () => vo
 export function StaleBanner() {
   return (
     <div className="stale" role="status">
-      The data looks out of date (last update was over 36 hours ago). The scanner may have paused.
+      The data looks out of date: an update is more than 3 hours overdue. The scanner may have paused.
     </div>
   );
 }

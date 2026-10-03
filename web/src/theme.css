@@ -75,6 +75,10 @@ main { max-width: 1120px; margin: 0 auto; padding: 12px 32px 40px; min-height: 6
 .linkbtn { background: none; border: 0; color: var(--accent); font-weight: 600; text-decoration: underline; }
 .btn { background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 8px 18px; font-weight: 600; }
 
+.marketbar { display: flex; align-items: center; justify-content: center; gap: 8px; margin: -6px 0 4px; font-size: 13px; color: var(--muted); }
+.marketbar .dot { width: 8px; height: 8px; border-radius: 50%; }
+.marketbar .dot.on { background: var(--buy); }
+.marketbar .dot.off { background: #b8b0a6; }
 .stale { background: #fff4d6; color: #5c4400; padding: 10px 32px; text-align: center; font-size: 14px; }
 .errorbox { max-width: 520px; margin: 32px auto; padding: 18px 22px; border: 1px solid var(--sell-bg); background: #fff; border-radius: 16px; text-align: center; }
 

@@ -1,6 +1,21 @@
-import type { ChartFile, SignalRow, SignalsFile, StrategiesFile } from "./types";
+import type { ChartFile, MarketFile, SignalRow, SignalsFile, StrategiesFile } from "./types";
 
 export const UPDATED = new Date().toISOString();
+
+const sess = (date: string, open: string, close: string, early = false) => ({
+  date, open: `${date}T${open}:00+00:00`, close: `${date}T${close}:00+00:00`, early,
+});
+
+/** Calendar around Fri 2 Oct 2026 (EDT) and Thanksgiving 2026 (EST). Sat/Sun have no session. */
+export const market: MarketFile = {
+  updated_at: "2026-10-02T20:07:00+00:00",
+  sessions: [
+    sess("2026-10-01", "13:30", "20:00"), sess("2026-10-02", "13:30", "20:00"),
+    sess("2026-10-05", "13:30", "20:00"), sess("2026-10-06", "13:30", "20:00"),
+    sess("2026-11-25", "14:30", "21:00"), sess("2026-11-27", "14:30", "18:00", true),
+  ],
+  holidays: [{ date: "2026-11-26", name: "Thanksgiving" }],
+};
 
 export const strategies: StrategiesFile = {
   updated_at: UPDATED,
@@ -48,7 +63,7 @@ export const chart: ChartFile = {
 
 /** fetch stub serving the fixtures; any key in `fail` returns HTTP 500. */
 export function stubFetch(fail: string[] = [], overrides: Record<string, unknown> = {}) {
-  const table: Record<string, unknown> = { "strategies.json": strategies, "charts/1d/XOM.json": chart, ...signals, ...overrides };
+  const table: Record<string, unknown> = { "strategies.json": strategies, "market.json": market, "charts/1d/XOM.json": chart, ...signals, ...overrides };
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string) => {

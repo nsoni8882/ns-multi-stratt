@@ -8,7 +8,7 @@ Not financial advice. Data from Yahoo Finance, may be delayed or inaccurate.
 
 ## How it works
 
-A scheduled GitHub Actions workflow (after each 4H close and the daily close) runs the Python scanner in `scanner/`, writes JSON into `web/public/data/`, builds the Vite site in `web/`, and deploys it to Pages. Every signal is also recorded in `signals.db` on the `data` branch for later validation.
+A scheduled GitHub Actions workflow (after each 4H close and the daily close, aware of weekends, NYSE holidays and early closes) runs the Python scanner in `scanner/`, writes JSON into `web/public/data/`, builds the Vite site in `web/`, and deploys it to Pages. Every signal is also recorded in `signals.db` on the `data` branch for later validation.
 
 ## Develop
 
