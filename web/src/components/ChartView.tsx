@@ -62,8 +62,20 @@ export function ChartView({ data, config, strategyId, candleStyle }: Props) {
     }
 
     // Pane 1: RSI with the strategy's own levels (solid lines, no tags) plus faint 30/50/70 references
-    const rsi = chart.addSeries(LineSeries, { color: COLORS.rsi, lineWidth: 2, priceLineVisible: false, lastValueVisible: false }, 1);
+    const rsi = chart.addSeries(LineSeries, { color: COLORS.rsi, lineWidth: 2, priceLineVisible: false, lastValueVisible: true, title: "" }, 1);
     rsi.setData(b.rsi);
+    // RSI at the crosshair, as a tag on that pane's scale. The crosshair's own label only
+    // appears in the pane the pointer is in, and the pointer is almost always over the candles,
+    // so reading "what was RSI on that bar" otherwise means counting gridlines.
+    const rsiAt = new Map(b.rsi.map((p) => [p.time as number, p.value]));
+    const hover = rsi.createPriceLine({
+      price: 0, color: COLORS.rsi, lineWidth: 1, lineStyle: LineStyle.Dotted,
+      axisLabelVisible: false, title: "",
+    });
+    chart.subscribeCrosshairMove((param) => {
+      const v = param.time === undefined ? undefined : rsiAt.get(param.time as number);
+      hover.applyOptions(v === undefined ? { axisLabelVisible: false } : { price: v, axisLabelVisible: true });
+    });
     [30, 50, 70].forEach((price) =>
       rsi.createPriceLine({ price, color: "#E0D6C8", lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: false, title: "" }),
     );

@@ -124,3 +124,39 @@ def test_rules_version_moves_when_a_strategy_is_reconfigured(tmp_path):
     shipped = version_for([TrendPullback()], tmp_path / "a")
     gated = version_for([TrendPullback(TrendPullbackConfig(adx_min=20))], tmp_path / "b")
     assert shipped != gated
+
+
+def test_health_json_records_what_a_successful_run_still_lost(tmp_path):
+    """A scan can drop tickers and still exit zero. health.json is where that shows up."""
+    out = tmp_path / "data"
+    # 2 of 20 lost is within MAX_FAILURE_RATE, so the run succeeds and publishes as normal.
+    names = [f"T{i:02d}" for i in range(20)]
+    universe = pd.DataFrame({"ticker": names, "name": names, "sector": ["Tech"] * 20})
+    kept = {t: make_df(buy_closes()) for t in names[:18]}
+    partial = lambda t, tf, n: (kept, names[18:])  # noqa: E731
+    result = run(out, tmp_path / "s.db", now=NOW, universe=universe, fetch=partial)
+    health = json.loads((out / "health.json").read_text())
+    assert health == result["health"]
+    assert health["universe"] == 20
+    assert health["fetch"]["1d"] == {"fetched": 18, "failed": 2, "failed_tickers": ["T18", "T19"]}
+    assert health["signals"]["found"] == result["hits"]
+    assert set(health["rules_versions"]) == {s.id for s in STRATEGIES}
+    assert health["strategy_errors"] == [] and health["strategy_error_count"] == 0
+
+
+def test_health_json_names_a_strategy_that_threw(tmp_path):
+    class Exploding:
+        id, name, description = "boom", "Boom", "throws"
+        min_bars, chart, params, history = 1, {}, {}, ()
+
+        def evaluate(self, df):
+            raise ValueError("bad frame")
+
+    out = tmp_path / "data"
+    fetch = lambda t, tf, n: ({"AAA": make_df([100.0] * 300)}, [])  # noqa: E731
+    run(out, tmp_path / "s.db", now=NOW, universe=UNIVERSE.iloc[:1], fetch=fetch,
+        strategies=[Exploding()])
+    health = json.loads((out / "health.json").read_text())
+    assert health["strategy_error_count"] == 2  # one per timeframe
+    assert health["strategy_errors"][0]["strategy_id"] == "boom"
+    assert "ValueError: bad frame" in health["strategy_errors"][0]["error"]

@@ -69,6 +69,32 @@ build** — that is deliberate, and it is what keeps the published history hones
 bars, which is why `TrendPullback.min_bars` is 400. RSI and ADX are Wilder-smoothed, matching
 TradingView rather than a simple rolling mean.
 
+## When something goes wrong in production
+
+There is no server and no error tracker, so "production" means the GitHub Actions run and the
+JSON it published. Three places to look, in this order:
+
+```bash
+gh run list --workflow=scan.yml --limit 10          # did the daily scans pass?
+gh run view <id> --log-failed                       # the failing step's output
+curl -s https://<owner>.github.io/<repo>/data/health.json | python -m json.tool
+```
+
+`health.json` is written by every **successful** scan and is the record of what that run still
+lost: tickers that failed to fetch (a scan is allowed to lose up to 10% of the universe and
+exit zero), strategies that threw on individual names, the duration, and the `rules_versions`
+actually published. A scan that *fails* writes nothing, so that case lives only in the Actions
+log — which GitHub deletes after 90 days.
+
+Two failure modes worth knowing because neither is loud:
+
+- **A scheduled run deploys without tests.** `pytest` and `npm test` are skipped on
+  `schedule` on purpose, so dependency drift cannot block a data refresh. A scheduled run can
+  therefore publish from code that would fail CI on a push.
+- **Nothing in the browser is captured.** A JavaScript error on the live site leaves no trace
+  anywhere. If the site misbehaves but the scan was green, reproduce it locally under
+  *Visual checks* below and read the console there.
+
 ## Visual checks
 
 This Mac has Arc, not Chrome, and **Arc cannot be driven by Playwright** — it launches but

@@ -3,6 +3,7 @@ import argparse
 import logging
 import shutil
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -18,6 +19,7 @@ from scanner.universe import load_universe
 
 TIMEFRAMES = ("4h", "1d")
 MAX_FAILURE_RATE = 0.10
+MAX_LISTED_FAILURES = 50  # health.json names the first few; the counts beside them are complete
 
 log = logging.getLogger("scanner")
 
@@ -34,15 +36,21 @@ class Hit:
     signal: Signal
 
 
-def scan(bars_by_tf: dict, strategies) -> "list[Hit]":
+def scan(bars_by_tf: dict, strategies, errors: "list[dict] | None" = None) -> "list[Hit]":
+    """Evaluate every strategy over every fetched frame. A strategy that throws on one ticker
+    is skipped rather than failing the scan, so `errors` is where that goes -- it used to leave
+    no trace but a line in a CI log that expires."""
     hits = []
     for tf, bars in bars_by_tf.items():
         for ticker, df in bars.items():
             for strat in strategies:
                 try:
                     sig = strat.evaluate(df)
-                except Exception:
+                except Exception as exc:
                     log.exception("%s failed on %s %s", strat.id, ticker, tf)
+                    if errors is not None:
+                        errors.append({"strategy_id": strat.id, "ticker": ticker, "timeframe": tf,
+                                       "error": f"{type(exc).__name__}: {exc}"[:300]})
                     continue
                 if sig:
                     hits.append(Hit(strat.id, tf, ticker, sig))
@@ -56,14 +64,18 @@ def run(out_dir: Path, db_path: Path, now: "pd.Timestamp | None" = None,
     tickers = universe["ticker"].tolist()
     meta = universe.set_index("ticker")
 
-    bars_by_tf = {}
+    started = time.monotonic()
+    bars_by_tf, fetch_health = {}, {}
     for tf in TIMEFRAMES:
         bars_by_tf[tf], failed = fetch(tickers, tf, now)
         log.info("%s: %d fetched, %d failed", tf, len(bars_by_tf[tf]), len(failed))
+        fetch_health[tf] = {"fetched": len(bars_by_tf[tf]), "failed": len(failed),
+                            "failed_tickers": sorted(failed)[:MAX_LISTED_FAILURES]}
         if len(failed) / len(tickers) > MAX_FAILURE_RATE:
             raise ScanError(f"{len(failed)}/{len(tickers)} tickers failed for {tf}")
 
-    hits = scan(bars_by_tf, strategies)
+    strategy_errors: "list[dict]" = []
+    hits = scan(bars_by_tf, strategies, strategy_errors)
     updated_at = now.isoformat()
 
     shutil.rmtree(out_dir, ignore_errors=True)
@@ -112,7 +124,22 @@ def run(out_dir: Path, db_path: Path, now: "pd.Timestamp | None" = None,
     ])
     store.close()
     log.info("%d signals found, %d new recorded", len(hits), inserted)
-    return {"hits": len(hits), "recorded": inserted}
+
+    # Published beside the signal lists so a run that "worked" can still be inspected: a scan
+    # is allowed to lose up to 10% of the universe and to have a strategy throw on individual
+    # names, and until this file existed both vanished into a CI log that expires after 90 days.
+    health = {
+        "updated_at": updated_at,
+        "duration_seconds": round(time.monotonic() - started, 1),
+        "universe": len(tickers),
+        "fetch": fetch_health,
+        "strategy_errors": strategy_errors[:MAX_LISTED_FAILURES],
+        "strategy_error_count": len(strategy_errors),
+        "signals": {"found": len(hits), "recorded": inserted},
+        "rules_versions": versions,
+    }
+    write_json(out_dir / "health.json", health)
+    return {"hits": len(hits), "recorded": inserted, "health": health}
 
 
 def main() -> int:
