@@ -68,6 +68,22 @@ build** — that is deliberate, and it is what keeps the published history hones
 bars, which is why `TrendPullback.min_bars` is 400. RSI and ADX are Wilder-smoothed, matching
 TradingView rather than a simple rolling mean.
 
+## Visual checks
+
+This Mac has Arc, not Chrome, and **Arc cannot be driven by Playwright** — it launches but
+never speaks CDP. The Playwright MCP plugin is pinned to channel `chrome` and fails too. To
+look at the UI, serve the built site and drive the bundled Chrome-for-Testing binary
+directly (same Blink engine Arc renders with):
+
+```bash
+cd web && npm run build && npx vite preview --port 4317 --strictPort &
+# then a node script with executablePath set to
+# ~/Library/Caches/ms-playwright/chromium-1243/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing
+```
+
+Worth doing for user-facing copy: unit tests pass on text that reads badly, and a screenshot
+caught a literal `--` rendering in the history overlay that every test had accepted.
+
 ## Git
 
 Commit every change and push to `origin main` — leave nothing uncommitted. Commit in logical

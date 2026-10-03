@@ -53,6 +53,9 @@ def test_summaries_are_short_and_jargon_free(strat):
         assert "_" not in r.summary and "()" not in r.summary, (
             f"{strat.id} {r.version} summary reads like code, not a change note"
         )
+        # These render as prose in the overlay, where a source-comment double hyphen shows
+        # up literally as "--" instead of a dash.
+        assert "--" not in r.summary, f"{strat.id} {r.version} summary: use an em dash, not --"
 
 
 @pytest.mark.parametrize("strat", STRATEGIES, ids=IDS)

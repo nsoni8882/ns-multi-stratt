@@ -196,7 +196,7 @@ class TrendPullback:
                 "still distorted by its own starting value before then. Short signals are "
                 "now shown as weaker than long ones: over 12 years they did not make money."),
         Release("1.0.0", "2026-10-03",
-                "First version. Buys a pullback in an uptrend -- price above the 200 EMA "
+                "First version. Buys a pullback in an uptrend — price above the 200 EMA "
                 "with the 50 EMA above it, and RSI(14) dipping under 40 then recovering."),
     )
 
