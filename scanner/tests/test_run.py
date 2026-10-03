@@ -91,3 +91,36 @@ def test_run_writes_market_calendar_json(tmp_path):
     assert market["updated_at"] == NOW.isoformat()
     assert market["sessions"] and {"date", "open", "close", "early"} <= set(market["sessions"][0])
     assert isinstance(market["holidays"], list)
+
+
+def test_run_publishes_and_records_the_rules_version(tmp_path):
+    """An algo change must be visible in the output it produced: the fingerprint goes into
+    strategies.json so a stale deploy is detectable, and onto every history row so the two
+    rule generations never blend."""
+    out, db = tmp_path / "data", tmp_path / "signals.db"
+    run(out, db, now=NOW, universe=UNIVERSE, fetch=fake_fetch)
+
+    summary = json.loads((out / "strategies.json").read_text())
+    published = {s["id"]: s["rules_version"] for s in summary["strategies"]}
+    assert all(len(v) == 12 for v in published.values())
+    assert len(set(published.values())) == len(published)  # distinct per strategy
+
+    store = SignalStore(db)
+    stored = store.conn.execute(
+        "SELECT DISTINCT strategy_id, rules_version FROM signals").fetchall()
+    store.close()
+    assert stored and all(published[sid] == ver for sid, ver in stored)
+
+
+def test_rules_version_moves_when_a_strategy_is_reconfigured(tmp_path):
+    from scanner.strategies.trend_pullback import TrendPullback, TrendPullbackConfig
+
+    def version_for(strategies, path):
+        run(path, path / "s.db", now=NOW, universe=UNIVERSE, fetch=fake_fetch,
+            strategies=strategies)
+        summary = json.loads((path / "strategies.json").read_text())
+        return summary["strategies"][0]["rules_version"]
+
+    shipped = version_for([TrendPullback()], tmp_path / "a")
+    gated = version_for([TrendPullback(TrendPullbackConfig(adx_min=20))], tmp_path / "b")
+    assert shipped != gated

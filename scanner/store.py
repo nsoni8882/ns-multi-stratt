@@ -21,7 +21,12 @@ CREATE TABLE IF NOT EXISTS signals (
 
 # Added after the table shipped, so it is applied as a guarded ALTER rather than folded into
 # SCHEMA. Stored so the history can later answer whether the conviction tiers held up live.
-MIGRATIONS = ("ALTER TABLE signals ADD COLUMN conviction TEXT NOT NULL DEFAULT 'standard'",)
+# `rules_version` fingerprints the thresholds in force when the row was written, so a change
+# to a strategy does not silently blend rule generations in one history table.
+MIGRATIONS = (
+    "ALTER TABLE signals ADD COLUMN conviction TEXT NOT NULL DEFAULT 'standard'",
+    "ALTER TABLE signals ADD COLUMN rules_version TEXT NOT NULL DEFAULT ''",
+)
 
 
 @dataclass(frozen=True)
@@ -35,6 +40,7 @@ class SignalRecord:
     details: dict
     recorded_at: str  # ISO-8601 UTC
     conviction: str = "standard"
+    rules_version: str = ""
 
 
 class SignalStore:
@@ -54,11 +60,12 @@ class SignalStore:
         before = self.conn.total_changes
         self.conn.executemany(
             "INSERT OR IGNORE INTO signals "
-            "(strategy_id, ticker, timeframe, side, fired_at, entry_price, details, recorded_at, conviction) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "(strategy_id, ticker, timeframe, side, fired_at, entry_price, details, recorded_at, "
+            "conviction, rules_version) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 (r.strategy_id, r.ticker, r.timeframe, r.side, r.fired_at, r.entry_price,
-                 json.dumps(r.details, sort_keys=True), r.recorded_at, r.conviction)
+                 json.dumps(r.details, sort_keys=True), r.recorded_at, r.conviction, r.rules_version)
                 for r in records
             ],
         )

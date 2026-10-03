@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 import pandas as pd
 
@@ -36,6 +36,9 @@ class TrendPullbackConfig:
         ADX >= 20 gate            -0.08%  (t=-0.44)   ADX >= 25: -0.38% (t=-1.65)
         rising EMA200 gate        +0.11%  (t=+0.76)   i.e. no effect
         drop ema50 > ema200       +0.09%  (t=+0.65)   i.e. no effect
+        close within 2% of EMA50  +0.15%  (t=+1.05)   best found; fails the t>=2.5 bar
+        close below EMA20         +0.12%  (t=+0.82)
+        close at/below EMA50      +0.10%  (t=+0.63)
 
     Grading conviction by pullback depth looked like the one real finding (deep dips -1.55%,
     t=-4.04) but it is the COVID crash: 70 signals in 2020 at -15.16% carry all of it, and
@@ -178,6 +181,11 @@ class TrendPullback:
 
     def __init__(self, config: TrendPullbackConfig = DEFAULT_CONFIG):
         self.config = config
+
+    @property
+    def params(self) -> dict:
+        """Everything that can change which bars fire, for rules_version()."""
+        return {"min_bars": self.min_bars} | asdict(self.config)
 
     def indicators(self, df: pd.DataFrame) -> dict:
         """Everything rule_side needs, computed once per frame."""

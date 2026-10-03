@@ -35,13 +35,23 @@ Strategies receive a DataFrame of **closed** bars only (UTC index = bar open, pl
 to establish. When changing a threshold, a lookback or an MA period, measure it with
 `research/measure.py` and record the number — and when a measurement kills an idea, write
 down that it was killed so it is not re-proposed. Do not add a parameter to a strategy
-without a measurement behind it.
+without a measurement behind it. `research/ACCEPTANCE.md` holds the bar a variant has to
+clear to ship, and it is written before the numbers exist, not after.
 
 **Two traps this project has already hit**, both guarded in `research/measure.py`:
 - Signals cluster, so their forward windows overlap and a naive t-stat runs 2–3x too high.
   Judge the non-overlapping (`t indep`) column.
 - A pooled result can be one event in disguise. Check the per-year table before believing a
   t-stat; a −4.04 in this repo turned out to be February 2020.
+
+**An algorithm change regenerates the published lists automatically.** Any push to `main`
+that touches code runs the full scan and redeploys — `scanner.market.should_run` lets every
+non-schedule event past the market-hours gate deliberately. Do not hand-edit
+`web/public/data`; it is generated. Every strategy declares `params` (the thresholds that
+decide a signal) and `base.rules_version()` fingerprints them into `strategies.json` and onto
+every history row, so a stale deploy is detectable and two rule generations never blend in
+`signals.db`. **A new gate must be added to `params`** or it changes signals without changing
+the fingerprint — there is a test pinning this.
 
 **Conviction tiers** (`base.py`) are `high`/`standard`/`low`, sorted strongest-first by
 `CONVICTION_RANK`. They encode measured edge, not enthusiasm.

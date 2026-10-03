@@ -13,7 +13,7 @@ from scanner.export import chart_payload, signal_row, write_json
 from scanner.market import market_payload
 from scanner.store import SignalRecord, SignalStore
 from scanner.strategies import STRATEGIES
-from scanner.strategies.base import CONVICTION_RANK, Signal
+from scanner.strategies.base import CONVICTION_RANK, Signal, rules_version
 from scanner.universe import load_universe
 
 TIMEFRAMES = ("4h", "1d")
@@ -84,8 +84,11 @@ def run(out_dir: Path, db_path: Path, now: "pd.Timestamp | None" = None,
                 "buy": sum(r["side"] == "BUY" for r in rows),
                 "sell": sum(r["side"] == "SELL" for r in rows),
             }
+        # Published so the site (and a reader of the JSON) can tell which rule generation
+        # produced the lists, and so a stale deploy after an algo change is detectable.
         summaries.append({"id": strat.id, "name": strat.name, "description": strat.description,
-                          "chart": strat.chart, "timeframes": counts})
+                          "chart": strat.chart, "timeframes": counts,
+                          "rules_version": rules_version(strat.params)})
     write_json(out_dir / "strategies.json", {"updated_at": updated_at, "strategies": summaries})
     write_json(out_dir / "market.json", market_payload(now))
 
@@ -98,9 +101,11 @@ def run(out_dir: Path, db_path: Path, now: "pd.Timestamp | None" = None,
         write_json(out_dir / "charts" / tf / f"{ticker}.json", chart_payload(ticker, tf, bars_by_tf[tf][ticker], marks))
 
     store = SignalStore(db_path)
+    versions = {s.id: rules_version(s.params) for s in strategies}
     inserted = store.record_signals([
         SignalRecord(h.strategy_id, h.ticker, h.timeframe, h.signal.side, h.signal.fired_at.isoformat(),
-                     h.signal.entry_price, h.signal.details, updated_at, h.signal.conviction)
+                     h.signal.entry_price, h.signal.details, updated_at, h.signal.conviction,
+                     versions[h.strategy_id])
         for h in hits
     ])
     store.close()

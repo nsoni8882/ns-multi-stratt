@@ -71,14 +71,36 @@ The same caution applies in reverse to the shallow cohort's +0.28%: first half +
   This is the one statistically solid result in the run and it says the short leg loses money.
   It stays tagged LOW; dropping it entirely is defensible.
 
-## What would be worth testing next
+## Round two: the structural pullback condition
 
-Nothing in the gate-tuning direction — that avenue is measured out. The untested idea with a
-real mechanism behind it is **#2 from the original review: requiring the pullback to actually
-reach a reference level** (`close` within ~2% of the EMA50, or below the EMA20), which is a
-structural condition rather than another oscillator threshold, and is the one thing that
-distinguishes a pullback from a dip in a name that is 25% extended. Add `pullback_to_ema`
-to `TrendPullbackConfig` and measure it the same way.
+The one idea left with a real mechanism behind it was requiring price to have actually come
+back to a mean, rather than taking an RSI dip wherever it happens — the thing that separates
+a pullback from a wobble in a name 25% above its EMA50. Measured against the bar
+pre-registered in `ACCEPTANCE.md`:
 
-Whatever is tested next, two guards from this run should stay: score the independent
-(non-overlapping) sample, and look at the per-year table before believing any t-stat.
+| variant | n indep | alpha indep | t | both halves positive? |
+|---|---:|---:|---:|---|
+| shipped | 3,589 | +0.11% | +0.74 | no (2nd −0.01%) |
+| **near-ema50-2pct** | 3,510 | **+0.15%** | **+1.05** | yes (+0.24% / +0.04%) |
+| below-ema20 | 3,388 | +0.12% | +0.82 | no (2nd −0.01%) |
+| below-ema20 + near-ema50-5pct | 3,387 | +0.12% | +0.82 | no |
+| at-ema50 | 3,156 | +0.10% | +0.63 | no (2nd −0.00%) |
+| near-ema50-5pct | 3,577 | +0.11% | +0.74 | no |
+
+**Nothing shipped.** `near-ema50-2pct` is the best configuration found anywhere in this
+project and the only one positive in both halves, and it still fails the pre-registered
+t ≥ 2.5 by a wide margin at t=+1.05. The direction is mildly encouraging — every structural
+variant is ≥ the shipped rule, which is more than the ADX or RSI-depth families managed — but
++4bp at t=1 after twelve configurations on one sample is indistinguishable from noise. The
+2% threshold is also barely binding: it removes only 127 of 6,258 signals, so most of the
+"extended name" cohort the idea was aimed at is not actually there to filter.
+
+If this gets revisited, the honest next step is not another threshold on the same sample. It
+is out-of-sample data — other indices, or the 4H timeframe — because this 12-year S&P window
+has now been queried enough times that another pass through it cannot settle anything.
+
+## Standing guards
+
+Two things from these runs should stay regardless of what is tested next: score the
+independent (non-overlapping) sample, and look at the per-year table before believing any
+t-stat. Both are built into `measure.py`, and `ACCEPTANCE.md` holds the bar.

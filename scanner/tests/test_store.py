@@ -77,3 +77,25 @@ def test_reopening_an_old_database_adds_the_conviction_column(tmp_path):
     assert store.conn.execute("SELECT conviction FROM signals WHERE ticker = 'OLD'").fetchone()[0] == "standard"
     assert store.count() == 2
     store.close()
+
+
+def test_rules_version_is_stored_against_each_signal(tmp_path):
+    store = SignalStore(tmp_path / "s.db")
+    store.record_signals([
+        SignalRecord("trend-pullback", "AAA", "1d", "BUY", "2026-01-02T21:00:00+00:00",
+                     10.0, {}, "2026-01-02T21:05:00+00:00", "standard", "abc123def456"),
+    ])
+    row = store.conn.execute("SELECT rules_version FROM signals").fetchone()
+    assert row[0] == "abc123def456"
+    store.close()
+
+
+def test_rules_version_defaults_empty_for_rows_written_before_the_column(tmp_path):
+    """The migration is a guarded ALTER, so a pre-existing database stays readable."""
+    store = SignalStore(tmp_path / "s.db")
+    store.record_signals([
+        SignalRecord("x", "AAA", "1d", "BUY", "2026-01-02T21:00:00+00:00", 1.0, {},
+                     "2026-01-02T21:05:00+00:00"),
+    ])
+    assert store.conn.execute("SELECT rules_version FROM signals").fetchone()[0] == ""
+    store.close()

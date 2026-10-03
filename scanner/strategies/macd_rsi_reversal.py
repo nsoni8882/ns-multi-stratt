@@ -54,6 +54,11 @@ class MacdRsiReversal:
         "short leg of this setup did not beat holding cash over 12 years of backtesting."
     )
     min_bars = 150
+    params = {
+        "min_bars": 150, "hist_window": HIST_WINDOW, "hist_quantile": HIST_QUANTILE,
+        "deep_lookback": DEEP_LOOKBACK, "rsi_low": RSI_LOW, "rsi_low_standard": RSI_LOW_STANDARD,
+        "rsi_high": RSI_HIGH, "rsi_high_standard": RSI_HIGH_STANDARD,
+    }
     # The same levels are used on 1d and 4H. Checked, not assumed: on 4H a cross back above
     # 20 returned +3.57% over 20 bars against a +0.77% baseline (n=23), the same shape as daily.
     chart = {"rsi_levels": [RSI_LOW, RSI_LOW_STANDARD, RSI_HIGH], "macd_deep": True, "emas": False}

@@ -3,6 +3,8 @@
 A strategy receives a DataFrame of *closed* bars with a UTC DatetimeIndex (bar open)
 and columns open, high, low, close, volume, close_time (UTC timestamp of bar close).
 """
+import hashlib
+import json
 from dataclasses import dataclass, field
 from typing import Protocol
 
@@ -33,6 +35,20 @@ HIGH, STANDARD, LOW = "high", "standard", "low"
 CONVICTION_RANK = {HIGH: 0, STANDARD: 1, LOW: 2}  # sort key: strongest signals listed first
 
 
+def rules_version(params: dict) -> str:
+    """Short stable fingerprint of the parameters that decide whether a signal fires.
+
+    Recorded against every stored signal and published in strategies.json. Without it the
+    history silently mixes rule generations: a row from before a threshold moved looks
+    identical to one from after, so questions like "did the conviction tiers hold up live?"
+    cannot be answered across a change. Deliberately a hash of the declared `params` rather
+    than of the module source, so editing a comment or a docstring does not invalidate
+    history -- only a change that can alter a signal does.
+    """
+    blob = json.dumps(params, sort_keys=True, default=str).encode()
+    return hashlib.sha256(blob).hexdigest()[:12]
+
+
 @dataclass(frozen=True)
 class Signal:
     side: str  # "BUY" or "SELL"
@@ -50,6 +66,7 @@ class Strategy(Protocol):
     description: str
     min_bars: int
     chart: dict  # how the site draws this strategy's chart: rsi_levels, macd_deep, emas
+    params: dict  # the thresholds that decide a signal, fingerprinted by rules_version()
 
     def evaluate(self, df: pd.DataFrame) -> "Signal | None": ...
 

@@ -11,8 +11,18 @@ on:
     - cron: "10 17,18 * * 1-5" # 13:10 ET, early-close days
     - cron: "30 14-23 * * 1-5" # hourly catch-up: if a wake-up was missed, the next one runs the scan
   workflow_dispatch:
+  # An algorithm change must regenerate the published BUY/SELL lists, not wait for the next
+  # cron wake-up: every push to main re-scans and redeploys, and `scanner.market.should_run`
+  # lets any non-schedule event straight through the calendar gate for exactly this reason.
+  # Only paths that cannot change a signal are ignored (a push touching a strategy *and* a
+  # doc still runs, since paths-ignore skips a push only when every changed file matches).
   push:
     branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "research/**"
+      - "docs/**"
+      - "design-samples/**"
 
 permissions:
   contents: write # push the signal history to the `data` branch

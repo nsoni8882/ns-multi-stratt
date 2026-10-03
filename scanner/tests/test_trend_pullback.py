@@ -200,3 +200,22 @@ def test_evaluate_supplies_ema20_when_the_gate_needs_it():
     strat = TrendPullback(TrendPullbackConfig(require_below_ema20=True))
     assert strat.indicators(make_df(_uptrend_with_dip()))["ema20"] is not None
     assert TrendPullback().indicators(make_df(_uptrend_with_dip()))["ema20"] is None
+
+
+def test_params_cover_every_config_field_so_the_fingerprint_cannot_miss_one():
+    """A new gate that is not in `params` would change signals without changing the
+    fingerprint, which is the one thing rules_version exists to prevent."""
+    from dataclasses import fields
+    params = TrendPullback().params
+    for f in fields(TrendPullbackConfig):
+        assert f.name in params, f"{f.name} missing from TrendPullback.params"
+    assert "min_bars" in params
+
+
+def test_rules_version_changes_when_a_gate_changes_and_not_otherwise():
+    from scanner.strategies.base import rules_version
+    shipped = rules_version(TrendPullback().params)
+    assert shipped == rules_version(TrendPullback(TrendPullbackConfig()).params)
+    assert shipped != rules_version(TrendPullback(TrendPullbackConfig(adx_min=20)).params)
+    assert shipped != rules_version(TrendPullback(TrendPullbackConfig(rsi_buy_level=35)).params)
+    assert len(shipped) == 12
