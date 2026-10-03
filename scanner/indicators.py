@@ -40,6 +40,60 @@ def rsi(close: pd.Series, length: int = 14) -> pd.Series:
     return pd.Series(out, index=close.index)
 
 
+def _wilder_smooth(values: np.ndarray, length: int) -> np.ndarray:
+    """Wilder's accumulative smoothing, seeded with the sum of the first `length` values."""
+    out = np.full(len(values), np.nan)
+    if len(values) <= length:
+        return out
+    acc = values[1 : length + 1].sum()
+    out[length] = acc
+    for i in range(length + 1, len(values)):
+        acc = acc - acc / length + values[i]
+        out[i] = acc
+    return out
+
+
+def adx(high: pd.Series, low: pd.Series, close: pd.Series, length: int = 14) -> pd.Series:
+    """Wilder's ADX: how *strong* the trend is, regardless of direction.
+
+    Below ~20 price is chopping rather than trending, which is where a pullback entry has
+    nothing to pull back into. Returned on the same index as the inputs, NaN until enough
+    bars exist (ADX needs 2*length bars before its first value).
+    """
+    h, l, c = (s.to_numpy(dtype=float) for s in (high, low, close))
+    up, dn = np.diff(h, prepend=np.nan), -np.diff(l, prepend=np.nan)
+    plus_dm = np.where((up > dn) & (up > 0), up, 0.0)
+    minus_dm = np.where((dn > up) & (dn > 0), dn, 0.0)
+    prev_close = np.concatenate([[np.nan], c[:-1]])
+    tr = np.maximum(h - l, np.maximum(np.abs(h - prev_close), np.abs(l - prev_close)))
+
+    tr_s, plus_s, minus_s = (_wilder_smooth(x, length) for x in (tr, plus_dm, minus_dm))
+    with np.errstate(divide="ignore", invalid="ignore"):
+        plus_di, minus_di = 100.0 * plus_s / tr_s, 100.0 * minus_s / tr_s
+        di_sum = plus_di + minus_di
+        dx = np.where(di_sum > 0, 100.0 * np.abs(plus_di - minus_di) / di_sum, 0.0)
+    dx = np.where(np.isnan(tr_s), np.nan, dx)
+
+    out = np.full(len(c), np.nan)
+    first = 2 * length  # length bars of DX are needed to seed the average
+    if len(c) > first:
+        avg = np.nanmean(dx[length + 1 : first + 1])
+        out[first] = avg
+        for i in range(first + 1, len(c)):
+            avg = (avg * (length - 1) + dx[i]) / length
+            out[i] = avg
+    return pd.Series(out, index=close.index)
+
+
+def rising(series: pd.Series, i: int, lookback: int) -> bool:
+    """True if `series` is higher at bar i than it was `lookback` bars earlier."""
+    j = i - lookback
+    if j < 0:
+        return False
+    a, b = series.iloc[j], series.iloc[i]
+    return bool(pd.notna(a) and pd.notna(b) and b > a)
+
+
 def crossed_above(series: pd.Series, i: int, level: float) -> bool:
     """True if series closed below `level` on bar i-1 and at/above it on bar i."""
     return bool(series.iloc[i - 1] < level <= series.iloc[i])

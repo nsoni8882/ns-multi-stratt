@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from scanner.indicators import crossed_above, crossed_below, ema, macd, rsi
+from scanner.indicators import adx, crossed_above, crossed_below, ema, macd, rising, rsi
 
 # Classic Wilder/StockCharts RSI worked example (14-period). StockCharts rounds its
 # intermediate averages, so its published values sit ~0.07 above the exact result.
@@ -60,3 +60,46 @@ def test_crossed_with_nan_is_false():
     s = pd.Series([np.nan, 21.0])
     assert crossed_above(s, 1, 20) is False
     assert crossed_below(s, 1, 20) is False
+
+
+def _hlc(closes, width=0.005):
+    c = pd.Series(closes, dtype=float)
+    return c * (1 + width), c * (1 - width), c
+
+
+def test_adx_is_nan_until_two_lengths_of_bars():
+    out = adx(*_hlc(np.arange(100.0, 160.0)), 14)
+    assert out.iloc[:28].isna().all()
+    assert out.iloc[28:].notna().all()
+
+
+def test_adx_short_series_is_all_nan():
+    assert adx(*_hlc(np.arange(100.0, 110.0)), 14).isna().all()
+
+
+def test_adx_of_monotone_trend_converges_to_100():
+    """A series that only ever rises has no -DM, so -DI is 0, DX is 100 and ADX follows."""
+    up = adx(*_hlc(np.arange(100.0, 200.0)), 14)
+    down = adx(*_hlc(np.arange(200.0, 100.0, -1.0)), 14)
+    assert up.iloc[-1] == pytest.approx(100.0, abs=0.5)
+    assert down.iloc[-1] == pytest.approx(100.0, abs=0.5)  # direction-blind
+
+
+def test_adx_of_flat_series_is_zero_not_nan():
+    out = adx(*_hlc([50.0] * 60, width=0.0), 14)
+    assert out.iloc[-1] == 0.0
+
+
+def test_adx_of_chop_is_low_and_of_trend_is_high():
+    chop = 100 + 2 * np.sin(np.arange(200) / 1.5)
+    trend = 100 * np.cumprod(1 + np.full(200, 0.004))
+    assert adx(*_hlc(chop), 14).iloc[-1] < 20
+    assert adx(*_hlc(trend), 14).iloc[-1] > 40
+
+
+def test_rising_compares_against_the_lookback_bar():
+    s = pd.Series([1.0, 2.0, 3.0, 2.5])
+    assert rising(s, 3, 1) is False  # 2.5 < 3.0 one bar back
+    assert rising(s, 3, 3) is True  # 2.5 > 1.0 three bars back
+    assert rising(s, 1, 5) is False  # not enough history
+    assert rising(pd.Series([np.nan, 2.0]), 1, 1) is False

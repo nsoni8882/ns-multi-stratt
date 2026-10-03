@@ -1,7 +1,9 @@
+from dataclasses import dataclass
+
 import pandas as pd
 
-from scanner.indicators import crossed_above, crossed_below, ema, rsi
-from scanner.strategies.base import LOW, SIGNAL_WINDOW, STANDARD, Signal, make_signal
+from scanner.indicators import adx, crossed_above, crossed_below, ema, rising, rsi
+from scanner.strategies.base import HIGH, LOW, SIGNAL_WINDOW, STANDARD, Signal, make_signal
 
 # Cardwell's RSI range shift: RSI oscillates 40-80 in an uptrend (40 acts as support) and
 # 20-60 in a downtrend (60 acts as resistance). The classic 30/70 and 20/80 bands were built
@@ -17,13 +19,95 @@ RSI_SELL_LEVEL = 60
 # this excludes are recent listings whose trend could not be classified reliably anyway.
 MIN_BARS = 400
 
+DIP_LOOKBACK = 60  # how far back to trace a sub-level RSI run when measuring its depth
 
-def rule_side(close: pd.Series, ema50: pd.Series, ema200: pd.Series, r: pd.Series, i: int) -> "tuple[str, str] | None":
+
+@dataclass(frozen=True)
+class TrendPullbackConfig:
+    """Tunable gates for the setup. The defaults reproduce the shipped rule exactly, so a
+    variant is only ever active where it was explicitly asked for -- see research/measure.py,
+    which is the only caller that passes a non-default config.
+    """
+
+    rsi_buy_level: float = RSI_BUY_LEVEL
+    rsi_sell_level: float = RSI_SELL_LEVEL
+    # Trend-quality gate: the dominant failure mode of "above the 200 EMA" is price chopping
+    # just above the line, where an RSI dip is noise rather than a pullback into a trend.
+    adx_min: "float | None" = None  # None leaves the gate off
+    adx_length: int = 14
+    require_rising_ema200: bool = False
+    rising_lookback: int = 20
+    # Conviction by pullback depth: (max_depth, tier) checked in order, so the deepest tier
+    # must come first and the last entry should be open-ended. Empty means flat STANDARD.
+    depth_tiers: "tuple[tuple[float, str], ...]" = ()
+    # The 50-above-200 condition is near-collinear with close-above-200 and flips ~10-15%
+    # after the actual turn; the flag exists so its contribution can be measured.
+    require_ema50_above_ema200: bool = True
+
+
+DEFAULT_CONFIG = TrendPullbackConfig()
+
+# Variants wired up for measurement, keyed by the label the harness reports them under.
+VARIANTS = {
+    "shipped": DEFAULT_CONFIG,
+    "rsi35": TrendPullbackConfig(rsi_buy_level=35, rsi_sell_level=65),
+    "adx20": TrendPullbackConfig(adx_min=20),
+    "adx25": TrendPullbackConfig(adx_min=25),
+    "rising200": TrendPullbackConfig(require_rising_ema200=True),
+    "no-ema50": TrendPullbackConfig(require_ema50_above_ema200=False),
+    "rsi35+adx20": TrendPullbackConfig(rsi_buy_level=35, rsi_sell_level=65, adx_min=20),
+    "tiered": TrendPullbackConfig(depth_tiers=((30, HIGH), (35, STANDARD), (float("inf"), LOW))),
+}
+
+
+def dip_depth(r: pd.Series, i: int, level: float, max_lookback: int = DIP_LOOKBACK) -> float:
+    """Lowest RSI in the unbroken run of sub-`level` bars ending at bar i-1.
+
+    Bar i-1 is below `level` whenever bar i crossed up through it, so this measures how deep
+    the pullback that is now resolving actually went.
+    """
+    depth = float(r.iloc[i - 1])
+    for j in range(i - 1, max(i - 1 - max_lookback, -1), -1):
+        v = r.iloc[j]
+        if pd.isna(v) or v >= level:
+            break
+        depth = min(depth, float(v))
+    return depth
+
+
+def _tier(depth: float, tiers) -> str:
+    """Map a pullback depth onto a conviction tier. Only the long leg is tiered: the short
+    leg is pinned to LOW by its measured lack of edge, whatever its rally height."""
+    for bound, tier in tiers:
+        if depth <= bound:
+            return tier
+    return STANDARD
+
+
+def rule_side(close: pd.Series, ema50: pd.Series, ema200: pd.Series, r: pd.Series, i: int,
+              adx_series: "pd.Series | None" = None,
+              cfg: TrendPullbackConfig = DEFAULT_CONFIG) -> "tuple[str, str] | None":
     """Return (side, conviction) for bar i, or None. The 5-bar RSI lookback in the spec is
     implied by the cross on bar i (bar i-1 was beyond the level)."""
-    if close.iloc[i] > ema200.iloc[i] and ema50.iloc[i] > ema200.iloc[i] and crossed_above(r, i, RSI_BUY_LEVEL):
-        return "BUY", STANDARD
-    if close.iloc[i] < ema200.iloc[i] and ema50.iloc[i] < ema200.iloc[i] and crossed_below(r, i, RSI_SELL_LEVEL):
+    if cfg.adx_min is not None:
+        if adx_series is None:
+            raise ValueError("adx_min is set but no ADX series was supplied")
+        a = adx_series.iloc[i]
+        if pd.isna(a) or a < cfg.adx_min:
+            return None
+
+    up_structure = ema50.iloc[i] > ema200.iloc[i] or not cfg.require_ema50_above_ema200
+    dn_structure = ema50.iloc[i] < ema200.iloc[i] or not cfg.require_ema50_above_ema200
+
+    if close.iloc[i] > ema200.iloc[i] and up_structure and crossed_above(r, i, cfg.rsi_buy_level):
+        if cfg.require_rising_ema200 and not rising(ema200, i, cfg.rising_lookback):
+            return None
+        if not cfg.depth_tiers:
+            return "BUY", STANDARD
+        return "BUY", _tier(dip_depth(r, i, cfg.rsi_buy_level), cfg.depth_tiers)
+    if close.iloc[i] < ema200.iloc[i] and dn_structure and crossed_below(r, i, cfg.rsi_sell_level):
+        if cfg.require_rising_ema200 and rising(ema200, i, cfg.rising_lookback):
+            return None
         return "SELL", LOW  # see base.py: the short leg showed no measurable edge
     return None
 
@@ -43,18 +127,34 @@ class TrendPullback:
     # as daily. Re-measure before changing them on one timeframe only.
     chart = {"rsi_levels": [RSI_BUY_LEVEL, RSI_SELL_LEVEL], "macd_deep": False, "emas": True}
 
+    def __init__(self, config: TrendPullbackConfig = DEFAULT_CONFIG):
+        self.config = config
+
+    def indicators(self, df: pd.DataFrame) -> dict:
+        """Everything rule_side needs, computed once per frame."""
+        close = df["close"]
+        out = {
+            "close": close,
+            "ema50": ema(close, 50),
+            "ema200": ema(close, 200),
+            "r": rsi(close),
+            "adx_series": None,
+        }
+        if self.config.adx_min is not None:
+            out["adx_series"] = adx(df["high"], df["low"], close, self.config.adx_length)
+        return out
+
     def evaluate(self, df: pd.DataFrame) -> "Signal | None":
         if len(df) < self.min_bars:
             return None
-        close = df["close"]
-        ema50, ema200 = ema(close, 50), ema(close, 200)
-        r = rsi(close)
+        ind = self.indicators(df)
         for k in range(SIGNAL_WINDOW):
             i = len(df) - 1 - k
-            hit = rule_side(close, ema50, ema200, r, i)
+            hit = rule_side(**ind, i=i, cfg=self.config)
             if hit:
                 side, conviction = hit
-                return make_signal(
-                    df, i, side, {"rsi": r.iloc[i], "ema50": ema50.iloc[i], "ema200": ema200.iloc[i]}, conviction
-                )
+                details = {"rsi": ind["r"].iloc[i], "ema50": ind["ema50"].iloc[i], "ema200": ind["ema200"].iloc[i]}
+                if ind["adx_series"] is not None:
+                    details["adx"] = ind["adx_series"].iloc[i]
+                return make_signal(df, i, side, details, conviction)
         return None

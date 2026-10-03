@@ -1,8 +1,9 @@
 import numpy as np
 import pandas as pd
+import pytest
 
-from scanner.strategies.base import LOW, STANDARD
-from scanner.strategies.trend_pullback import TrendPullback, rule_side
+from scanner.strategies.base import HIGH, LOW, STANDARD
+from scanner.strategies.trend_pullback import TrendPullback, TrendPullbackConfig, VARIANTS, dip_depth, rule_side
 from scanner.tests.conftest import make_df
 
 
@@ -61,3 +62,86 @@ def test_needs_400_bars():
 
 def test_flat_prices_give_no_signal():
     assert TrendPullback().evaluate(make_df([100.0] * 500)) is None
+
+
+# --- configurable gates (research/measure.py is the only non-default caller) ---
+
+
+def test_default_config_is_the_shipped_rule():
+    cfg = TrendPullbackConfig()
+    assert cfg.adx_min is None and cfg.depth_tiers == () and cfg.require_ema50_above_ema200
+    assert cfg.rsi_buy_level == 40 and not cfg.require_rising_ema200
+
+
+def test_adx_gate_blocks_a_signal_in_chop():
+    close, ema50, ema200 = series([110, 110]), series([105, 105]), series([100, 100])
+    r = series([38, 41])
+    cfg = TrendPullbackConfig(adx_min=20)
+    assert rule_side(close, ema50, ema200, r, 1, series([30, 30]), cfg) == ("BUY", STANDARD)
+    assert rule_side(close, ema50, ema200, r, 1, series([30, 12]), cfg) is None
+    assert rule_side(close, ema50, ema200, r, 1, series([30, np.nan]), cfg) is None
+
+
+def test_adx_gate_requires_an_adx_series():
+    close, ema50, ema200 = series([110, 110]), series([105, 105]), series([100, 100])
+    with pytest.raises(ValueError, match="no ADX series"):
+        rule_side(close, ema50, ema200, series([38, 41]), 1, None, TrendPullbackConfig(adx_min=20))
+
+
+def test_rsi_level_is_configurable():
+    close, ema50, ema200 = series([110, 110]), series([105, 105]), series([100, 100])
+    cfg = TrendPullbackConfig(rsi_buy_level=35)
+    assert rule_side(close, ema50, ema200, series([38, 41]), 1, None, cfg) is None  # never reached 35
+    assert rule_side(close, ema50, ema200, series([33, 36]), 1, None, cfg) == ("BUY", STANDARD)
+
+
+def test_dropping_the_ema50_condition_admits_a_signal_it_blocked():
+    close, ema200, r = series([110, 110]), series([100, 100]), series([38, 41])
+    ema50 = series([95, 95])  # 50 still below 200
+    assert rule_side(close, ema50, ema200, r, 1) is None
+    cfg = TrendPullbackConfig(require_ema50_above_ema200=False)
+    assert rule_side(close, ema50, ema200, r, 1, None, cfg) == ("BUY", STANDARD)
+
+
+def test_rising_ema200_gate_blocks_a_falling_trend_line():
+    close, ema50, r = series([110] * 4), series([105] * 4), series([0, 0, 38, 41])
+    cfg = TrendPullbackConfig(require_rising_ema200=True, rising_lookback=2)
+    assert rule_side(close, ema50, series([100, 100, 101, 102]), r, 3, None, cfg) == ("BUY", STANDARD)
+    assert rule_side(close, ema50, series([100, 100, 99, 98]), r, 3, None, cfg) is None
+
+
+def test_dip_depth_traces_the_unbroken_sub_level_run():
+    r = series([50, 45, 38, 31, 36, 42])
+    assert dip_depth(r, 5, 40) == 31  # bars 2-4 are the dip
+    assert dip_depth(r, 5, 40, max_lookback=1) == 36  # only bar 4 is in view
+
+
+def test_dip_depth_stops_at_the_level_not_at_an_earlier_dip():
+    r = series([25, 50, 38, 42])
+    assert dip_depth(r, 3, 40) == 38  # the 25 is on the far side of a >=40 bar
+
+
+def test_depth_tiers_grade_conviction_by_how_deep_the_pullback_went():
+    close, ema50, ema200 = series([110] * 5), series([105] * 5), series([100] * 5)
+    cfg = VARIANTS["tiered"]
+    deep = series([50, 45, 38, 28, 41])
+    shallow = series([50, 45, 39, 38, 41])
+    mid = series([50, 45, 38, 33, 41])
+    assert rule_side(close, ema50, ema200, deep, 4, None, cfg) == ("BUY", HIGH)
+    assert rule_side(close, ema50, ema200, mid, 4, None, cfg) == ("BUY", STANDARD)
+    assert rule_side(close, ema50, ema200, shallow, 4, None, cfg) == ("BUY", LOW)
+
+
+def test_evaluate_with_adx_gate_reports_adx_in_details():
+    sig = TrendPullback(TrendPullbackConfig(adx_min=5)).evaluate(make_df(_uptrend_with_dip()))
+    assert sig is not None and sig.side == "BUY" and "adx" in sig.details
+
+
+def test_evaluate_with_impossible_adx_gate_finds_nothing():
+    assert TrendPullback(TrendPullbackConfig(adx_min=99)).evaluate(make_df(_uptrend_with_dip())) is None
+
+
+def test_every_variant_evaluates_without_error():
+    df = make_df(_uptrend_with_dip())
+    for label, cfg in VARIANTS.items():
+        TrendPullback(cfg).evaluate(df)  # must not raise
