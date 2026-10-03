@@ -14,11 +14,13 @@ export const COLORS = {
   signal: "#C98A2B",
   ema50: "#C98A2B",
   ema200: "#2F5D8A",
-  // Chart furniture, matched to theme.css: --bg, a slightly darker --border for the rules
-  // between panes, and a grid faint enough to sit under candles on the tinted background.
-  chartBg: "#FFFBF6",
-  paneSeparator: "#D6C4AC",
-  grid: "#F2E9DD",
+  // Chart furniture. `chartBg` must stay in step with --chart-bg in theme.css, which paints
+  // the well behind the canvas. It is a good deal warmer than the white sheet on purpose: at
+  // --bg (#FFFBF6) the tint was there in theory and invisible in practice. The separator is
+  // darker than any gridline so the three panes read as three blocks, not one tall one.
+  chartBg: "#F8F2E8",
+  paneSeparator: "#C2AB8B",
+  grid: "#ECE0CF",
 };
 
 type Point = { time: UTCTimestamp; value: number };
