@@ -90,6 +90,16 @@ describe("strategy page", () => {
     expect(screen.queryByText("Exxon Mobil")).not.toBeInTheDocument();
   });
 
+  it("drops a sector filter that does not exist on the other timeframe instead of showing an empty list", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByText("Exxon Mobil");
+    await user.selectOptions(screen.getByLabelText("Sector"), "Energy"); // only exists on 1D
+    await user.click(screen.getByRole("button", { name: "4H" }));
+    await screen.findByText("American Airlines"); // Industrials, must not be hidden by the stale 'Energy' choice
+    expect(screen.getByLabelText("Sector")).toHaveValue("All sectors");
+  });
+
   it("shows an empty state when a strategy has no signals", async () => {
     window.location.hash = "#/strategy/trend-pullback";
     render(<App />);

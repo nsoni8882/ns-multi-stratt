@@ -36,7 +36,7 @@ The site is fully static. Browsers only read the generated JSON. The database is
 - **Permissions:** `contents: write` (push to the `data` branch), `pages: write`, `id-token: write`.
 - **Concurrency:** a single concurrency group so overlapping runs queue instead of racing on the database push.
 - **Steps:** checkout `main`, check out the `data` branch into `./history`, set up Python and Node, install, run scanner (reads and updates `history/signals.db`, writes JSON to `public/data/`), build site, upload and deploy the Pages artifact, then commit and push `history/signals.db` to `data` (only after a successful deploy, and only if the file changed).
-- **Failure policy:** if more than 10% of tickers fail to fetch, or the universe or data step fails entirely, the scanner exits non-zero. The deploy and database push are skipped, and the previous site stays live.
+- **Failure policy:** scheduled runs skip the test steps (pushes and manual runs run them), so dependency drift cannot block a data refresh; if more than 10% of tickers fail to fetch, or the universe or data step fails entirely, the scanner exits non-zero. The deploy and database push are skipped, and the previous site stays live.
 - **First run:** if the `data` branch does not exist, the workflow creates it as an orphan branch with an empty database.
 
 ### 2.2 Repository layout
@@ -69,7 +69,7 @@ docs/superpowers/specs/
 - **4H bars:** `yfinance` 1H bars (a 729-day lookback, the most Yahoo allows: a start exactly 730 days back is rejected. This gives ~1000 4H bars so the 200/50 EMA parameters work on both timeframes), regular hours only, resampled to 4H bins anchored to the open: 09:30–13:30 and 13:30–16:00 ET (the second bar is 2.5h long). The OHLCV aggregation is first/max/min/last/sum.
 - **Closed bars only:** the in-progress bar is dropped (daily bar before 16:00 ET, 4H bar before its close).
 - **Minimum history:** a ticker is skipped for a given timeframe if it has fewer bars than the strategy needs (e.g. 250 for Strategy 2, to let the 200 EMA settle). Recently listed tickers are therefore skipped for that timeframe.
-- **Rate limiting:** download in batches (e.g. 50 tickers) with retry and backoff.
+- **Rate limiting and freshness:** download in batches of 50 with a pause between batches. yfinance usually returns empty frames rather than raising when throttled, so tickers that come back empty are re-requested (up to 3 attempts, with growing pauses). A ticker whose last closed bar is older than the newest bar in the universe (halted or delisted) is treated as failed, so it counts toward the 10% failure rule and never shows as a fresh signal.
 
 ## 4. Strategies
 
@@ -140,7 +140,7 @@ Table `signals`:
 - **Home:** one card per strategy: name, one-line description, BUY and SELL counts per timeframe, last updated, link.
 - **Timeframe selector:** a global 1D / 4H segmented control in the top bar of every page, defaulting to 1D. It applies to the home counts, the strategy stock grids, and the chart, and is kept in the URL hash query (`?tf=4h`) so links are shareable.
 - **Strategy page:** BUY / SELL / All filter, sector filter, ticker search, and a grid of stock cards (ticker, name, signal pill, sparkline of recent closes, price, bars ago, fired-at on hover/title). Clicking a card opens the chart modal described in 6.1.
-- **States:** loading, empty ("No signals right now"), and fetch-error states for each data load. A stale-data banner appears if `updated_at` is older than 36 hours.
+- **States:** loading, empty ("No signals right now"), and fetch-error states for each data load. A stale-data banner appears if `updated_at` is more than 48 weekday hours old (weekends are not counted because the scanner only runs on weekdays; 48 also covers a Monday market holiday).
 - **Footer:** "Not financial advice. Data from Yahoo Finance, may be delayed or inaccurate."
 
 ### 6.1 Visual design (approved: direction "C · Soft Cards", reference mockup in `design-samples/index.html`)

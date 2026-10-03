@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getSignals } from "../api";
 import { ChartModal } from "../components/ChartModal";
@@ -20,7 +20,10 @@ export function StrategyPage() {
 
   const rows = signals.data?.signals ?? [];
   const sectors = useMemo(() => sectorsOf(rows), [rows]);
-  const shown = useMemo(() => filterSignals(rows, filters), [rows, filters]);
+  // A sector picked on one timeframe may not exist on the other; never filter by an option the user cannot see.
+  const effective = useMemo(() => (sectors.includes(filters.sector) ? filters : { ...filters, sector: ALL_SECTORS }), [filters, sectors]);
+  const shown = useMemo(() => filterSignals(rows, effective), [rows, effective]);
+  useEffect(() => setFilters((f) => (f.sector === ALL_SECTORS ? f : { ...f, sector: ALL_SECTORS })), [id, tf]);
   const strategy = strategies.data?.strategies.find((s) => s.id === id);
 
   if (strategies.loading) return <Loading what="strategy" />;
@@ -48,7 +51,7 @@ export function StrategyPage() {
           value={filters.query}
           onChange={(e) => setFilters({ ...filters, query: e.target.value })}
         />
-        <select aria-label="Sector" value={filters.sector} onChange={(e) => setFilters({ ...filters, sector: e.target.value })}>
+        <select aria-label="Sector" value={effective.sector} onChange={(e) => setFilters({ ...filters, sector: e.target.value })}>
           {sectors.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
       </div>

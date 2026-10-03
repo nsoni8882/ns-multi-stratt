@@ -29,8 +29,18 @@ it("barsAgoLabel", () => {
   expect(barsAgoLabel(2)).toBe("2 bars ago");
 });
 
-it("isStale is true only after 36 hours", () => {
-  const now = new Date("2026-10-03T12:00:00Z");
-  expect(isStale("2026-10-02T12:00:00Z", now)).toBe(false);
-  expect(isStale("2026-10-01T23:00:00Z", now)).toBe(true);
+describe("isStale (weekday hours, so weekends do not trigger it)", () => {
+  it("is false over a normal weekend (Fri 20:05 UTC run, checked Mon 12:00 UTC)", () => {
+    expect(isStale("2026-10-02T20:05:00Z", new Date("2026-10-05T12:00:00Z"))).toBe(false);
+  });
+  it("is false after a Monday market holiday (Fri run, checked Tue 14:00 UTC)", () => {
+    expect(isStale("2026-10-02T20:05:00Z", new Date("2026-10-06T14:00:00Z"))).toBe(false);
+  });
+  it("is true when a weekday run has been missing for over 48 weekday hours", () => {
+    expect(isStale("2026-10-01T23:00:00Z", new Date("2026-10-06T12:00:00Z"))).toBe(true);
+    expect(isStale("2026-09-28T12:00:00Z", new Date("2026-09-30T20:00:00Z"))).toBe(true);
+  });
+  it("is false for a fresh update", () => {
+    expect(isStale("2026-10-02T12:00:00Z", new Date("2026-10-02T20:00:00Z"))).toBe(false);
+  });
 });
