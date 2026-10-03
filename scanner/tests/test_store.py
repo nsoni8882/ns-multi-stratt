@@ -41,3 +41,8 @@ def test_reopening_keeps_data(tmp_path):
 
 def test_empty_batch_is_fine(tmp_path):
     assert SignalStore(tmp_path / "signals.db").record_signals([]) == 0
+
+
+def test_creates_missing_parent_directories(tmp_path):
+    store = SignalStore(tmp_path / "nested" / "history" / "signals.db")
+    assert store.record_signals([rec()]) == 1

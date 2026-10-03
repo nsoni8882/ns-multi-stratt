@@ -34,6 +34,7 @@ class SignalRecord:
 
 class SignalStore:
     def __init__(self, path: "str | Path"):
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
         self.conn = sqlite3.connect(str(path))
         self.conn.execute(SCHEMA)
         self.conn.commit()
