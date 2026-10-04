@@ -69,11 +69,6 @@ def latest_due(now: pd.Timestamp) -> "pd.Timestamp | None":
     return past[-1] if past else None
 
 
-def next_due(now: pd.Timestamp) -> "pd.Timestamp | None":
-    future = [t for t in _all_due(now - pd.Timedelta(days=1), now + pd.Timedelta(days=10)) if t > now]
-    return future[0] if future else None
-
-
 def is_behind(now: pd.Timestamp, updated_at: pd.Timestamp) -> bool:
     """True when an update has come due since the data was last refreshed."""
     latest = latest_due(now)

@@ -32,12 +32,10 @@ def test_weekends_and_holidays_have_no_sessions():
     assert m.sessions(ts("2026-07-03 00:00"), ts("2026-07-03 23:59")) == []  # Independence Day (observed)
 
 
-def test_latest_and_next_due_skip_the_weekend():
+def test_latest_due_skips_the_weekend():
     assert m.latest_due(ts("2026-10-03 12:00")) == ts("2026-10-02 20:05")
     assert m.latest_due(ts("2026-10-05 13:00")) == ts("2026-10-02 20:05")  # Monday before the first bar closes
     assert m.latest_due(ts("2026-10-05 17:36")) == ts("2026-10-05 17:35")
-    assert m.next_due(ts("2026-10-03 12:00")) == ts("2026-10-05 17:35")
-    assert m.next_due(ts("2026-10-05 17:36")) == ts("2026-10-05 20:05")
 
 
 def test_is_behind():

@@ -36,6 +36,7 @@ import yfinance as yf
 from scanner.data import to_daily
 from scanner.strategies import macd_rsi_reversal as reversal
 from scanner.strategies import trend_pullback as pullback
+from scanner.universe import load_universe
 
 
 @dataclass(frozen=True)
@@ -57,8 +58,6 @@ TARGETS = {
     "macd-rsi-reversal": Target(reversal.MacdRsiReversal, reversal.rule_side, reversal.VARIANTS,
                                 reversal.MIN_BARS, "macd_rsi_reversal"),
 }
-from scanner.universe import load_universe
-
 CACHE_DIR = Path(__file__).parent / ".cache"
 RESULTS_DIR = Path(__file__).parent / "results"
 BATCH = 40
@@ -296,7 +295,7 @@ def _row(variant: str, leg: str, s: dict) -> str:
 
 def to_markdown(results: dict, meta: dict) -> str:
     lines = [
-        "# Trend Pullback variant measurement",
+        f"# {meta.get('strategy_name', 'Strategy')} variant measurement",
         "",
         f"{meta['tickers']} S&P names, {meta['years']}y of daily bars "
         f"({meta['bars']:,} bars fetched, {meta['base']['n']:,} of them scored once the "
@@ -391,6 +390,7 @@ def main() -> int:
         "bars": sum(len(df) for df in usable.values()),
         "generated": now.strftime("%Y-%m-%d"),
         "strategy": args.strategy,
+        "strategy_name": target.strategy.name,
         "base": unconditional(usable, args.horizon, target.min_bars),
     }
 

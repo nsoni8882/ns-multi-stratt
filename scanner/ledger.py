@@ -14,7 +14,7 @@ import os
 import sys
 from pathlib import Path
 
-KEEP = 500  # months of runs; enough to see a pattern, small enough to stay a readable file
+KEEP = 500  # runs kept; enough to see a pattern, small enough to stay a readable file
 
 
 def row(env: "dict[str, str]", gate: str, gate_run: str, scan: str) -> dict:

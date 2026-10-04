@@ -1,4 +1,4 @@
-# Trend Pullback variant measurement
+# MACD + RSI Reversal variant measurement
 
 164 S&P names, 12y of daily bars (476,343 bars fetched, 448,463 of them scored once the warm-up and the trailing forward window are excluded), 20-bar forward horizon. Generated 2026-10-03.
 

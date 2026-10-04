@@ -69,7 +69,8 @@ def to_four_hour(raw: pd.DataFrame, now: pd.Timestamp) -> pd.DataFrame:
     return out[OHLCV + ["close_time"]]
 
 
-def _download(tickers: "list[str]", timeframe: str, now: pd.Timestamp, attempts: int = 3) -> pd.DataFrame:
+def _download(tickers: "list[str]", timeframe: str, now: pd.Timestamp,
+              attempts: int = FETCH_ATTEMPTS) -> pd.DataFrame:
     if timeframe == "1d":
         kwargs = {"period": "2y", "interval": "1d"}
     else:
@@ -80,7 +81,7 @@ def _download(tickers: "list[str]", timeframe: str, now: pd.Timestamp, attempts:
             return yf.download(tickers, group_by="ticker", auto_adjust=True, threads=True, progress=False, **kwargs)
         except Exception as exc:  # network / rate limit
             log.warning("download attempt %d/%d failed: %s", attempt, attempts, exc)
-            time.sleep(5 * attempt)
+            time.sleep(RETRY_PAUSE * attempt)
     return pd.DataFrame()
 
 

@@ -174,6 +174,9 @@ class MacdRsiReversal:
         "so it is not published."
     )
     min_bars = MIN_BARS
+    # The same levels are used on 1d and 4H. Checked, not assumed: on 4H a cross back above
+    # 20 returned +3.57% over 20 bars against a +0.77% baseline (n=23), the same shape as daily.
+    chart = {"rsi_levels": [RSI_LOW, RSI_LOW_STANDARD, RSI_HIGH], "macd_deep": True, "emas": False}
     # Newest first. See TrendPullback.history -- the top fingerprint is build-asserted.
     history = (
         Release("1.3.0", "2026-10-03",
@@ -234,10 +237,6 @@ class MacdRsiReversal:
         if cfg.mfi_confluence:
             out["mfi_series"] = mfi(df["high"], df["low"], close, df["volume"], cfg.mfi_length)
         return out
-    # The same levels are used on 1d and 4H. Checked, not assumed: on 4H a cross back above
-    # 20 returned +3.57% over 20 bars against a +0.77% baseline (n=23), the same shape as daily.
-    chart = {"rsi_levels": [RSI_LOW, RSI_LOW_STANDARD, RSI_HIGH], "macd_deep": True, "emas": False}
-
     def evaluate(self, df: pd.DataFrame) -> "Signal | None":
         if len(df) < self.min_bars:
             return None
