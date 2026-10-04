@@ -223,6 +223,65 @@ Known weakness to fix before the sample is worth much: the news source is Yahoo'
 which throttles hard (429 after a handful of requests) and carries a lot of listicle noise.
 `fetch_headlines` is one function, so swapping in a real news API changes nothing else.
 
+## A third strategy was built on the best-documented volume effect. It is worse than nothing.
+
+`scanner/strategies/volume_breakout.py`, measured against the six rules written for a new
+strategy in `ACCEPTANCE.md` before any of this existed. 164 names x 12y, 20-bar horizon,
+alpha per ticker against buy-and-hold. Regenerate with
+`python -m research.measure --strategy volume-breakout`.
+
+The starting point was deliberately the one volume result with independent evidence outside
+this repo: the **high-volume return premium** (Gervais, Kaniel and Mingelgrin, 2001) — names
+that trade unusually heavily outperform over the following month, on the reading that a
+volume spike is attention. The core gate is that spike; everything else is confluence layered
+on one at a time.
+
+| variant | n indep | alpha indep | t indep |
+|---|---:|---:|---:|
+| spike 1.5x its 20-bar median volume | 13,718 | −0.07% | −0.89 |
+| **spike 2x (the core effect, alone)** | 9,445 | **−0.01%** | **−0.10** |
+| spike 3x | 3,809 | −0.22% | −1.46 |
+| spike + 50-bar closing-high breakout | 2,611 | **−0.74%** | **−4.56** |
+| spike + above the 200 EMA | 6,792 | −0.35% | −3.35 |
+| spike + closed in the top 40% of its range | 5,675 | −0.38% | −2.99 |
+| spike + OBV above its 20-EMA | 5,873 | −0.28% | −2.42 |
+| spike + quiet base before it | 1,114 | +0.18% | +0.65 |
+| all four confluences at once | 150 | −1.61% | −2.56 |
+
+**The premium is not here.** On S&P 500 names over these 12 years the spike alone is exactly
+nothing (−0.01%, t −0.10), and raising the threshold makes it worse rather than better —
+the opposite of the dose-response a real effect shows. The published result was found on a
+much broader NYSE cross-section in an earlier era; large caps are the part of the market
+where attention is least scarce, which is the obvious place for it to have been arbitraged
+away or never to have existed.
+
+**Every confluence condition made it worse, and the breakout made it much worse.** Buying a
+volume spike *that is also a 50-bar closing high* underperformed simply holding the same
+stock by 0.74% over the next 20 bars, t = −4.56 on 2,611 independent signals. That one is not
+a period artefact and does not get the 2020 treatment: first half −0.78% (t −3.73), second
+half −0.70% (t −2.71), negative in 9 of the 11 years. The textbook setup in full is −1.61%.
+
+The honest reading is that the loud breakout is where the move has already happened and the
+buyer is the last one in. It is consistent with what this repo has measured twice before: on
+the Reversal strategy every capitulation-volume threshold lowered alpha monotonically, and on
+Trend Pullback the loud recovery bar was worthless while the *quiet* dip was the only volume
+gate ever to measure positive. **Three strategies, one direction: in this universe loud
+volume is a cost and quiet volume is mildly good.** The quiet-base variant here is the fourth
+appearance of that same effect (+0.18%, t +0.65) and, like the other three, not significant.
+
+Against `ACCEPTANCE.md` the candidate fails rules 1 and 2 outright — no positive alpha, no
+t ≥ 2.5 — so rules 3 to 6 never come into it. **Nothing ships. The site keeps two
+strategies.** The module stays in the tree, unregistered and absent from `STRATEGIES`, with
+its variants intact so the numbers can be reproduced; `test_volume_breakout.py` asserts it is
+not published. Do not re-propose a volume-spike entry without reading this table first.
+
+What this does *not* say: that volume is uninformative. It says that every rule tried here
+which requires volume to be *high* has lost money relative to holding the stock, four
+independent times. If there is an edge in volume in this universe it is on the quiet side,
+and it has now been measured four times at between +0.13% and +0.75% with t between 0.65 and
+1.75 — always the right sign, never significant. That is the thing to re-measure when there
+is more out-of-sample data, not another breakout.
+
 ## Standing guards
 
 Two things from these runs should stay regardless of what is tested next: score the

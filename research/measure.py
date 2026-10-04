@@ -36,6 +36,7 @@ import yfinance as yf
 from scanner.data import to_daily
 from scanner.strategies import macd_rsi_reversal as reversal
 from scanner.strategies import trend_pullback as pullback
+from scanner.strategies import volume_breakout as breakout
 from scanner.universe import load_universe
 
 
@@ -57,6 +58,10 @@ TARGETS = {
                              pullback.MIN_BARS, "trend_pullback"),
     "macd-rsi-reversal": Target(reversal.MacdRsiReversal, reversal.rule_side, reversal.VARIANTS,
                                 reversal.MIN_BARS, "macd_rsi_reversal"),
+    # A candidate, not a shipped strategy: it is measured here and registered in
+    # scanner/strategies/__init__.py only if it clears research/ACCEPTANCE.md.
+    "volume-breakout": Target(breakout.VolumeBreakout, breakout.rule_side, breakout.VARIANTS,
+                              breakout.MIN_BARS, "volume_breakout"),
 }
 CACHE_DIR = Path(__file__).parent / ".cache"
 RESULTS_DIR = Path(__file__).parent / "results"
