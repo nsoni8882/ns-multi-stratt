@@ -26,6 +26,11 @@ RSI_HIGH_STANDARD = RSI_HIGH
 MIN_BARS = 150
 RVOL_WINDOW = 20
 DIVERGENCE_LOOKBACK = 40  # bars searched for the prior price low an OBV divergence is measured against
+# Descriptive only: how far back the card's one-line explanation looks when it reports how
+# deep the RSI trough and the histogram low were, and how far price is off its recent high.
+# Deliberately NOT in `params` -- these numbers decide nothing, they only describe a signal
+# that has already fired, so changing one cannot change which bars fire.
+REASON_LOOKBACK = 20
 
 
 @dataclass(frozen=True)
@@ -54,6 +59,40 @@ class ReversalConfig:
 
 
 DEFAULT_CONFIG = ReversalConfig()
+
+
+def recovery_bars(hist: pd.Series, i: int, max_lookback: int = REASON_LOOKBACK) -> int:
+    """How many consecutive bars the histogram has risen, counting back from bar i.
+
+    Descriptive. The rule only requires three ascending bars; this says whether this
+    particular name has been turning for three bars or for ten.
+    """
+    n = 0
+    for j in range(i, max(i - max_lookback, 0), -1):
+        a, b = hist.iloc[j], hist.iloc[j - 1]
+        if pd.isna(a) or pd.isna(b) or a <= b:
+            break
+        n += 1
+    return n
+
+
+def trough(series: pd.Series, i: int, max_lookback: int = REASON_LOOKBACK) -> float:
+    """Lowest value of `series` over the `max_lookback` bars ending at bar i."""
+    window = series.iloc[max(i - max_lookback + 1, 0):i + 1].dropna()
+    return float(window.min()) if not window.empty else float("nan")
+
+
+def off_high(close: pd.Series, i: int, max_lookback: int = REASON_LOOKBACK) -> float:
+    """Where bar i's close sits against the highest close of the window, as a fraction.
+
+    -0.12 means the name is 12% below its 20-bar high: the size of the decline the
+    histogram and RSI are now turning out of.
+    """
+    window = close.iloc[max(i - max_lookback + 1, 0):i + 1].dropna()
+    if window.empty:
+        return float("nan")
+    peak = float(window.max())
+    return float(close.iloc[i]) / peak - 1.0 if peak else float("nan")
 
 
 def _obv_divergence(close: pd.Series, obv_series: pd.Series, i: int,
@@ -179,11 +218,16 @@ class MacdRsiReversal:
     chart = {"rsi_levels": [RSI_LOW, RSI_LOW_STANDARD, RSI_HIGH], "macd_deep": True, "emas": False}
     # Newest first. See TrendPullback.history -- the top fingerprint is build-asserted.
     history = (
+        Release("1.4.0", "2026-10-04",
+                "The line explaining a signal now describes that stock: how far it fell, how "
+                "deep RSI went, and how many bars the MACD histogram has been turning. It no "
+                "longer says selling was exhausted — nothing in these rules looks at volume, "
+                "and every volume test made the results worse.",
+                fingerprint="12d3ca5cf02a"),
         Release("1.3.0", "2026-10-03",
                 "SELL signals are gone. Over 12 years they were worth nothing measurable — "
                 "a coin flip after costs, with what little they had coming from a single "
-                "month of 2020. Only the side with evidence behind it is published now.",
-                fingerprint="12d3ca5cf02a"),
+                "month of 2020. Only the side with evidence behind it is published now."),
         Release("1.2.0", "2026-10-03",
                 "A signal that fired a day or two ago is now marked 'Setup changed' when RSI has "
                 "since crossed back past the level that triggered it, so a card never describes "
@@ -252,7 +296,19 @@ class MacdRsiReversal:
                 level = cfg.rsi_high if side == "SELL" else (
                     cfg.rsi_low if conviction == HIGH else cfg.rsi_low_standard)
                 dead = thesis_negated(r, i, last, side, level)
-                return make_signal(df, i, side,
-                                   {"macd_hist": hist.iloc[i], "rsi": r.iloc[i], "rsi_level": level},
-                                   conviction, invalidated=dead)
+                # Everything the card's explanation says about this name, measured on the
+                # signal bar. Descriptive: no gate reads any of it, so none of it is in
+                # `params` and adding one cannot move a signal.
+                # A SELL is the mirror of a BUY throughout, so every extreme is measured on
+                # the negated series and flipped back: the "trough" of a SELL is its peak.
+                sgn = 1.0 if side == "BUY" else -1.0
+                details = {
+                    "macd_hist": hist.iloc[i], "rsi": r.iloc[i], "rsi_level": level,
+                    "hist_trough": sgn * trough(sgn * hist, i),
+                    "hist_deep_level": ind["lo"].iloc[i] if side == "BUY" else ind["hi"].iloc[i],
+                    "recovery_bars": recovery_bars(sgn * hist, i),
+                    "rsi_trough": sgn * trough(sgn * r, i),
+                    "off_high": sgn * off_high(sgn * ind["close"], i),
+                }
+                return make_signal(df, i, side, details, conviction, invalidated=dead)
         return None

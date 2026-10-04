@@ -5,6 +5,7 @@ and columns open, high, low, close, volume, close_time (UTC timestamp of bar clo
 """
 import hashlib
 import json
+import math
 from dataclasses import dataclass, field
 from typing import Protocol
 
@@ -138,7 +139,11 @@ def make_signal(df: pd.DataFrame, i: int, side: str, details: dict, conviction: 
         bar_time=df.index[i],
         fired_at=df["close_time"].iloc[i],
         entry_price=float(df["close"].iloc[i]),
-        details={k: round(float(v), 4) for k, v in details.items()},
+        # Non-finite values are dropped rather than published: NaN is valid in Python's JSON
+        # output and not in the browser's parser, so one unmeasurable detail would break the
+        # whole file. Every consumer of `details` already reads it as optional.
+        details={k: round(float(v), 4) for k, v in details.items()
+                 if v is not None and math.isfinite(float(v))},
         conviction=conviction,
         invalidated=invalidated,
     )

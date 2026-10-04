@@ -141,6 +141,21 @@ def dip_depth(r: pd.Series, i: int, level: float, max_lookback: int = DIP_LOOKBA
     return depth
 
 
+def dip_length(r: pd.Series, i: int, level: float, max_lookback: int = DIP_LOOKBACK) -> int:
+    """How many bars the sub-`level` RSI run ending at bar i-1 lasted.
+
+    Descriptive counterpart to `dip_depth`: the same window, reported as a duration. A
+    two-bar dip and a three-week one are both "RSI crossed back above 40".
+    """
+    n = 0
+    for j in range(i - 1, max(i - 1 - max_lookback, -1), -1):
+        v = r.iloc[j]
+        if pd.isna(v) or v >= level:
+            break
+        n += 1
+    return n
+
+
 def _tier(depth: float, tiers) -> str:
     """Map a pullback depth onto a conviction tier. Only the long leg is tiered: the short
     leg is pinned to LOW by its measured lack of edge, whatever its rally height."""
@@ -277,12 +292,16 @@ class TrendPullback:
     # Newest first. Add an entry at the top whenever `params` changes -- the fingerprint on
     # the top entry is asserted against the live one, so the build fails otherwise.
     history = (
+        Release("1.5.0", "2026-10-04",
+                "The line explaining a signal now describes that stock: how many bars RSI "
+                "spent under the trigger level, how deep the dip went, and how far price "
+                "sits above the 50 and 200 day averages.",
+                fingerprint="0ea89a61ddfe"),
         Release("1.4.0", "2026-10-03",
                 "SELL signals are gone. Over 12 years, shorting them lost 2.08% in the next "
                 "20 days and won less than 44% of the time, in 9 years out of 11 — so the "
                 "list only shows the side that measured positive. Fewer signals, each one "
-                "with evidence behind it.",
-                fingerprint="0ea89a61ddfe"),
+                "with evidence behind it."),
         Release("1.3.0", "2026-10-03",
                 "A signal that fired a day or two ago is now marked 'Setup changed' when RSI has "
                 "since crossed back past the level that triggered it, so a card never describes "
@@ -353,8 +372,16 @@ class TrendPullback:
                 side, conviction = hit
                 level = self.config.rsi_sell_level if side == "SELL" else self.config.rsi_buy_level
                 dead = thesis_negated(ind["r"], i, last, side, level)
+                # The last four are descriptive only -- how deep this name's dip went, how
+                # long it lasted, and how far price sits above each mean. No gate reads
+                # them, so they are not in `params` and cannot move a signal.
+                close, e50, e200 = ind["close"], ind["ema50"], ind["ema200"]
                 details = {"rsi": ind["r"].iloc[i], "rsi_level": level,
-                           "ema50": ind["ema50"].iloc[i], "ema200": ind["ema200"].iloc[i]}
+                           "ema50": e50.iloc[i], "ema200": e200.iloc[i],
+                           "rsi_trough": dip_depth(ind["r"], i, level),
+                           "dip_bars": dip_length(ind["r"], i, level),
+                           "above_ema50": close.iloc[i] / e50.iloc[i] - 1.0,
+                           "above_ema200": close.iloc[i] / e200.iloc[i] - 1.0}
                 if ind["adx_series"] is not None:
                     details["adx"] = ind["adx_series"].iloc[i]
                 return make_signal(df, i, side, details, conviction, invalidated=dead)

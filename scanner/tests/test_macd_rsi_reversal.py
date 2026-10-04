@@ -1,9 +1,11 @@
 import numpy as np
 import pandas as pd
+import pytest
 
 from scanner.strategies.base import HIGH, LOW, STANDARD
 from scanner.strategies.macd_rsi_reversal import (RSI_LOW, RSI_LOW_STANDARD, VARIANTS,
-                                                  MacdRsiReversal, rule_side)
+                                                  MacdRsiReversal, off_high, recovery_bars,
+                                                  rule_side)
 from scanner.tests.conftest import make_df
 
 
@@ -119,3 +121,36 @@ def test_nan_prices_do_not_crash_or_signal():
     closes = [100.0] * 300
     closes[-5] = float("nan")
     assert MacdRsiReversal().evaluate(make_df(closes)) is None
+
+
+def test_signal_details_describe_this_name_not_the_rule():
+    """The card's explanation is per stock, so the numbers behind it travel on the signal.
+
+    Each of these is descriptive: the rule reads none of them, which is why they are absent
+    from `params` and cannot change which bars fire.
+    """
+    up = 100 * np.cumprod(1 + 0.001 + 0.002 * np.sin(np.arange(180)))
+    down = up[-1] * np.cumprod(np.full(14, 0.98))
+    closes = list(np.concatenate([up, down, [down[-1] * 1.06]]))
+    sig = MacdRsiReversal().evaluate(make_df(closes))
+    assert sig is not None and sig.side == "BUY"
+    d = sig.details
+    # The rule needs two consecutive up-moves in the histogram; this records how many there
+    # actually were, which is 2 at the minimum and more on a name that has been turning longer.
+    assert d["recovery_bars"] >= 2
+    assert d["hist_trough"] <= d["macd_hist"]  # the low it is climbing out of
+    assert d["rsi_trough"] <= d["rsi"]
+    assert d["off_high"] < 0  # it is below its recent high, by construction of this fixture
+    params = MacdRsiReversal().params
+    assert not {"recovery_bars", "hist_trough", "rsi_trough", "off_high"} & set(params)
+
+
+def test_recovery_bars_counts_only_the_unbroken_run():
+    hist = pd.Series([0.0, -1.0, -0.8, -0.9, -0.5, -0.2])
+    assert recovery_bars(hist, 5) == 2  # -0.9 -> -0.5 -> -0.2; the -0.8 -> -0.9 dip stops it
+    assert recovery_bars(hist, 1) == 0
+
+
+def test_off_high_is_the_decline_from_the_window_peak():
+    close = pd.Series([100.0] * 10 + [50.0])
+    assert off_high(close, 10) == pytest.approx(-0.5)

@@ -6,7 +6,7 @@ import pytest
 
 from scanner.strategies.base import HIGH, LOW, STANDARD
 from scanner.strategies.trend_pullback import (RSI_BUY_LEVEL, TrendPullback, TrendPullbackConfig, VARIANTS,
-                                               dip_depth, rule_side)
+                                               dip_depth, dip_length, rule_side)
 from scanner.tests.conftest import make_df
 
 
@@ -293,3 +293,22 @@ def test_volume_gates_are_part_of_the_fingerprint():
     plain = rules_version(TrendPullback().params)
     gated = rules_version(TrendPullback(VARIANTS["dryup-0.9"]).params)
     assert plain != gated
+
+
+def test_signal_details_describe_this_dip_not_the_rule():
+    """Per-stock numbers for the card's explanation: how long the dip was, how deep it went,
+    and where price sits against each mean. Descriptive, so none of them is in `params`."""
+    sig = TrendPullback().evaluate(make_df(_uptrend_with_dip()))
+    assert sig is not None and sig.side == "BUY"
+    d = sig.details
+    assert d["dip_bars"] >= 1
+    assert d["rsi_trough"] <= d["rsi"]
+    assert d["above_ema200"] > 0  # the setup requires price above the 200 EMA
+    assert d["above_ema50"] == pytest.approx(sig.entry_price / d["ema50"] - 1, abs=1e-4)
+    assert not {"dip_bars", "rsi_trough", "above_ema50", "above_ema200"} & set(TrendPullback().params)
+
+
+def test_dip_length_counts_the_unbroken_sub_level_run():
+    r = pd.Series([50.0, 38.0, 36.0, 37.0, 42.0])
+    assert dip_length(r, 4, 40) == 3  # bars 1-3 were under 40
+    assert dip_length(r, 1, 40) == 0  # bar 0 was not
