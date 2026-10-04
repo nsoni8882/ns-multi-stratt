@@ -8,6 +8,10 @@ export const COLORS = {
   upLight: "rgba(8,153,129,0.4)",
   down: "#F23645",
   downLight: "rgba(242,54,69,0.4)",
+  // Volume bars, TradingView's own semi-transparent teal/red. Lighter than `upLight` because
+  // these sit under the candles rather than in a pane of their own.
+  volumeUp: "rgba(8,153,129,0.5)",
+  volumeDown: "rgba(242,54,69,0.5)",
   accent: "#A5472A",
   rsi: "#6B4FA3",
   macd: "#2F5D8A",
@@ -59,6 +63,8 @@ export interface BuiltChart {
   macd: Point[];
   signal: Point[];
   hist: (Point & { color: string })[];
+  /** Volume bars, coloured by the direction of the candle actually drawn. See buildChartData. */
+  volume: (Point & { color: string })[];
   ema50: Point[];
   ema200: Point[];
   /** A BUY/SELL label box anchored under the candle's low (BUY) or over its high (SELL). */
@@ -84,6 +90,16 @@ export function buildChartData(chart: ChartFile, config: ChartConfig, strategyId
     const color = v >= 0 ? (rising ? COLORS.up : COLORS.upLight) : rising ? COLORS.downLight : COLORS.down;
     return [{ time: t(times[i]), value: v, color }];
   });
+  // Volume is the one series read off the *drawn* candles rather than real closes, and
+  // deliberately so. TradingView's built-in Volume colours a bar by `close >= open` of the
+  // candle it belongs to, so the volume bar always matches the body above it -- and on a
+  // Heikin-Ashi chart that means the HA body, because the colour is a property of the thing
+  // on screen, not an indicator reading. RSI and MACD are the opposite case: an RSI of an
+  // average is not the RSI the scanner signalled on, so those stay on real closes.
+  const volume = shown.flatMap(([time, open, , , close, vol]) => {
+    if (typeof vol !== "number" || !Number.isFinite(vol)) return [];
+    return [{ time: t(time), value: vol, color: close >= open ? COLORS.volumeUp : COLORS.volumeDown }];
+  });
   const recent = histValues.slice(-100).filter((v): v is number => v !== null);
   const deep = config.macd_deep && recent.length >= 20;
 
@@ -93,6 +109,7 @@ export function buildChartData(chart: ChartFile, config: ChartConfig, strategyId
     macd: line(times, chart.macd.macd),
     signal: line(times, chart.macd.signal),
     hist,
+    volume,
     ema50: config.emas ? line(times, chart.ema50) : [],
     ema200: config.emas ? line(times, chart.ema200) : [],
     markers: chart.signals.flatMap((sig) => {

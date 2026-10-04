@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { chart } from "../test-fixtures";
 import type { ChartFile } from "../types";
 import { COLORS, buildChartData, toHeikinAshi } from "./chartData";
@@ -101,5 +102,41 @@ describe("Heikin-Ashi", () => {
     const sell = { ...chart, bars, signals: [{ strategy_id: "x", side: "SELL" as const, bar_time: 2 }] };
     expect(buildChartData(sell, macdCfg, "x", "real").markers[0].price).toBe(16);
     expect(buildChartData(sell, macdCfg, "x", "ha").markers[0].price).toBe(16);
+  });
+});
+
+describe("volume", () => {
+  // The whole point of the colour rule: it follows the candle that is drawn, so switching to
+  // Heikin-Ashi can legitimately recolour a bar. Everything else on the chart must not.
+  const down: ChartFile = {
+    ...chart,
+    bars: [[1, 12, 13, 9, 10, 500], [2, 10, 11, 8, 9, 250], [3, 9, 10, 7, 8, 125]],
+  };
+
+  it("colours each bar by whether the real candle closed above its open", () => {
+    const b = buildChartData(chart, macdCfg, "macd-rsi-reversal", "real");
+    expect(b.volume).toEqual([
+      { time: 1, value: 100, color: COLORS.volumeUp },
+      { time: 2, value: 100, color: COLORS.volumeUp },
+      { time: 3, value: 100, color: COLORS.volumeUp },
+    ]);
+    expect(buildChartData(down, macdCfg, "macd-rsi-reversal", "real").volume.map((v) => v.color))
+      .toEqual([COLORS.volumeDown, COLORS.volumeDown, COLORS.volumeDown]);
+  });
+
+  it("follows the Heikin-Ashi body when those are the candles on screen", () => {
+    // Real bar 1 closes down (12 -> 10) but its HA candle opens at 11 and closes at 11,
+    // which counts as up, so the volume bar under it is shaded up.
+    const ha = buildChartData(down, macdCfg, "macd-rsi-reversal", "ha");
+    const real = buildChartData(down, macdCfg, "macd-rsi-reversal", "real");
+    expect(ha.volume[0].color).toBe(COLORS.volumeUp);
+    expect(real.volume[0].color).toBe(COLORS.volumeDown);
+    expect(ha.volume.map((v) => v.value)).toEqual(real.volume.map((v) => v.value)); // only the colour moves
+    expect(ha.rsi).toEqual(real.rsi); // and nothing else does
+  });
+
+  it("drops a bar with no volume rather than drawing it as zero", () => {
+    const gap = { ...chart, bars: [[1, 10, 12, 9, 11, 100], [2, 11, 13, 10, 12, NaN]] } as unknown as ChartFile;
+    expect(buildChartData(gap, macdCfg, "macd-rsi-reversal").volume).toHaveLength(1);
   });
 });

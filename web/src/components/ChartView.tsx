@@ -16,6 +16,9 @@ import { SmcOverlay } from "../lib/smcDraw";
 import type { CandleStyle, ChartConfig, ChartFile } from "../types";
 
 const ET = "America/New_York";
+/** 12,345,678 -> "12.3M". Share counts are only ever read as an order of magnitude. */
+const compact = (v: number) =>
+  new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(v);
 const dayFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 const tickFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
 const etFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: ET });
@@ -70,6 +73,17 @@ export function ChartView({ data, config, strategyId, candleStyle, showSmc }: Pr
     // Structure is read off real OHLC even when Heikin-Ashi candles are drawn, the same way
     // RSI and MACD are. Bar indices line up either way, so the overlay still registers.
     if (showSmc) candles.attachPrimitive(new SmcOverlay(smc(data.bars)));
+    // Volume, TradingView's layout: an overlay in the bottom fifth of the price pane on its
+    // own hidden scale, so it costs no vertical space and never rescales the candles. Drawn
+    // before the EMAs so the lines stay on top of it.
+    const volume = chart.addSeries(HistogramSeries, {
+      priceScaleId: "", // an overlay scale of its own; the price axis keeps showing prices
+      priceFormat: { type: "volume" },
+      priceLineVisible: false, lastValueVisible: false,
+    }, 0);
+    volume.setData(b.volume);
+    volume.priceScale().applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
+
     if (b.showEmas) {
       chart.addSeries(LineSeries, { color: COLORS.ema50, lineWidth: 2, priceLineVisible: false, lastValueVisible: false, title: "" }, 0).setData(b.ema50);
       chart.addSeries(LineSeries, { color: COLORS.ema200, lineWidth: 2, priceLineVisible: false, lastValueVisible: false, title: "" }, 0).setData(b.ema200);
@@ -116,6 +130,16 @@ export function ChartView({ data, config, strategyId, candleStyle, showSmc }: Pr
     const chunk = (label: string, value: number | null, color: string) =>
       value === null ? [] : [{ text: `${label} ${value.toFixed(2)}`, color }];
 
+    // The price pane gets a volume readout, because an overlay histogram has no scale of its
+    // own to read and "how big was that bar" is the only question it is there to answer.
+    const volAt = new Map(b.volume.map((p) => [p.time as number, p.value]));
+    const volumeValue = new PaneValue(() => {
+      const live = at.time === null ? undefined : volAt.get(at.time);
+      const v = live ?? (b.volume.length ? b.volume[b.volume.length - 1].value : null);
+      return v === null ? [] : [{ text: `Vol ${compact(v)}`, color: "#625C55" }];
+    }, COLORS.chartBg);
+    volume.attachPrimitive(volumeValue);
+
     const rsiValue = new PaneValue(() => chunk("RSI", reading(rsiAt, b.rsi), COLORS.rsi), COLORS.chartBg);
     const macdValue = new PaneValue(() => [
       ...chunk("MACD", reading(macdAt, b.macd), COLORS.macd),
@@ -131,6 +155,7 @@ export function ChartView({ data, config, strategyId, candleStyle, showSmc }: Pr
       hover.applyOptions(v === undefined ? { lineVisible: false } : { price: v, lineVisible: true });
       rsiValue.refresh();
       macdValue.refresh();
+      volumeValue.refresh();
       if (param.paneIndex === undefined) return; // pointer left the chart; the crosshair is gone anyway
       const onPrice = param.paneIndex === 0;
       if (onPrice !== priceTagOn) {
@@ -156,7 +181,7 @@ export function ChartView({ data, config, strategyId, candleStyle, showSmc }: Pr
       ref={host}
       className="chart-canvas"
       role="img"
-      aria-label={`${data.ticker} ${data.timeframe === "1d" ? "daily" : "4 hour"} candlestick chart with RSI and MACD${last ? `, ${last.side} signal marked` : ""}`}
+      aria-label={`${data.ticker} ${data.timeframe === "1d" ? "daily" : "4 hour"} candlestick chart with volume, RSI and MACD${last ? `, ${last.side} signal marked` : ""}`}
     />
   );
 }

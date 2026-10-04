@@ -141,6 +141,7 @@ export function ChartModal({ row, tf, strategyId, config, onClose }: Props) {
             </>
           )}
           <span>The BUY / SELL box marks the candle where the signal fired</span>
+          <span><i className="sw" style={{ background: COLORS.volumeUp }} />Volume, shaded by the direction of the candle above it{style === "ha" ? " — the Heikin-Ashi one, as drawn" : ""}</span>
           <span>RSI, MACD, EMAs{showSmc && " and the SMC overlay"} always use real prices, not Heikin-Ashi</span>
           <span>Terracotta lines = this strategy's RSI levels and MACD thresholds</span>
         </div>
