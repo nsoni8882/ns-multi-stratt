@@ -1,12 +1,16 @@
 :root {
   --bg: #fffbf6;
   --surface: #ffffff;
-  --border: #efe6db;
+  /* A second neutral layer for the chrome (top bar, market line), so the shell reads as a
+     frame around the content sheet rather than more of the same cream. */
+  --chrome: #f6eee3;
+  --border: #ebdfd1;
+  --border-strong: #d9c8b3;
   /* The well behind a chart. Mirrored as COLORS.chartBg in lib/chartData.ts: the canvas
      paints its own background, so the two have to agree or the corners show a seam. */
   --chart-bg: #f8f2e8;
-  --text: #2a2623;
-  --muted: #625c55;
+  --text: #241f1b;
+  --muted: #5e574f;
   --accent: #a5472a;
   --accent-fill: #cc785c;
   --ring: #cc785c;
@@ -14,24 +18,36 @@
   --buy-bg: #e3f0e7;
   --sell: #9e2f45;
   --sell-bg: #f9e4e8;
-  --seg-bg: #f6ede3;
-  --sans: Inter, system-ui, sans-serif;
-  --serif: Lora, Georgia, serif;
+  --seg-bg: #ece0d2;
+  /* Shadows carry an offset and a blur; a zero-offset halo is decoration. */
+  --lift: 0 10px 26px -10px rgba(58, 40, 26, 0.22);
+  --sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --serif: "Instrument Serif", Georgia, serif;
+  /* Labels: the one place small caps earn their keep on this surface. */
+  --label: 600 11px/1.2 var(--sans);
+  --label-track: 0.085em;
 }
 
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
 body {
-  margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 var(--sans);
+  margin: 0; background: var(--bg); color: var(--text); font: 15px/1.55 var(--sans);
   /* iPhone notch / home indicator (needs viewport-fit=cover) */
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 a, button, input, select { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
-h1, h2, h3 { font-family: var(--serif); font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+h1, h2, h3 { font-family: var(--serif); font-weight: 400; margin: 0; letter-spacing: -0.015em; line-height: 1.1; }
 a { color: inherit; text-decoration: none; }
 button, input, select { font: inherit; color: inherit; }
 button { cursor: pointer; }
-:focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; }
+
+/* --- browser surfaces: the parts we did not draw still belong to the palette --- */
+::selection { background: #f6d9cb; color: var(--text); }
+:root { accent-color: var(--accent-fill); scrollbar-color: var(--border-strong) transparent; }
+input, select, textarea { caret-color: var(--accent); }
+:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-radius: 6px; }
+a[href]:hover { text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
+
 .num { font-variant-numeric: tabular-nums; }
 .muted { color: var(--muted); }
 .center { text-align: center; padding: 28px 0; }
@@ -41,73 +57,117 @@ button { cursor: pointer; }
 .buy-text { color: var(--buy); }
 .sell-text { color: var(--sell); }
 
-.top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 32px; flex-wrap: wrap; }
-.brand { font-family: var(--serif); font-size: 22px; font-weight: 600; display: inline-flex; align-items: center; min-height: 44px; }
-.pillnav { display: flex; gap: 6px; background: var(--seg-bg); padding: 4px; border-radius: 999px; flex-wrap: wrap; }
-.pillnav a { padding: 7px 16px; border-radius: 999px; font-weight: 500; color: var(--muted); }
-.pillnav a.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(42, 38, 35, 0.12); }
+/* --- chrome --- */
+.top {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 14px 32px; flex-wrap: wrap;
+  background: var(--chrome); border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 20;
+}
+.brand { font-family: var(--serif); font-size: 25px; display: inline-flex; align-items: center; gap: 9px; min-height: 44px; letter-spacing: -0.015em; }
+/* A mark, not an icon tile: the same square the favicon uses, at text size. */
+.brand::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: var(--accent-fill); flex: 0 0 auto; }
+.pillnav { display: flex; gap: 4px; background: var(--seg-bg); padding: 4px; border-radius: 999px; flex-wrap: wrap; }
+.pillnav a { padding: 7px 16px; border-radius: 999px; font-weight: 500; color: var(--muted); transition: color 0.16s ease-out, background 0.16s ease-out; }
+.pillnav a:hover { color: var(--text); }
+.pillnav a.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(58, 40, 26, 0.16); }
 
-.seg { display: inline-flex; padding: 3px; background: var(--seg-bg); border: 1px solid var(--border); border-radius: 999px; }
-.seg button { border: 0; background: transparent; padding: 6px 16px; border-radius: 999px; font-weight: 600; font-size: 14px; min-height: 34px; color: var(--muted); transition: background 0.15s, color 0.15s; }
-.seg button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12); }
+.seg { display: inline-flex; padding: 3px; background: var(--chrome); border: 1px solid var(--border); border-radius: 999px; }
+.seg button { border: 0; background: transparent; padding: 6px 16px; border-radius: 999px; font-weight: 600; font-size: 14px; min-height: 34px; color: var(--muted); transition: background 0.16s ease-out, color 0.16s ease-out; }
+.seg button:hover { color: var(--text); }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(58, 40, 26, 0.16); }
 
-main { max-width: 1120px; margin: 0 auto; padding: 12px 32px 40px; min-height: 60vh; }
-.hero { text-align: center; padding: 20px 0 28px; }
-.hero h1 { font-size: 40px; }
-.hero p { color: var(--muted); margin: 8px auto 0; max-width: 56ch; }
-.foot { padding: 20px 24px; color: var(--muted); font-size: 12.5px; text-align: center; }
+main { max-width: 1120px; margin: 0 auto; padding: 4px 32px 48px; min-height: 60vh; }
+.foot { padding: 24px 32px 28px; color: var(--muted); font-size: 12.5px; text-align: center; }
 
-.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; }
-.stat { min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 16px 20px; }
-.stat .n { font-family: var(--serif); font-size: 32px; font-weight: 600; }
+/* --- hero: left-aligned, because this is a tool and reading starts at the gutter --- */
+.hero { padding: 30px 0 22px; max-width: 62ch; }
+.hero h1 { font-size: 46px; }
+.hero p { color: var(--muted); margin: 10px 0 0; max-width: 58ch; }
+
+/* --- the ledger strip: one band, hairline cells, the number carrying the weight --- */
+.stats {
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 18px;
+  overflow: hidden; margin-bottom: 22px;
+}
+.stat { min-width: 0; padding: 16px 22px 18px; border-left: 1px solid var(--border); }
+.stat:first-child { border-left: 0; }
+.stat .tag { font: var(--label); letter-spacing: var(--label-track); text-transform: uppercase; color: var(--muted); }
+.stat .n { font-family: var(--serif); font-size: 38px; letter-spacing: -0.02em; line-height: 1.05; margin-top: 6px; }
+
 .big { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 18px; }
-.bigcard { border-radius: 24px; padding: 26px; display: flex; flex-direction: column; gap: 14px; border: 1px solid var(--border); }
-.bigcard.one { background: #fdefe6; }
-.bigcard.two { background: #eaf2ec; }
-.bigcard h2 { font-size: 24px; }
-.bigcard p { margin: 0; }
-.count-pill { display: inline-flex; gap: 6px; align-items: center; font-weight: 600; }
-.link { font-weight: 600; color: var(--accent); }
+.bigcard {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 22px;
+  padding: 24px 26px; display: flex; flex-direction: column; gap: 12px;
+  transition: box-shadow 0.18s ease-out, border-color 0.18s ease-out;
+}
+.bigcard:hover { box-shadow: var(--lift); border-color: var(--border-strong); }
+.bigcard h2 { font-size: 27px; }
+.bigcard p { margin: 0; color: var(--muted); }
+.bigcard .row { margin-top: auto; padding-top: 6px; gap: 18px; }
+/* The count is the point of the card, so it is read at the size of a headline. */
+.count-pill { display: inline-flex; gap: 9px; align-items: center; font-size: 23px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.015em; }
+.link { font-weight: 600; color: var(--accent); text-underline-offset: 3px; }
+.link:hover { text-decoration: underline; }
 
-.pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 600; letter-spacing: 0.01em; white-space: nowrap; }
 .pill svg { width: 11px; height: 11px; }
 .pill.buy { background: var(--buy-bg); color: var(--buy); }
 .pill.sell { background: var(--sell-bg); color: var(--sell); }
 /* Low conviction: outline instead of a fill, so it reads as secondary to the tiers with a measured edge. */
 .pill.faint { background: transparent; border: 1px solid currentColor; color: var(--muted); font-weight: 500; }
 
-.tools { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin: 6px 0 20px; }
-.tools input, .tools select { padding: 9px 16px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); min-height: 44px; height: 44px; }
+.tools { display: flex; gap: 10px; flex-wrap: wrap; margin: 2px 0 22px; }
+.tools input, .tools select { padding: 9px 16px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); min-height: 44px; height: 44px; transition: border-color 0.16s ease-out; }
+.tools input::placeholder { color: var(--muted); }
+.tools input:hover, .tools select:hover { border-color: var(--border-strong); }
 /* Safari ignores min-height on native selects, so draw our own chevron */
-.tools select { -webkit-appearance: none; appearance: none; padding-right: 40px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23625c55' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 16px center; }
+.tools select { -webkit-appearance: none; appearance: none; padding-right: 40px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%235e574f' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 16px center; }
+
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
-.scard { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 16px 18px; text-align: left; display: flex; flex-direction: column; gap: 8px; transition: box-shadow 0.2s, transform 0.2s; }
-.scard:hover { box-shadow: 0 8px 24px rgba(42, 38, 35, 0.09); transform: translateY(-2px); }
-.scard .tk { font-family: var(--serif); font-size: 22px; font-weight: 600; }
+.scard {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 18px;
+  padding: 16px 18px 15px; text-align: left; display: flex; flex-direction: column; gap: 9px;
+  transition: box-shadow 0.18s ease-out, transform 0.18s ease-out, border-color 0.18s ease-out;
+}
+.scard:hover, .scard:focus-visible { box-shadow: var(--lift); border-color: var(--border-strong); transform: translateY(-2px); }
+.scard:active { transform: translateY(0); box-shadow: none; }
+/* The ticker is the thing a reader scans for, so it is set in the workhorse face at
+   full weight rather than the display serif, which reads light at grid density. */
+.scard .tk { font-size: 21px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+.scard .tag { line-height: 1.35; }
+/* The price is the other number on this card that a reader acts on, so it is sized to be
+   read at a glance rather than squeezed next to the bars-ago note. */
+.scard strong { font-size: 17px; letter-spacing: -0.01em; }
 .scard.weak { background: var(--bg); border-style: dashed; }
-.scard.weak .tk { font-weight: 500; color: var(--muted); }
-.conv { align-self: flex-start; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; }
+.scard.weak .tk { font-weight: 600; color: var(--muted); }
+.conv { align-self: flex-start; font: var(--label); letter-spacing: var(--label-track); text-transform: uppercase; padding: 3px 9px; border-radius: 999px; }
 .conv.high { background: var(--buy-bg); color: var(--buy); }
 .conv.low { background: var(--seg-bg); color: var(--muted); }
 /* Reports that the described setup no longer holds. Outlined rather than filled: it is a
    caveat on the card, not a third conviction tier. */
-.conv.stale { background: transparent; border: 1px dashed var(--border); color: var(--muted); }
-.spark { width: 100%; height: 36px; display: block; }
-.linkbtn { background: none; border: 0; color: var(--accent); font-weight: 600; text-decoration: underline; }
+.conv.stale { background: transparent; border: 1px dashed var(--border-strong); color: var(--muted); }
+.spark { width: 100%; height: 44px; display: block; margin: 1px 0 2px; }
+.linkbtn { background: none; border: 0; color: var(--accent); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 .btn { background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 8px 18px; font-weight: 600; }
 
-.marketbar { display: flex; align-items: center; justify-content: center; gap: 8px; margin: -6px 0 4px; font-size: 13px; color: var(--muted); }
-.marketbar .dot { width: 8px; height: 8px; border-radius: 50%; }
-.marketbar .dot.on { background: var(--buy); }
-.marketbar .dot.off { background: #b8b0a6; }
-.stale { background: #fff4d6; color: #5c4400; padding: 10px 32px; text-align: center; font-size: 14px; }
-.errorbox { max-width: 520px; margin: 32px auto; padding: 18px 22px; border: 1px solid var(--sell-bg); background: #fff; border-radius: 16px; text-align: center; }
+.marketbar {
+  display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted);
+  max-width: 1120px; margin: 0 auto; padding: 10px 32px 4px;
+}
+.marketbar .dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
+.marketbar .dot.on { background: var(--buy); box-shadow: 0 0 0 3px rgba(39, 105, 75, 0.14); }
+.marketbar .dot.off { background: #b1a899; }
+.stale { background: #fdeec6; color: #5c4400; padding: 10px 32px; text-align: center; font-size: 14px; }
+.errorbox { max-width: 520px; margin: 32px auto; padding: 18px 22px; border: 1px solid var(--sell-bg); background: var(--surface); border-radius: 18px; text-align: center; }
 
-.modal { position: fixed; top: 0; right: 0; bottom: 0; left: 0; overscroll-behavior: contain; background: rgba(42, 38, 35, 0.45); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 50; }
-.sheet { background: var(--surface); border-radius: 24px; max-width: 880px; width: 100%; max-height: 94vh; max-height: 94dvh; overflow: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 22px; animation: fade 0.18s ease-out; }
+.modal { position: fixed; top: 0; right: 0; bottom: 0; left: 0; overscroll-behavior: contain; background: rgba(36, 31, 27, 0.5); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 50; }
+.sheet { background: var(--surface); border-radius: 22px; max-width: 880px; width: 100%; max-height: 94vh; max-height: 94dvh; overflow: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 22px; box-shadow: 0 30px 70px -20px rgba(36, 31, 27, 0.45); animation: fade 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
 .sheet .head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; margin-bottom: 10px; }
-.sheet h2 { font-size: 26px; }
-.x { border: 1px solid var(--border); background: var(--bg); border-radius: 999px; width: 40px; height: 40px; font-size: 20px; }
+.sheet h2 { font-size: 30px; }
+.x { border: 1px solid var(--border); background: var(--bg); border-radius: 999px; width: 40px; height: 40px; font-size: 20px; transition: border-color 0.16s ease-out, color 0.16s ease-out; }
+.x:hover { border-color: var(--border-strong); color: var(--accent); }
 /* The chart sits in its own tinted, bordered well, so price / RSI / MACD read as one block
    separate from the controls above and the reason row below. */
 .chart-canvas { width: 100%; height: 560px; touch-action: pan-y pinch-zoom; background: var(--chart-bg); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
@@ -128,16 +188,17 @@ main { max-width: 1120px; margin: 0 auto; padding: 12px 32px 40px; min-height: 6
 /* A quiet line, not a banner: a build whose tests failed still shows the same numbers. */
 .warnline { color: #8a5a00; }
 .errlog pre { margin-top: 8px; max-height: 260px; overflow: auto; text-align: left; white-space: pre-wrap; word-break: break-word; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; font-size: 11.5px; }
-@keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes fade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
 /* --- strategy change history --- */
-/* The icon sits on the hero title row, so the title stays centred with the button beside it. */
-.hero .title { justify-content: center; gap: 10px; flex-wrap: wrap; }
+/* The icon sits on the hero title row, beside the left-aligned title. */
+.hero .title { gap: 12px; flex-wrap: wrap; }
 .histbtn {
   display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px 5px 9px;
   background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
   color: var(--muted); min-height: 34px; cursor: pointer;
-  transition: color 0.15s, border-color 0.15s, box-shadow 0.15s;
+  transition: color 0.16s ease-out, border-color 0.16s ease-out, box-shadow 0.16s ease-out;
 }
 .histbtn:hover, .histbtn:focus-visible { color: var(--accent); border-color: var(--accent-fill); }
 .histbtn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -150,12 +211,12 @@ main { max-width: 1120px; margin: 0 auto; padding: 12px 32px 40px; min-height: 6
 .history li:last-child { border-left-color: transparent; padding-bottom: 2px; }
 .history li::before {
   content: ""; position: absolute; left: -6px; top: 6px; width: 10px; height: 10px;
-  border-radius: 999px; background: var(--border);
+  border-radius: 999px; background: var(--border-strong);
 }
 .history li:first-child::before { background: var(--accent-fill); }
 .history .row { align-items: baseline; gap: 8px; }
 .history .ver { font-weight: 700; font-variant-numeric: tabular-nums; }
-.history .now { font-size: 11px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; color: var(--accent); }
+.history .now { font: var(--label); letter-spacing: var(--label-track); text-transform: uppercase; color: var(--accent); }
 .history time { font-size: 12.5px; color: var(--muted); margin-left: auto; font-variant-numeric: tabular-nums; }
 .history p { color: var(--muted); margin-top: 3px; max-width: 54ch; }
 
@@ -165,8 +226,8 @@ main { max-width: 1120px; margin: 0 auto; padding: 12px 32px 40px; min-height: 6
   .pillnav { grid-column: 1 / -1; order: 3; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
   .pillnav::-webkit-scrollbar { display: none; }
   .pillnav a { white-space: nowrap; flex: 0 0 auto; }
-  .marketbar { align-items: flex-start; text-align: left; padding: 0 16px; }
-  .marketbar .dot { margin-top: 7px; flex: 0 0 auto; }
+  .marketbar { align-items: flex-start; text-align: left; padding: 8px 16px 2px; }
+  .marketbar .dot { margin-top: 6px; }
   /* iOS Safari zooms the page when an input under 16px is focused, and Apple's minimum touch target is 44px */
   input, select { font-size: 16px; }
   .seg button { min-height: 44px; }
@@ -175,12 +236,17 @@ main { max-width: 1120px; margin: 0 auto; padding: 12px 32px 40px; min-height: 6
   .tools > * { flex: 1 1 100%; }
   .tools .seg { justify-content: center; }
   .sheet { padding-bottom: calc(22px + env(safe-area-inset-bottom)); }
-  .stats { grid-template-columns: repeat(3, 1fr); gap: 8px; }
-  .stat { padding: 12px; border-radius: 16px; }
-  .stat .n { font-size: 24px; }
-  .hero h1 { font-size: 30px; }
+  /* The strip stays a strip at phone width; only the type steps down. */
+  .stats { border-radius: 14px; }
+  .stat { padding: 11px 13px 13px; }
+  .stat .tag { font-size: 10px; letter-spacing: 0.06em; }
+  .stat .n { font-size: 28px; margin-top: 3px; }
+  .hero { padding: 22px 0 18px; }
+  .hero h1 { font-size: 34px; }
+  .bigcard { padding: 20px 20px 22px; border-radius: 18px; }
+  .bigcard h2 { font-size: 24px; }
   main, .top { padding-left: 16px; padding-right: 16px; }
   .modal { padding: 0; align-items: flex-end; }
-  .sheet { border-radius: 24px 24px 0 0; max-height: 96vh; }
+  .sheet { border-radius: 22px 22px 0 0; max-height: 96vh; }
   .chart-canvas { height: 480px; }
 }

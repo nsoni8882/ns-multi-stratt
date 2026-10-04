@@ -33,8 +33,8 @@ export function Home() {
         <div className="stat"><div className="tag">Timeframe</div><div className="n">{tf === "1d" ? "Daily" : "4 hour"}</div></div>
       </div>
       <div className="big">
-        {data.strategies.map((s, i) => (
-          <article key={s.id} className={`bigcard ${i % 2 ? "two" : "one"}`}>
+        {data.strategies.map((s) => (
+          <article key={s.id} className="bigcard">
             <h2>{s.name}</h2>
             <p className="muted">{s.description}</p>
             <div className="row">
