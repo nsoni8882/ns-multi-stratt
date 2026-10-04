@@ -10,8 +10,3 @@ web/node_modules/
 web/dist/
 web/public/data/
 .DS_Store
-
-# Impeccable ships a 14MB platform binary and a font index with the skill; both are
-# re-fetched by `npx impeccable install/update`, so only the skill's text is tracked.
-.claude/skills/impeccable/scripts/bin/
-.claude/skills/impeccable/scripts/data/
