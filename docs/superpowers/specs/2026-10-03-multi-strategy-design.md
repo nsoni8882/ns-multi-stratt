@@ -1,5 +1,10 @@
 # Multi Strategy — Design Spec
 
+> **Historical.** This is the MVP spec/plan as approved on 2026-10-03, kept as the record of
+> what was decided and why. It is not the current description of the system: among other things,
+> both strategies have since stopped publishing SELL signals. For how the program works today see
+> `CLAUDE.md`, `README.md` and `research/FINDINGS.md`.
+
 Date: 2026-10-03
 Status: Approved by owner (2026-10-03), including section 6.1 visual design
 

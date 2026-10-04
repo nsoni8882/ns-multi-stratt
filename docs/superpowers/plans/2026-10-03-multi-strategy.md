@@ -1,5 +1,10 @@
 # Multi Strategy Implementation Plan
 
+> **Historical.** This is the MVP spec/plan as approved on 2026-10-03, kept as the record of
+> what was decided and why. It is not the current description of the system: among other things,
+> both strategies have since stopped publishing SELL signals. For how the program works today see
+> `CLAUDE.md`, `README.md` and `research/FINDINGS.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build and host (GitHub Pages) a site that scans every S&P 500 stock on the Daily and 4H charts with two strategies (MACD + RSI Reversal, Trend Pullback), lists current BUY/SELL signals per strategy, shows a TradingView-style chart per signal, and records every signal in a history database.

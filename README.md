@@ -14,12 +14,18 @@ A scheduled GitHub Actions workflow (after each 4H close and the daily close, aw
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-.venv/bin/python -m pytest -q                      # scanner tests (RUN_NETWORK=1 adds a live Yahoo smoke test)
+.venv/bin/python -m pytest -q                      # scanner + research tests (RUN_NETWORK=1 adds a live Yahoo smoke test)
 .venv/bin/python -m scanner.run --out web/public/data --db /tmp/signals.db   # real scan, a few minutes
 cd web && npm ci && npm test && npm run dev        # site at http://localhost:5173/ns-multi-stratt/
 ```
 
-Add a strategy: create a module in `scanner/strategies/`, register it in `scanner/strategies/__init__.py`. The site picks it up from `strategies.json`.
+Add a strategy: create a module in `scanner/strategies/`, register it in `scanner/strategies/__init__.py`. It needs `id`, `name`, `description`, `min_bars`, `chart`, `evaluate(df)`, plus `params` (every threshold that can change which bars fire — it is fingerprinted into `strategies.json`) and `history` (a newest-first tuple of `Release` entries, whose top entry carries that fingerprint). Both are asserted by the test suite, so a strategy without them, or a threshold change without a new history entry, fails the build. The site picks the strategy up from `strategies.json`.
+
+## The chart
+
+Clicking a signal opens a TradingView-style chart (Lightweight Charts v5): candles with the signal bar boxed, an RSI pane carrying that strategy's own levels, and a MACD pane. Candles default to Heikin-Ashi with a toggle for real ones — but every indicator and overlay is computed from real closes, never from the smoothed ones.
+
+The optional SMC overlay (structure breaks, order blocks, fair value gaps, premium/discount zones) is a port of [LuxAlgo's Smart Money Concepts](https://www.tradingview.com/script/CnB3fSph-Smart-Money-Concepts-LuxAlgo/) Pine v5 indicator, used under **CC BY-NC-SA 4.0**; `web/src/lib/smc.ts` carries the attribution and documents where it deliberately diverges from the original. That licence is non-commercial and share-alike, which this personal, source-available site is — keep it that way.
 
 ## Thresholds and conviction
 

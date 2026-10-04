@@ -21,10 +21,14 @@ lacks the deps. `scanner/tests/test_smoke_network.py` is skipped by default; it 
 - `scanner/` — fetch (`data.py`), indicators (`indicators.py`), strategies, export, SQLite
   history (`store.py`), trading-calendar gate (`market.py`). Entry point `run.py`.
 - `scanner/strategies/` — one module per strategy, registered in `__init__.py:STRATEGIES`.
-  Each exposes `id/name/description/min_bars/chart` and `evaluate(df) -> Signal | None`.
+  Each exposes `id/name/description/min_bars/chart/params/history` and
+  `evaluate(df) -> Signal | None`. `params` and `history` are build-asserted; see below.
 - `research/` — backtesting, kept out of the scan path. `measure.py` is the harness,
   `FINDINGS.md` is the interpretation, `results/` is generated, `.cache/` is gitignored.
 - `web/` — Vite + React + TypeScript, reads the JSON the scanner writes.
+- `docs/superpowers/` — the original dated spec and plan. A record of how the MVP was
+  decided, not the current contract: both predate the short legs being dropped. This file
+  and `research/FINDINGS.md` are the live documents.
 
 Strategies receive a DataFrame of **closed** bars only (UTC index = bar open, plus a
 `close_time` column). Never evaluate a partial bar.
@@ -61,6 +65,29 @@ the site's history overlay behind the clock icon next to the strategy name. The 
 records the `rules_version` fingerprint it shipped with and `scanner/tests/test_history.py`
 asserts it still matches, **so changing a threshold without adding a history entry fails the
 build** — that is deliberate, and it is what keeps the published history honest.
+
+**A listed signal whose premise has died is labelled, not hidden.** Both strategies fire on
+an RSI cross, so both die the same way: `base.thesis_negated` asks whether a later bar has
+crossed back past the level that triggered the signal, and the card says "Setup changed".
+Measured before it was wired up — stale BUYs with a dead premise returned *more* than intact
+ones (+1.93% vs +1.52%, n=2,717) — so dropping them was the wrong fix for what was only ever
+a labelling bug. `test_invalidation.py` pins this. It changes no backtested number: the
+harness enters at the signal bar, where no later bar exists yet.
+
+**The chart's overlays have rules of their own.** `web/src/lib/smc.ts` is a port of LuxAlgo's
+Smart Money Concepts Pine v5 indicator (CC BY-NC-SA 4.0 — keep the attribution, and keep this
+non-commercial), reduced to the six features the chart switches on. It is pure, so it is
+unit-tested, and its two deliberate divergences from the Pine are documented at the top of the
+file. Candles default to Heikin-Ashi, but **every indicator and overlay is computed from real
+closes** — HA closes are an average, and an RSI of an average is not the RSI the scanner
+signalled on. The legend says so out loud; do not "fix" it by feeding HA bars to an indicator.
+
+**The load path is deliberate, not accidental complexity.** `web/index.html` starts the data
+requests in a `<script>` before the bundle parses and `api.ts:headStart()` adopts them;
+`lib/chartViewLoader.ts` hand-rolls the chart chunk's import because a `Suspense` fallback is
+held on screen ~300ms by React's anti-flicker throttle, longer than the fetch it covers; and
+charts are warmed on hover and on idle, gated on `wantsPrefetch()` so Save-Data and 2G opt
+out. Each of these replaced a measured delay. Simplify one only with a number in hand.
 
 **Conviction tiers** (`base.py`) are `high`/`standard`/`low`, sorted strongest-first by
 `CONVICTION_RANK`. They encode measured edge, not enthusiasm.

@@ -22,9 +22,11 @@ SIGNAL_WINDOW = 3  # a signal stays listed for bars_ago 0, 1, 2
 #   Reversal SELL                  262   short lost 0.74%                  42.0
 #
 # The long legs carry an edge that grows the deeper the RSI cross is; the short legs carry
-# none, in both 2015-20 and 2021-26 and on both timeframes. Shorting is kept (it is a real
-# setup, and 12 years of a bull regime is a thin basis for deleting it) but tagged LOW so
-# the site can rank and style it as the weaker signal rather than a peer of the long side.
+# none, in both 2015-20 and 2021-26 and on both timeframes. Re-measured against a per-ticker
+# baseline on a non-overlapping sample, the Trend Pullback short came out reliably wrong
+# (-2.08%, t=-8.14) and the Reversal short worth nothing (+0.05%, t=+0.09), so both legs are
+# now off by default (`enable_short=False`) and nothing short is published. LOW survives as
+# the tier for whatever earns it next; it is not currently used by a shipped signal.
 #
 # Re-measured for Trend Pullback with a per-ticker baseline and a non-overlapping sample
 # (research/FINDINGS.md): its BUY leg is +0.11% alpha at t=+0.74 -- indistinguishable from

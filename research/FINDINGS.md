@@ -69,7 +69,8 @@ The same caution applies in reverse to the shallow cohort's +0.28%: first half +
   already want to own, not as an alpha source.
 - **SELL leg: −2.08% alpha, t=−8.14.** Decisively negative, consistent across both halves.
   This is the one statistically solid result in the run and it says the short leg loses money.
-  It stays tagged LOW; dropping it entirely is defensible.
+  (Written when it was still listed and tagged LOW. It was dropped later in the same round —
+  see "Both short legs are gone" below.)
 
 ## Round two: the structural pullback condition
 
