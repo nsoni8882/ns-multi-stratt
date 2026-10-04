@@ -23,8 +23,10 @@ lacks the deps. `scanner/tests/test_smoke_network.py` is skipped by default; it 
 - `scanner/strategies/` — one module per strategy, registered in `__init__.py:STRATEGIES`.
   Each exposes `id/name/description/min_bars/chart/params/history` and
   `evaluate(df) -> Signal | None`. `params` and `history` are build-asserted; see below.
-- `research/` — backtesting, kept out of the scan path. `measure.py` is the harness,
-  `FINDINGS.md` is the interpretation, `results/` is generated, `.cache/` is gitignored.
+- `research/` — backtesting, kept out of the scan path. `measure.py` is the per-ticker
+  harness and `cross.py`/`measure_cross.py` the cross-sectional one (rules that rank the
+  universe against itself, which no shipped strategy does). `FINDINGS.md` is the
+  interpretation, `ACCEPTANCE.md` the bar, `results/` is generated, `.cache/` is gitignored.
 - `web/` — Vite + React + TypeScript, reads the JSON the scanner writes.
 - `docs/superpowers/` — the original dated spec and plan. A record of how the MVP was
   decided, not the current contract: both predate the short legs being dropped. This file

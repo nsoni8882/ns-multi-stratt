@@ -282,6 +282,82 @@ and it has now been measured four times at between +0.13% and +0.75% with t betw
 1.75 — always the right sign, never significant. That is the thing to re-measure when there
 is more out-of-sample data, not another breakout.
 
+## Momentum, ranked across the universe: chasing the leader is the losing side of the trade
+
+Three crypto momentum rules were put forward as the basis for a third strategy: go long the
+strongest 7-day mover while price and volume keep rising; chase whichever name currently
+leads and switch when another overtakes it; and DCA into the top 20 by market cap.
+
+Only the first two have signal content — the third is an allocation policy, and its
+"shortlist" is the largest names by definition, which needs no scanner. What survives
+translation from both is the same object: a **cross-sectional momentum rank**, which this
+repo had no way to express, because both shipped strategies read one ticker at a time.
+`research/cross.py` adds the panel and `research/measure_cross.py` scores it; the rule itself
+was never written into `scanner/`, for the reason below.
+
+163 names, 12y of daily bars, 20-bar horizon, alpha per ticker against buy-and-hold. A name
+fires on the bar it *joins* the leaders. **`t by date` is the number that counts** — rule 7
+in ACCEPTANCE.md, written before this ran: a ranked rule flags many names on one morning and
+those names move together, so each date is collapsed to one observation first.
+
+| variant | n | n dates | alpha by date | t by date |
+|---|---:|---:|---:|---:|
+| **5-day leaders (rules 1 and 2 as written)** | 10,153 | 2,692 | **−0.24%** | **−1.75** |
+| 5-day + volume at or above normal | 8,244 | 2,578 | −0.29% | −1.87 |
+| 5-day + price above its 50-bar mean | 8,528 | 2,633 | −0.38% | −2.65 |
+| 5-day + the move still accelerating | 9,759 | 2,680 | −0.25% | −1.76 |
+| 5-day, all three confirmations | 6,749 | 2,449 | −0.24% | −1.51 |
+| 5-day, top 1% only (rule 2's single leader) | 2,787 | 2,138 | −0.51% | −2.09 |
+| 21-day leaders | 5,256 | 2,535 | −0.35% | −2.05 |
+| 63-day leaders | 3,265 | 2,162 | −0.51% | −2.62 |
+| 126-day leaders | 2,294 | 1,807 | −0.52% | −2.31 |
+| 12-1 momentum (252 bars, skipping the last 21) | 1,776 | 1,549 | +0.22% | +0.84 |
+
+**The 7-day rule is not merely unprofitable here, it is the wrong sign, and every
+confirmation the rules ask for makes it worse.** Requiring price to keep rising takes it from
+−0.24% to −0.38% (t −2.65). Requiring volume to keep rising makes it worse. Taking only the
+single strongest name — rule 2's leader — makes it worse again, −0.51%. Buying last week's
+strongest S&P name underperformed simply holding that name by about a quarter of a percent
+over the next month, and the stricter the reading of "strongest", the more it lost.
+
+This is not a surprise and it is not a crypto-versus-stocks quibble about volatility. A
+one-week horizon in equities is the **short-term reversal** window: last week's winners are
+systematically next week's laggards, which is one of the oldest documented effects in the
+cross-section. Momentum in stocks is an *intermediate-horizon* phenomenon — the textbook
+definition is a 12-month lookback that deliberately skips the most recent month precisely
+because the last few weeks reverse. Measured here, that definition is the only one of the ten
+that comes out positive at all: +0.22%, t +0.84. Right sign, no significance, and it fails
+on its own terms.
+
+**The one number that looked shippable isn't.** The top 1% of 126-day leaders scored +1.16%
+at t = +2.45 on 627 dates, which is close enough to the bar to be worth saying out loud why
+it does not pass:
+
+* t by date 2.45 is under the 2.5 in ACCEPTANCE.md, and that bar exists because fifteen
+  variants were scored on one sample.
+* n independent is 322, under the 500 in rule 5.
+* It is **not monotone in the threshold**, which is the tell. The top 5% of the *same*
+  lookback is −0.52%. An effect that is strongly positive in the top 1% and negative in the
+  top 5% of the same ranking is not an effect, it is a thin tail of a noisy distribution.
+* It is negative in 5 of its 12 years, and dropping its best year takes it to +0.80%,
+  t +1.64.
+* Two post-hoc variants were then run to see whether it generalised to the adjacent
+  definition — the top 1% of 12-1 momentum, which the declared grid had not crossed. It does
+  not: +0.37%, t +0.62, and **negative in the first half**. These two are labelled
+  `posthoc-` in the variants list because they were chosen after seeing the table, and their
+  bar is higher for that reason.
+
+**Nothing ships. The site keeps two strategies.** No module was added to `scanner/` at all
+this time: the rule does not exist outside the research harness, so there is nothing to
+register and nothing to keep in step. What was kept is the harness, because it is the piece
+that was genuinely missing — `cross.py` can rank the universe on any definition, and rule 7
+is now wired into the reporting so the next ranked idea gets collapsed by date automatically.
+
+One guard this run added by failing first: every boolean panel is forced to `bool` dtype. A
+NaN anywhere makes a pandas boolean frame object-dtype, and `~` on an object column is
+bitwise arithmetic on the underlying ints, so `not False` comes out as −1, which is truthy.
+It produced a plausible-looking table rather than an error. `test_cross.py` pins it.
+
 ## Standing guards
 
 Two things from these runs should stay regardless of what is tested next: score the
