@@ -57,6 +57,26 @@ An unmeasured third strategy is worse than no third strategy: it would be the on
 the site with no evidence behind it, which is the property that makes the other two worth
 reading.
 
+## Rule 7, for a strategy that ranks the universe (written 2026-10-04, before Relative Strength was measured)
+
+Everything above assumes signals are independent once their forward windows do not overlap,
+which is true for a rule that reads one ticker at a time. A cross-sectional rule breaks that
+assumption in a new way: it fires on *many names on the same day*, and those names rise and
+fall together. Forty leaders flagged on one morning is close to one observation, not forty,
+and the existing per-ticker thinning will not catch it — it thins within a ticker, not across
+the market.
+
+So a ranked strategy also has to clear:
+
+7. **t ≥ 2.5 on the date-collapsed sample.** Average the alpha of every signal that fired on
+   the same date into one number per date, then take the t-stat across dates. That is the
+   sample size the market actually provided. Where this differs from the per-ticker
+   independent t, the date-collapsed one wins, and `n dates` is reported next to it.
+
+This is the same class of mistake as the overlap and the single-year traps already guarded in
+`measure.py`, found one layer up, and it is the one most likely to make a ranked rule look
+significant when it is one bull market seen forty times at once.
+
 ## The bar for the news judgment (written 2026-10-03, before any judgments existed)
 
 `research/news_judgment.py` records a model's reading of the news behind each live signal. It
