@@ -28,6 +28,35 @@ the t >= 2.5 bar stands, because it is not a preference about how many signals t
 the protection against shipping a result that is noise. Wanting fewer, better signals is not a
 reason to lower the standard of evidence for what "better" means.
 
+## The bar for a whole new strategy (written 2026-10-04, before Volume Breakout was measured)
+
+The five rules above compare a variant against the rule it would replace. A new strategy has
+nothing to replace, so "better than shipped" is not available and the bar has to be written
+differently — before its numbers exist, for the usual reason.
+
+A third strategy gets published only if **all six** hold on its BUY leg:
+
+1. **Positive alpha** on the non-overlapping sample, against the per-ticker buy-and-hold
+   baseline. Beating cash is not the test; beating holding the same name is.
+2. **t indep ≥ 2.5.** Same bar, same reason, and it is the one that decides this.
+3. **Positive in both halves** of the sub-period split, and meaningfully so in the second.
+   An edge that lived until 2020 and died is a historical note, not a screener.
+4. **No single year carries it.** Drop the best year; alpha stays positive.
+5. **n indep ≥ 500.**
+6. **It is not one of the other two in disguise.** If most of its signals land within a few
+   bars of a Trend Pullback or Reversal signal on the same name, it is a relabelling that
+   adds a third list without adding information, and it does not ship.
+
+Rule 6 is new here and exists because the obvious volume strategies are built from the same
+RSI and trend conditions the other two already use.
+
+If a candidate fails, it is recorded in `FINDINGS.md` as measured-and-rejected with its
+numbers, the module stays in the tree with its variants intact so the result can be
+reproduced, and it is simply not registered in `STRATEGIES`. The site keeps two strategies.
+An unmeasured third strategy is worse than no third strategy: it would be the only list on
+the site with no evidence behind it, which is the property that makes the other two worth
+reading.
+
 ## The bar for the news judgment (written 2026-10-03, before any judgments existed)
 
 `research/news_judgment.py` records a model's reading of the news behind each live signal. It
