@@ -88,9 +88,10 @@ export function StrategyPage() {
 
       <div className="tools">
         <div className="seg" role="group" aria-label="Signal filter">
-          {/* The SELL tab appears only when there are SELLs to show. Both strategies are
-              long-only since their short legs were measured, so this is normally two tabs,
-              and it comes back on its own if a short leg ever earns its place again. */}
+          {/* The SELL tab appears only when there are SELLs to show, so the control follows
+              the data rather than a claim about the rules. Both strategies publish shorts
+              again, at low conviction and under observation, so expect three tabs where a
+              scan found any. */}
           {(hasSells ? (["ALL", "BUY", "SELL"] as const) : (["ALL", "BUY"] as const)).map((s) => (
             <button key={s} type="button" aria-pressed={filters.side === s} onClick={() => setFilters({ ...filters, side: s })}>
               {s === "ALL" ? "All" : s}

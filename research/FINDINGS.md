@@ -197,9 +197,27 @@ result in this repo by a distance: negative in 9 of 11 years, win rate 34–47% 
 them, with only 2021 and a +0.54% 2022 on the other side. The reversal's short leg is simply
 nothing: what little it has comes from one month of 2020.
 
-Both are now off by default (`enable_short=False`), kept as `with-shorts` variants so these
-numbers can be reproduced. The lists lost signals and gained the property that every signal
-on them has measured positive expectancy — which is the trade the owner asked for.
+Both were switched off on the strength of that table.
+
+### ...and both are published again, deliberately, as of 2026-10-04
+
+The owner asked for the short legs back so the live signals can be watched and tested against
+the numbers above. **Nothing re-measured in their favour. This change does not clear
+`ACCEPTANCE.md` and is not claimed to.** It is a monitoring decision, not a research result,
+and the table above is still what the evidence says.
+
+What holds the honesty of it:
+
+- Every SELL is pinned to `LOW` conviction in `rule_side` — the tier cannot be earned by a
+  short, whatever its rally height, because `depth_tiers` only grades the long leg.
+- Both strategies' `description` and the newest `history` entry say in plain English that the
+  SELLs lost money in backtest and are listed to be watched, not traded.
+- `enable_short=True` is now the default, and `VARIANTS["long-only"]` is the configuration
+  that reproduces the measurements in this section. The `with-shorts` variant is retained as
+  the label the published rule runs under.
+
+Re-measuring is a config swap, not a code change: compare `shipped` against `long-only`. If
+the live SELLs track the −2.08%, turn the flag back off.
 
 ## Open, unmeasured: does the *reason* for a dip matter? (news judgment)
 

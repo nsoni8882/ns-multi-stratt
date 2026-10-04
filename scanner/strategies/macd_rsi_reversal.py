@@ -43,9 +43,10 @@ class ReversalConfig:
     rsi_low_standard: float = RSI_LOW_STANDARD
     rsi_high: float = RSI_HIGH
     # The short leg measures +0.05% over 20 bars (t = +0.09, n indep 239): indistinguishable
-    # from doing nothing, and what little it has comes from one month of 2020. Off by default,
-    # kept so the measurement can be reproduced.
-    enable_short: bool = False
+    # from doing nothing, and what little it has comes from one month of 2020. It is published
+    # anyway, on request, so it can be watched live against that number -- it still fails
+    # ACCEPTANCE.md and is pinned to LOW conviction. `VARIANTS["long-only"]` turns it off.
+    enable_short: bool = True
     # The exhaustion story this strategy tells predicts a volume climax at the low: the last
     # holders giving up is what ends the decline. It has never been tested here.
     min_capitulation_rvol: "float | None" = None  # loudest bar of the deep window, as a multiple
@@ -191,7 +192,8 @@ def rule_side(hist: pd.Series, lo: pd.Series, hi: pd.Series, r: pd.Series, i: in
 
 VARIANTS = {
     "shipped": DEFAULT_CONFIG,
-    "with-shorts": ReversalConfig(enable_short=True),  # the leg that was dropped
+    "with-shorts": ReversalConfig(enable_short=True),  # what ships today
+    "long-only": ReversalConfig(enable_short=False),  # the leg the measurement prefers
     # The exhaustion thesis, tested directly: was there a volume climax into the low?
     "capitulation-1.5x": ReversalConfig(min_capitulation_rvol=1.5),
     "capitulation-2x": ReversalConfig(min_capitulation_rvol=2.0),
@@ -208,9 +210,9 @@ class MacdRsiReversal:
     name = "MACD + RSI Reversal"
     description = (
         "BUY when the MACD histogram climbs back from a deep low while RSI(14) crosses back "
-        "above 20 (strongest) or 25. Long only: the mirror setup — histogram falling from a "
-        "deep high with RSI crossing back below 80 — measured no edge at all over 12 years, "
-        "so it is not published."
+        "above 20 (strongest) or 25. The mirror setup — histogram falling from a deep high "
+        "with RSI crossing back below 80 — is published as a SELL, but always at low "
+        "conviction: it measured no edge at all over 12 years, and is listed only to be watched."
     )
     min_bars = MIN_BARS
     # The same levels are used on 1d and 4H. Checked, not assumed: on 4H a cross back above
@@ -218,12 +220,17 @@ class MacdRsiReversal:
     chart = {"rsi_levels": [RSI_LOW, RSI_LOW_STANDARD, RSI_HIGH], "macd_deep": True, "emas": False}
     # Newest first. See TrendPullback.history -- the top fingerprint is build-asserted.
     history = (
+        Release("1.5.0", "2026-10-04",
+                "SELL signals are back, on purpose and under watch. Nothing re-measured in "
+                "their favour — over 12 years they were still worth nothing after costs "
+                "— so every one is marked low conviction and listed last. They are here to "
+                "be tracked live, not to be traded.",
+                fingerprint="5ac10f9939a9"),
         Release("1.4.0", "2026-10-04",
                 "The line explaining a signal now describes that stock: how far it fell, how "
                 "deep RSI went, and how many bars the MACD histogram has been turning. It no "
                 "longer says selling was exhausted — nothing in these rules looks at volume, "
-                "and every volume test made the results worse.",
-                fingerprint="12d3ca5cf02a"),
+                "and every volume test made the results worse."),
         Release("1.3.0", "2026-10-03",
                 "SELL signals are gone. Over 12 years they were worth nothing measurable — "
                 "a coin flip after costs, with what little they had coming from a single "

@@ -56,8 +56,10 @@ class TrendPullbackConfig:
     rsi_sell_level: float = RSI_SELL_LEVEL
     # The short leg does not just lack an edge, it is reliably wrong: shorting these returned
     # -2.08% over 20 bars (t = -8.14, n indep 1,487, win 43.5%) and was negative in 9 of 11
-    # years. It is off by default and kept only so the measurement can be reproduced.
-    enable_short: bool = False
+    # years. It is published anyway, on request, so the leg can be watched live against that
+    # number -- NOT because anything re-measured in its favour. It fails ACCEPTANCE.md and is
+    # pinned to LOW conviction. Turning it back off is `VARIANTS["long-only"]`.
+    enable_short: bool = True
     # Trend-quality gate: the dominant failure mode of "above the 200 EMA" is price chopping
     # just above the line, where an RSI dip is noise rather than a pullback into a trend.
     adx_min: "float | None" = None  # None leaves the gate off
@@ -92,7 +94,8 @@ DEFAULT_CONFIG = TrendPullbackConfig()
 # Variants wired up for measurement, keyed by the label the harness reports them under.
 VARIANTS = {
     "shipped": DEFAULT_CONFIG,
-    "with-shorts": TrendPullbackConfig(enable_short=True),  # the leg that was dropped
+    "with-shorts": TrendPullbackConfig(enable_short=True),  # what ships today
+    "long-only": TrendPullbackConfig(enable_short=False),  # the leg the measurement prefers
     "rsi35": TrendPullbackConfig(rsi_buy_level=35, rsi_sell_level=65),
     "adx20": TrendPullbackConfig(adx_min=20),
     "adx25": TrendPullbackConfig(adx_min=25),
@@ -276,9 +279,9 @@ class TrendPullback:
     name = "Trend Pullback"
     description = (
         "BUY when price is in an uptrend (above the 200 EMA, with the 50 EMA above it) "
-        "and RSI(14) dips below 40 then crosses back above it. Long only: the mirror setup "
-        "in a downtrend was backtested over 12 years and lost money reliably, so it is not "
-        "published."
+        "and RSI(14) dips below 40 then crosses back above it. The mirror setup in a "
+        "downtrend is published as a SELL, but always at low conviction: over 12 years "
+        "shorting it lost money reliably, and it is listed only to be watched."
     )
     min_bars = MIN_BARS
     # The same 40/60 levels are used on 1d and 4H. Checked, not assumed: on 4H the BUY leg
@@ -292,11 +295,16 @@ class TrendPullback:
     # Newest first. Add an entry at the top whenever `params` changes -- the fingerprint on
     # the top entry is asserted against the live one, so the build fails otherwise.
     history = (
+        Release("1.6.0", "2026-10-04",
+                "SELL signals are back, on purpose and under watch. They are not better "
+                "than when they were removed — shorting them still lost 2.08% over the "
+                "next 20 days across 12 years — so every one is marked low conviction and "
+                "listed last. They are here to be tracked live, not to be traded.",
+                fingerprint="939d8b5807d6"),
         Release("1.5.0", "2026-10-04",
                 "The line explaining a signal now describes that stock: how many bars RSI "
                 "spent under the trigger level, how deep the dip went, and how far price "
-                "sits above the 50 and 200 day averages.",
-                fingerprint="0ea89a61ddfe"),
+                "sits above the 50 and 200 day averages."),
         Release("1.4.0", "2026-10-03",
                 "SELL signals are gone. Over 12 years, shorting them lost 2.08% in the next "
                 "20 days and won less than 44% of the time, in 9 years out of 11 — so the "
@@ -376,10 +384,16 @@ class TrendPullback:
                 # long it lasted, and how far price sits above each mean. No gate reads
                 # them, so they are not in `params` and cannot move a signal.
                 close, e50, e200 = ind["close"], ind["ema50"], ind["ema200"]
+                # A SELL is the mirror of a BUY, so the run that precedes it sits *above*
+                # the level. Both helpers walk back through sub-level bars, so they are fed
+                # the negated series and level and the extreme is flipped back: the "trough"
+                # of a SELL is the peak of its rally. Measured on the raw series, a SELL
+                # would always report 0 bars and the previous bar's RSI.
+                sgn = 1.0 if side == "BUY" else -1.0
                 details = {"rsi": ind["r"].iloc[i], "rsi_level": level,
                            "ema50": e50.iloc[i], "ema200": e200.iloc[i],
-                           "rsi_trough": dip_depth(ind["r"], i, level),
-                           "dip_bars": dip_length(ind["r"], i, level),
+                           "rsi_trough": sgn * dip_depth(sgn * ind["r"], i, sgn * level),
+                           "dip_bars": dip_length(sgn * ind["r"], i, sgn * level),
                            "above_ema50": close.iloc[i] / e50.iloc[i] - 1.0,
                            "above_ema200": close.iloc[i] / e200.iloc[i] - 1.0}
                 if ind["adx_series"] is not None:

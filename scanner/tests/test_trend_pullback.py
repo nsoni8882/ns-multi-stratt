@@ -26,12 +26,12 @@ def test_rule_buy_blocked_without_uptrend():
 
 
 def test_rule_sell_in_downtrend_when_rsi_crosses_below_60():
-    """The mirror still works -- it is simply switched off in the shipped rule, because
-    shorting these measured -2.08% over 12 years (t -8.14). See research/FINDINGS.md."""
+    """The mirror is published again, but never above LOW: shorting these measured -2.08%
+    over 12 years (t -8.14), so the tier is pinned. See research/FINDINGS.md."""
     close, ema50, ema200 = series([90, 90]), series([95, 95]), series([100, 100])
-    assert rule_side(close, ema50, ema200, series([62, 59]), 1) is None
+    assert rule_side(close, ema50, ema200, series([62, 59]), 1) == ("SELL", LOW)
     assert rule_side(close, ema50, ema200, series([62, 59]), 1,
-                     cfg=VARIANTS["with-shorts"]) == ("SELL", LOW)
+                     cfg=VARIANTS["long-only"]) is None
 
 
 def test_rule_no_signal_without_cross():
@@ -59,10 +59,15 @@ def test_evaluate_sell_on_rally_in_downtrend():
     dn = 100 * np.cumprod(1 - 0.002 - 0.003 * np.sin(np.arange(420) / 3))
     rally = dn[-1] * np.cumprod(np.full(3, 1 + 0.015))
     closes = list(np.concatenate([dn, rally, [rally[-1] * 0.99]]))
-    assert TrendPullback().evaluate(make_df(closes)) is None  # long-only by default
-    sig = TrendPullback(VARIANTS["with-shorts"]).evaluate(make_df(closes))
+    assert TrendPullback(VARIANTS["long-only"]).evaluate(make_df(closes)) is None
+    sig = TrendPullback().evaluate(make_df(closes))
     assert sig is not None and sig.side == "SELL" and sig.bars_ago == 0
     assert sig.conviction == LOW  # the short leg showed no measurable edge in backtesting
+    # The rally the SELL resolves is measured on the mirrored series, so the card can
+    # describe it. Read off the raw series these would be 0 bars and the previous close.
+    assert sig.details["dip_bars"] >= 1
+    assert sig.details["rsi_trough"] >= sig.details["rsi_level"]
+    assert sig.details["above_ema200"] < 0  # price is below the trend, as a downtrend requires
 
 
 def test_needs_400_bars():

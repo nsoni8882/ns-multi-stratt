@@ -70,10 +70,10 @@ def test_rule_buy_needs_rsi_cross_on_signal_bar():
 
 def test_rule_sell_is_the_mirror_and_low_conviction():
     hist, lo, hi, rsi = buy_inputs()
-    # Long-only by default: the mirror is kept, and measured at +0.05% (t +0.09), so it is
-    # only reachable under the variant that exists to reproduce that measurement.
-    assert rule_side(-hist, -hi, -lo, 100 - rsi, 9) is None
-    assert rule_side(-hist, -hi, -lo, 100 - rsi, 9, cfg=VARIANTS["with-shorts"]) == ("SELL", LOW)
+    # Published again, but pinned to LOW: the leg measured +0.05% (t +0.09), which is
+    # nothing, and `long-only` is the variant that reproduces that measurement.
+    assert rule_side(-hist, -hi, -lo, 100 - rsi, 9) == ("SELL", LOW)
+    assert rule_side(-hist, -hi, -lo, 100 - rsi, 9, cfg=VARIANTS["long-only"]) is None
 
 
 def test_sell_has_no_standard_tier():
