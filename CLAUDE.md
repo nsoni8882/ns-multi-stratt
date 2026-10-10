@@ -1,16 +1,19 @@
 # NS-Multi-Stratt
 
 A personal multi-strategy stock screener. A Python scanner sweeps the S&P 500 on two
-timeframes, writes static JSON, and a React site renders it. No server, no live trading.
+timeframes, writes static JSON, and a React site renders it. No server. Two of the three
+strategies only publish lists; the third (`trader/`) submits orders to an Alpaca **paper**
+account. No real money anywhere.
 
 ## Commands
 
 ```bash
-.venv/bin/python -m pytest scanner/tests research/tests -q   # Python tests (~1s)
+.venv/bin/python -m pytest scanner/tests research/tests trader/tests -q   # Python tests (~50s)
 cd web && npm test -- --run                                  # web tests (~2s)
 .venv/bin/python -m scanner.run --out web/public/data --db signals.db   # full scan (network)
 .venv/bin/python -m research.measure                         # backtest variants (network, cached)
 .venv/bin/python -m research.news_judgment --dry-run         # news state for live signals, no API call
+ALPACA_KEY_ID=... ALPACA_SECRET_KEY=... .venv/bin/python -m trader.run --dry-run  # decide, place nothing
 ```
 
 Always use `.venv/bin/python` — there is no activated environment, and the system Python
@@ -27,6 +30,11 @@ lacks the deps. `scanner/tests/test_smoke_network.py` is skipped by default; it 
   harness and `cross.py`/`measure_cross.py` the cross-sectional one (rules that rank the
   universe against itself, which no shipped strategy does). `FINDINGS.md` is the
   interpretation, `ACCEPTANCE.md` the bar, `results/` is generated, `.cache/` is gitignored.
+- `trader/` — the only thing here that *acts*: it places market-on-close orders for AMZN and
+  AAPL on an Alpaca **paper** account, on the RSI(2) reversion rule. Stdlib only, hardcoded to
+  the paper endpoint, its own `trade.yml` workflow on a 15:25 ET cron. `params.py` holds every
+  threshold and fingerprints them, `ACCEPTANCE.md` holds the bar, `evaluate.py` compares the
+  live record to the backtest. `research/rsi2/` is the research it came from.
 - `web/` — Vite + React + TypeScript, reads the JSON the scanner writes.
 - `docs/superpowers/` — the original dated spec and plan. A record of how the MVP was
   decided, not the current contract: both predate the short legs being dropped. This file
@@ -91,6 +99,25 @@ held on screen ~300ms by React's anti-flicker throttle, longer than the fetch it
 charts are warmed on hover and on idle, gated on `wantsPrefetch()` so Save-Data and 2G opt
 out. Each of these replaced a measured delay. Simplify one only with a number in hand.
 
+**The trader is deliberately isolated from the scanner.** `scan.yml` re-runs on every push to
+`main` because an algorithm change must regenerate the published lists — and that is exactly
+why order submission does not live there, since the same trigger would mean merging code
+submits orders. `trade.yml` has no `push` trigger, its tests *block* the job rather than being
+folded into a health file, and it never deploys: it writes `paper-trading.json` to the `data`
+branch and `scan.yml` copies it into the build, so there stays one path to Pages.
+`trader/tests/test_workflow.py` pins all of that, because it lives in YAML where nothing else
+would catch it being edited away. Sizing comes off `equity` and never off the 4x `buying_power`
+the paper account reports. A rejected order is logged and left, never retried — a retry can
+land past Alpaca's 15:50 ET cutoff or re-submit an order the rule no longer wants.
+
+**One rule, three implementations, two tests holding them together.** The live rule is
+stdlib-only (no pandas on the order path), `research/rsi2/rsi2_edge_backtest.py` is pandas, and
+`research/rsi2/rsi2_reversion_strategy.pine` is what you can check on a TradingView chart.
+`test_rule_matches_backtest.py` pins the first two to identical entry signals over ~6,700 bars
+per symbol, and `test_rule_matches_pine.py` pins the live rule to the Pine strategy trade for
+trade (AMZN 199, AAPL 214). Change the rule and both must still pass, or the chart and the bot
+have quietly diverged.
+
 **Conviction tiers** (`base.py`) are `high`/`standard`/`low`, sorted strongest-first by
 `CONVICTION_RANK`. They encode measured edge, not enthusiasm.
 
@@ -104,7 +131,9 @@ There is no server and no error tracker, so "production" means the GitHub Action
 JSON it published. Three places to look, in this order:
 
 ```bash
-gh issue list --label scan-failure                  # a failed run says so here
+gh issue list --label scan-failure                  # a failed scan says so here
+gh issue list --label paper-trade-failure           # a failed trading run says so here
+git show origin/data:paper_runs.jsonl | tail -5     # every trading run, trade or no trade
 gh run list --workflow=scan.yml --limit 10          # did the daily scans pass?
 gh run view <id> --log-failed                       # the failing step's output
 curl -s https://<owner>.github.io/<repo>/data/health.json | python -m json.tool
