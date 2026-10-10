@@ -10,3 +10,7 @@ web/node_modules/
 web/dist/
 web/public/data/
 .DS_Store
+
+# local paper-trading state (the real one lives on the data branch)
+paper_state.json
+trader/.cache/
