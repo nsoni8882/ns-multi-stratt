@@ -103,6 +103,10 @@ class Alpaca:
             if not token:
                 return out
 
+    def order(self, order_id: str) -> dict:
+        """One order by id, for finding out what the closing auction actually did with it."""
+        return self._call(TRADING, f"/v2/orders/{order_id}")
+
     def submit(self, symbol: str, side: str, qty: int) -> dict:
         return self._call(TRADING, "/v2/orders", method="POST",
                           body={"symbol": symbol, "qty": str(int(qty)), "side": side,

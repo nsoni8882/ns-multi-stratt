@@ -25,6 +25,18 @@ MAX_CONCURRENT = 2
 
 LOOKBACK_DAYS = 420  # calendar days requested; ~289 sessions, enough for SMA(200)
 
+# When the run is allowed to submit, in minutes before the close. Both are gates -- they
+# decide whether an order is placed -- so they live in params() and are fingerprinted, per
+# the convention in CLAUDE.md.
+#
+# The lower bound: Alpaca rejects market-on-close orders after 15:50 ET.
+# The upper bound is the one that cost a bug. Cron is in UTC, so 19:25 UTC is 15:25 EDT in
+# summer but 14:25 EST in winter -- an open market with 95 minutes still to run. The rule is
+# justified on a ~15:25 partial bar, so deciding an hour and a half earlier is a different
+# strategy from the backtested one. The winter morning wake-up now stands down instead.
+CUTOFF_MINUTES = 10
+MAX_MINUTES_TO_CLOSE = 45
+
 
 @dataclass(frozen=True)
 class Release:
@@ -50,6 +62,8 @@ def params() -> dict:
         "slice_pct": SLICE_PCT,
         "max_concurrent": MAX_CONCURRENT,
         "symbols": SYMBOLS,
+        "cutoff_minutes": CUTOFF_MINUTES,
+        "max_minutes_to_close": MAX_MINUTES_TO_CLOSE,
     }
 
 
@@ -66,6 +80,12 @@ def current_version(history: "tuple[Release, ...]") -> str:
 # Newest first, like the strategies. The top entry's fingerprint is build-asserted in
 # trader/tests/test_params.py, so changing a threshold without adding an entry fails.
 HISTORY = (
+    Release("1.1.0", "2026-10-10",
+            "The bot now stands down if it wakes up more than 45 minutes before the close. "
+            "Its wake-up times are set in UTC, so through the winter one of them landed an "
+            "hour and a half early, and a decision taken that far from the close is not the "
+            "one this strategy was tested on.",
+            fingerprint="f5e0af26ffd9"),
     Release("1.0.0", "2026-10-10",
             "First version. Buys AMZN or AAPL when RSI(2) falls under 10 while the price "
             "is still above its 200-day average, and sells when RSI(2) recovers past 65 or "

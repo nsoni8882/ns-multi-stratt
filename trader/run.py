@@ -20,8 +20,25 @@ from trader.ledger import append_jsonl
 from trader.rule import decide
 from trader.sizing import shares_for
 
-CUTOFF_MINUTES = 10  # Alpaca rejects `cls` orders after 15:50 ET; stand down inside this
-EARLY_WARNING_MINUTES = 90  # the partial bar is a poor proxy for the close this far out
+# Both bounds are declared in params.py, because each decides whether an order is placed.
+CUTOFF_MINUTES = params.CUTOFF_MINUTES
+MAX_MINUTES_TO_CLOSE = params.MAX_MINUTES_TO_CLOSE
+
+
+def provenance() -> dict:
+    """Which Actions run produced this row. The Actions log is deleted after 90 days and the
+    ledger is not, so without this a row cannot be traced back to the run that wrote it.
+    Mirrors what scanner/ledger.py records for the scan."""
+    env = os.environ
+    run_id = env.get("GITHUB_RUN_ID", "")
+    repo = env.get("GITHUB_REPOSITORY", "")
+    server = env.get("GITHUB_SERVER_URL", "https://github.com")
+    return {
+        "run_id": run_id,
+        "sha": env.get("GITHUB_SHA", "")[:12],
+        "event": env.get("GITHUB_EVENT_NAME", "local"),
+        "url": f"{server}/{repo}/actions/runs/{run_id}" if run_id and repo else "",
+    }
 
 
 def log(*a):
@@ -35,20 +52,23 @@ def _finish(record, data_dir, st, state_file):
 
 
 def run(api, *, live: bool, data_dir, today: "str | None" = None) -> dict:
+    """Entry point for one pass. Never returns without writing a ledger row."""
     data_dir = Path(data_dir)
     state_file = data_dir / "paper_state.json"
     st = state.load(state_file)
 
     acct = api.account()
     equity, buying_power = float(acct["equity"]), float(acct["buying_power"])
+    cash = float(acct.get("cash") or 0.0)
     clock = api.clock()
     today = today or clock["timestamp"][:10]
     opening = state.opening_balance(st, equity)
     record = {"at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
               "date": today, "mode": "live" if live else "dry-run",
               "rules_version": params.rules_version(), "equity": equity,
-              "opening_balance": opening, "orders": 0, "late": False,
-              "skip_reason": None, "decisions": {}, "errors": []}
+              "opening_balance": opening, "orders": 0, "late": False, "early": False,
+              "skip_reason": None, "decisions": {}, "errors": [], "crashed": False}
+    record |= provenance()
 
     if not clock["is_open"]:
         record["skip_reason"] = "market closed"
@@ -63,21 +83,37 @@ def run(api, *, live: bool, data_dir, today: "str | None" = None) -> dict:
                                  "cls orders would be rejected")
         log(record["skip_reason"])
         return _finish(record, data_dir, st, state_file)
-    if left > EARLY_WARNING_MINUTES:
-        log(f"WARNING: {left:.0f} minutes to the close. The partial daily bar is a poor "
-            "proxy for the closing price this early; prefer 15:25 ET.")
+    if left > MAX_MINUTES_TO_CLOSE:
+        # The winter cron fires at 14:25 ET. Deciding on a bar that far from the close is a
+        # different strategy from the backtested one, so stand down and say why.
+        record["early"] = True
+        record["skip_reason"] = (f"{left:.0f} minutes to the close is too early; this rule "
+                                 f"decides within {MAX_MINUTES_TO_CLOSE} minutes of it")
+        log(record["skip_reason"])
+        return _finish(record, data_dir, st, state_file)
 
-    positions = api.positions()
-    open_orders = api.open_order_symbols()
-    cal_start = (datetime.fromisoformat(today) - timedelta(days=90)).strftime("%Y-%m-%d")
-    calendar = api.calendar(cal_start, today)
+    try:
+        positions = api.positions()
+        open_orders = api.open_order_symbols()
+        cal_start = (datetime.fromisoformat(today) - timedelta(days=90)).strftime("%Y-%m-%d")
+        calendar = api.calendar(cal_start, today)
+    except Exception as e:  # noqa: BLE001 -- a durable row matters more than the type
+        # Without this the run dies here and leaves nothing but an Actions log.
+        record["crashed"] = True
+        record["errors"].append({"stage": "setup", "error": str(e)})
+        log(f"setup failed -- {e}")
+        _finish(record, data_dir, st, state_file)
+        raise
     n_held = len(positions)
     st.setdefault("positions", {})
 
     for symbol in params.SYMBOLS:
         try:
             bars = api.daily_closes(symbol)
-        except AlpacaError as e:
+        except Exception as e:  # noqa: BLE001 -- a timeout must skip one symbol, not the run
+            # Deliberately broader than AlpacaError: only HTTPError is converted, so a read
+            # timeout or a malformed body would otherwise escape and take the whole run down
+            # after the other symbol had already traded.
             record["errors"].append({"symbol": symbol, "stage": "data", "error": str(e)})
             log(f"{symbol}: data error, skipped -- {e}")
             continue
@@ -107,7 +143,7 @@ def run(api, *, live: bool, data_dir, today: "str | None" = None) -> dict:
             if st["positions"].get(symbol, {}).get("entered_on") == today:
                 row["skipped"] = "already entered today"
                 continue
-            qty, refusal = shares_for(equity, d.price, buying_power, n_held)
+            qty, refusal = shares_for(equity, d.price, buying_power, n_held, cash)
             if refusal:
                 row["skipped"] = refusal
                 log(f"  entry refused -- {refusal}")
@@ -121,12 +157,13 @@ def run(api, *, live: bool, data_dir, today: "str | None" = None) -> dict:
 
         try:
             order = api.submit(symbol, "buy" if d.action == "buy" else "sell", qty)
-        except AlpacaError as e:
+        except Exception as e:  # noqa: BLE001 -- same reasoning as the data call above
             # Deliberately not retried: a retry could land past the cutoff, or re-submit an
             # order the rule no longer wants. Log it and leave the symbol as it is.
-            record["errors"].append({"symbol": symbol, "stage": "order", "status": e.status,
+            status = getattr(e, "status", None)
+            record["errors"].append({"symbol": symbol, "stage": "order", "status": status,
                                      "error": str(e)})
-            row["skipped"] = f"order rejected: {e.status}"
+            row["skipped"] = f"order rejected: {status if status else type(e).__name__}"
             log(f"  order rejected -- {e}")
             continue
 
@@ -148,6 +185,9 @@ def run(api, *, live: bool, data_dir, today: "str | None" = None) -> dict:
         if d.action == "buy":
             st["positions"][symbol] = {"entry_date": today, "entered_on": today,
                                        "entry_price": d.price, "qty": qty}
+            # The second symbol in this same run must not be sized against cash the first
+            # one has already spent.
+            cash = max(0.0, cash - qty * d.price)
             n_held += 1
         else:
             st["positions"].pop(symbol, None)

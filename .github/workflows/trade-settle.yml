@@ -1,0 +1,95 @@
+name: Settle paper trades
+
+# Market-on-close orders are submitted at 15:25 and do not fill until the 16:00 auction, so
+# everything the 15:25 run records about a fill is unknown: no price, no quantity, status
+# "accepted". This runs after the close to ask the broker what actually happened, append the
+# corrected rows, and rebuild the dashboard against the real closing marks.
+on:
+  schedule:
+    - cron: "20 20 * * 1-5" # 16:20 EDT
+    - cron: "20 21 * * 1-5" # 16:20 EST
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: paper-trade # shares the trading group: never touch the ledger concurrently
+  cancel-in-progress: false
+
+jobs:
+  settle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Check out the ledgers (data branch)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if git ls-remote --exit-code --heads "$REMOTE" data >/dev/null 2>&1; then
+            git clone --quiet --branch data --single-branch --depth 1 "$REMOTE" history
+          else
+            echo "no data branch yet; nothing has traded"; exit 0
+          fi
+
+      - run: pip install -r requirements.txt
+
+      - name: Ask the broker what filled
+        env:
+          ALPACA_KEY_ID: ${{ secrets.ALPACA_KEY_ID }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+        run: python -m trader.reconcile --data-dir history
+
+      - name: Rebuild the dashboard at the close
+        env:
+          ALPACA_KEY_ID: ${{ secrets.ALPACA_KEY_ID }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+        run: |
+          python -m trader.export --data-dir history \
+            --out history/paper-trading.json --as-of close
+
+      - name: Save the ledgers
+        if: always()
+        run: |
+          cd history
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A .
+          if git diff --cached --quiet; then
+            echo "nothing changed"
+          else
+            git commit --quiet -m "settle $(date -u +%FT%TZ)"
+            pushed=no
+            for attempt in 1 2 3; do
+              if git push --quiet origin HEAD:data; then pushed=yes; break; fi
+              git pull --quiet --rebase origin data || true
+              sleep $(( attempt * 3 ))
+            done
+            [ "$pushed" = yes ] || { echo "could not push the ledger"; exit 1; }
+          fi
+
+      - name: Say so, in an issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          BODY="Settlement run \`${GITHUB_RUN_ID}\` failed: the published P/L may still be
+          computed from decision prices rather than fills.
+          ${RUN_URL}"
+          EXISTING=$(gh issue list --label paper-trade-failure --state open \
+            --json number --jq '.[0].number' || true)
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "$BODY"
+          else
+            gh issue create --title "Paper trade settlement failed" \
+              --label paper-trade-failure --body "$BODY"
+          fi

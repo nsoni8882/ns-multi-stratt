@@ -26,21 +26,68 @@ BACKTEST = {
 TRADES_NEEDED = 30
 
 
+# Order states that mean no shares changed hands. A cancelled or rejected order is not a
+# trade, and counting one as an open position would be worse than ignoring it.
+DID_NOT_TRADE = {"canceled", "cancelled", "expired", "rejected", "unknown", "suspended"}
+
+
 def _price(row) -> float:
-    """The fill if there is one, else the price the decision was made on."""
+    """The fill if there is one, else the price the decision was made on.
+
+    Between 15:25 and the settlement run only the decision price exists, and showing the
+    position at that price is more honest than hiding it until the broker has been asked.
+    """
     filled = row.get("filled_avg_price")
     return float(filled) if filled not in (None, "", "None") else float(row["decision_close"])
 
 
-def round_trips(rows: "list[dict]") -> "list[dict]":
-    """Pair each buy with the next sell in the same symbol. An unpaired buy is still open."""
+def settled(rows: "list[dict]") -> "list[dict]":
+    """One row per order: the broker's answer where it exists, the bot's belief where it does
+    not, and nothing at all for an order that never traded.
+
+    The ledger is append-only, so a settled order has two rows -- what the bot believed when
+    it acted, and what the auction did with it. Measuring both would count the order twice.
+    """
+    best: "dict[str, dict]" = {}
+    order: "list[str]" = []
+    loose: "list[dict]" = []
+    for row in rows:
+        oid = row.get("order_id")
+        if not oid:
+            loose.append(row)  # a ledger written before order ids, or a hand-made row
+            continue
+        if oid not in best:
+            order.append(oid)
+            best[oid] = row
+        elif row.get("kind") == "fill":
+            best[oid] = row  # the broker's answer always wins over the bot's belief
+    kept = [best[oid] for oid in order
+            if (best[oid].get("status") or "").lower() not in DID_NOT_TRADE]
+    return loose + kept
+
+
+def round_trips(rows: "list[dict]", unpaired: "dict | None" = None) -> "list[dict]":
+    """Pair each buy with the next sell in the same symbol. An unpaired buy is still open.
+
+    Anything that cannot be paired is counted into `unpaired` rather than dropped: a sell
+    with no buy, or a buy superseded by another buy before any sell, both mean the ledger is
+    incomplete, and a silent hole in the evidence base is worse than an ugly number on the
+    page. This repo's convention is to label what it cannot explain, not hide it.
+    """
+    counts = unpaired if unpaired is not None else {}
+    counts.setdefault("buys", 0)
+    counts.setdefault("sells", 0)
     open_buys: "dict[str, dict]" = {}
     trips = []
-    for row in sorted(rows, key=lambda r: (r.get("date", ""), r.get("symbol", ""))):
+    for row in sorted(settled(rows), key=lambda r: (r.get("date", ""), r.get("symbol", ""))):
         symbol, side = row["symbol"], row["side"]
         if side == "buy":
+            if symbol in open_buys:
+                counts["buys"] += 1  # a buy with no sell between it and this one
             open_buys[symbol] = row
-        elif side == "sell" and symbol in open_buys:
+        elif side == "sell" and symbol not in open_buys:
+            counts["sells"] += 1
+        elif side == "sell":
             entry = open_buys.pop(symbol)
             entry_px, exit_px = _price(entry), _price(row)
             decision = entry.get("decision_close")
@@ -84,8 +131,11 @@ def _group(trips, key) -> dict:
 
 
 def evaluate(rows: "list[dict]") -> dict:
-    trips = round_trips(rows)
+    unpaired: dict = {}
+    trips = round_trips(rows, unpaired)
     return _stats(trips) | {
+        "unpaired_buys": unpaired["buys"],
+        "unpaired_sells": unpaired["sells"],
         "trades_needed": TRADES_NEEDED,
         "per_symbol": _group(trips, "symbol"),
         "per_rules_version": _group(trips, "rules_version"),

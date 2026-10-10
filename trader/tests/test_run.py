@@ -1,6 +1,8 @@
 """The decision loop, driven with a fake client. No network, no real orders."""
 import json
 
+import pytest
+
 from trader import params, run
 
 
@@ -179,3 +181,109 @@ def test_a_fill_is_appended_to_the_trades_ledger_with_its_decision_context(tmp_p
                 "equity_at_decision", "slice_pct", "rules_version"):
         assert key in row, key
     assert row["decision_close"] == 420.0
+
+
+def test_refuses_to_submit_when_the_close_is_too_far_off(tmp_path):
+    """The winter cron fires at 14:25 ET -- 95 minutes before the close -- because 19:25 UTC
+    is 15:25 EDT but 14:25 EST. The rule is justified on a 15:25 partial bar, so a decision
+    with an hour and a half still to run is not the strategy that was backtested."""
+    api = Fake()
+    api.clock = lambda: {"is_open": True, "timestamp": "2026-01-15T14:25:00-05:00",
+                         "next_close": "2026-01-15T16:00:00-05:00",
+                         "next_open": "2026-01-16T09:30:00-05:00"}
+    record = run.run(api, live=True, data_dir=tmp_path, today="2026-01-15")
+    assert api.submitted == []
+    assert record["early"] is True
+    assert "too early" in record["skip_reason"]
+
+
+def test_the_winter_afternoon_wake_up_still_trades(tmp_path):
+    """The other winter cron, 20:25 UTC, is 15:25 EST and must behave normally."""
+    api = Fake()
+    api.clock = lambda: {"is_open": True, "timestamp": "2026-01-15T15:25:00-05:00",
+                         "next_close": "2026-01-15T16:00:00-05:00",
+                         "next_open": "2026-01-16T09:30:00-05:00"}
+    record = run.run(api, live=True, data_dir=tmp_path, today="2026-01-15")
+    assert len(api.submitted) == 2
+    assert record["early"] is False
+
+
+def test_an_accepted_order_that_the_broker_has_not_echoed_is_not_re_entered(tmp_path):
+    """The guard test_second_run_same_day_is_idempotent is named for: a cls order is accepted
+    at 15:25 but the position does not exist until the auction, so a second run in the same
+    session sees neither a position nor (if it has cleared) an open order."""
+    api = Fake()
+    run.run(api, live=True, data_dir=tmp_path, today="2026-10-12")
+    first = list(api.submitted)
+    assert len(first) == 2
+    # The broker reports nothing: no fill yet, and no open order visible.
+    api._positions, api._open = {}, set()
+    run.run(api, live=True, data_dir=tmp_path, today="2026-10-12")
+    assert api.submitted == first, "a second run re-entered a symbol it had already bought"
+
+
+def test_the_run_row_carries_the_actions_run_that_produced_it(tmp_path, monkeypatch):
+    """Without this a ledger row cannot be tied back to the Actions run, and the Actions log
+    is deleted after 90 days. scanner/ledger.py records the same provenance."""
+    monkeypatch.setenv("GITHUB_RUN_ID", "12345")
+    monkeypatch.setenv("GITHUB_SHA", "abcdef1234567890")
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "schedule")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "nsoni8882/ns-multi-stratt")
+    monkeypatch.setenv("GITHUB_SERVER_URL", "https://github.com")
+    record = run.run(Fake(), live=True, data_dir=tmp_path, today="2026-10-12")
+    assert record["run_id"] == "12345"
+    assert record["sha"] == "abcdef123456"
+    assert record["event"] == "schedule"
+    assert record["url"] == "https://github.com/nsoni8882/ns-multi-stratt/actions/runs/12345"
+
+
+def test_a_crash_before_the_decision_loop_still_leaves_a_ledger_row(tmp_path):
+    """The gap this repo already closed once for the scanner: if nothing is written, the only
+    record of a failed run is an Actions log that GitHub deletes. /v2/positions failing used
+    to take the whole run down silently."""
+    from trader.alpaca import AlpacaError
+
+    api = Fake()
+
+    def boom():
+        raise AlpacaError(500, "upstream", "GET", "/v2/positions")
+
+    api.positions = boom
+    with pytest.raises(AlpacaError):
+        run.run(api, live=True, data_dir=tmp_path, today="2026-10-12")
+    rows = [json.loads(l) for l in (tmp_path / "paper_runs.jsonl").read_text().splitlines()]
+    assert rows[-1]["crashed"] is True
+    assert "/v2/positions" in rows[-1]["errors"][0]["error"]
+
+
+def test_a_transport_error_on_one_symbol_still_trades_the_other(tmp_path):
+    """Only HTTPError became AlpacaError, so a read timeout -- the likeliest data failure --
+    escaped the per-symbol handler and took the whole run down with it, after a buy for the
+    other symbol had already been submitted."""
+    api = Fake()
+    real = api.daily_closes
+
+    def flaky(symbol):
+        if symbol == "AMZN":
+            raise TimeoutError("read timed out")
+        return real(symbol)
+
+    api.daily_closes = flaky
+    record = run.run(api, live=True, data_dir=tmp_path, today="2026-10-12")
+    assert [s for s, _, _ in api.submitted] == ["AAPL"]
+    assert any("timed out" in e["error"] for e in record["errors"])
+
+
+def test_a_transport_error_while_submitting_is_recorded_and_not_retried(tmp_path):
+    api = Fake()
+    calls = []
+
+    def boom(symbol, side, qty):
+        calls.append(symbol)
+        raise TimeoutError("connection reset")
+
+    api.submit = boom
+    record = run.run(api, live=True, data_dir=tmp_path, today="2026-10-12")
+    assert sorted(calls) == sorted(params.SYMBOLS)
+    assert len(calls) == len(set(calls))
+    assert len(record["errors"]) == 2
