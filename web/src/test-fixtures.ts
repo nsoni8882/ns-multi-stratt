@@ -1,5 +1,5 @@
 import { clearCache } from "./api";
-import type { ChartFile, MarketFile, SignalRow, SignalsFile, StrategiesFile } from "./types";
+import type { ChartFile, MarketFile, PaperTradingFile, SignalRow, SignalsFile, StrategiesFile } from "./types";
 
 export const UPDATED = new Date().toISOString();
 
@@ -92,3 +92,44 @@ export function stubFetch(fail: string[] = [], overrides: Record<string, unknown
     }),
   );
 }
+
+/** A paper-trading account holding one position, nothing closed yet. */
+export const paperTradingFile: PaperTradingFile = {
+  updated_at: "2026-10-12T20:10:00+00:00",
+  as_of: "close",
+  rules_version: "512f04ab1a78",
+  version: "1.0.0",
+  history: [{ version: "1.0.0", date: "2026-10-10", summary: "First version. Buys AMZN or AAPL when RSI(2) falls under 10 while the price is still above its 200-day average." }],
+  symbols: ["AMZN", "AAPL"],
+  account: {
+    opening_balance: 100000, equity: 100592, cash: 50780, deployed_pct: 49.5,
+    total_pl: 592, total_pl_pct: 0.592, realised_pl: 0, unrealised_pl: 592,
+  },
+  equity_curve: [
+    { date: "2026-10-09", equity: 100000, in_position: false },
+    { date: "2026-10-12", equity: 100592, in_position: true },
+  ],
+  positions: [{
+    symbol: "AAPL", entry_date: "2026-10-06", entry_price: 332.64, qty: 148,
+    price: 336.64, unrealised_pl: 592, unrealised_pl_pct: 1.21, bars_held: 4, max_hold: 10,
+  }],
+  signal_state: [
+    { symbol: "AMZN", rsi2: 64.2, sma200: 230.1, price: 262.43, trend_gap_pct: 14,
+      buy_below: 10, sell_above: 65, verdict: "Waiting", reason: "not oversold" },
+    { symbol: "AAPL", rsi2: 31, sma200: 300, price: 336.64, trend_gap_pct: 12.2,
+      buy_below: 10, sell_above: 65, verdict: "Held", reason: "4 of 10 bars" },
+  ],
+  trades: [],
+  evaluation: {
+    trades_closed: 0, trades_needed: 30, bps_per_trade: null, win_rate: null,
+    mean_bars_held: null, slippage_bps: null, per_symbol: {}, per_rules_version: {},
+    per_year: {},
+    backtest: {
+      AMZN: { trades: 232, bps_per_trade: 150.1, win_rate: 75.9, t_stat: 5.53, p_vs_random: 0.002, max_dd_pct: -27.7, mean_bars_held: 3.68, positive_years: "19/24", worst_trade_pct: -16.9 },
+      AAPL: { trades: 245, bps_per_trade: 117.5, win_rate: 75.1, t_stat: 5.1, p_vs_random: 0.01, max_dd_pct: -32.4, mean_bars_held: 4.16, positive_years: "23/26", worst_trade_pct: -18.6 },
+    },
+    verdict: null,
+  },
+  runs: [{ at: "2026-10-12T19:25:08+00:00", date: "2026-10-12", mode: "live", orders: 1,
+           late: false, skip_reason: null, minutes_to_close: 35 }],
+};

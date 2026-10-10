@@ -1,4 +1,4 @@
-import type { ChartFile, HealthFile, MarketFile, SignalsFile, StrategiesFile, Timeframe } from "./types";
+import type { ChartFile, HealthFile, MarketFile, PaperTradingFile, SignalsFile, StrategiesFile, Timeframe } from "./types";
 
 /**
  * Responses, in flight or settled, keyed by path. A scan's output does not change while the
@@ -43,6 +43,8 @@ export const getSignals = (strategyId: string, tf: Timeframe) => getJson<Signals
 export const getChart = (tf: Timeframe, ticker: string) => getJson<ChartFile>(`charts/${tf}/${ticker}.json`);
 export const getMarket = () => getJson<MarketFile>("market.json");
 export const getHealth = () => getJson<HealthFile>("health.json");
+/** The paper-trading account. Absent until the trader's first run, so a 404 is normal. */
+export const getPaperTrading = () => getJson<PaperTradingFile>("paper-trading.json");
 
 /** Warm the cache without caring about the outcome, for hover and idle prefetching. */
 export const prefetchChart = (tf: Timeframe, ticker: string) => void getChart(tf, ticker).catch(() => {});

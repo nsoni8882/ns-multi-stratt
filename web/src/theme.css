@@ -250,3 +250,64 @@ main { max-width: 1120px; margin: 0 auto; padding: 4px 32px 48px; min-height: 60
   .sheet { border-radius: 22px 22px 0 0; max-height: 96vh; }
   .chart-canvas { height: 480px; }
 }
+
+/* ---------------------------------------------------------------- paper trading
+   A portfolio view rather than a signal list, so it reuses the stat row, the big cards and
+   the pills, and adds only what none of those cover. Every colour is an existing token. */
+.panel { margin: 26px 0 0; }
+.panel h2 { font-size: 23px; letter-spacing: -0.015em; }
+.panel > h2 + p, .panel > .row + p { margin-top: 6px; max-width: 62ch; }
+.panel .stats { margin-top: 14px; }
+
+/* The equity curve. The ribbon under the plot is the panel's point: this rule is in the
+   market ~13% of days, so without marking which days held a position a reader cannot tell
+   deliberate idleness from missing data. */
+.paper-curve { width: 100%; height: auto; margin: 14px 0 8px; display: block; }
+.paper-line { fill: none; stroke: var(--accent-fill); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.paper-opening { stroke: var(--border-strong); stroke-width: 1; stroke-dasharray: 3 4; }
+.paper-held { fill: var(--chart-bg); }
+.paper-ribbon-bg { fill: var(--seg-bg); }
+.paper-ribbon-on { fill: var(--accent-fill); }
+
+/* Position cards: a definition list, because each row really is a term and its value. */
+.paper-kv { display: grid; grid-template-columns: auto 1fr; gap: 3px 14px; margin: 12px 0 0; }
+.paper-kv dt { color: var(--muted); font-size: 13px; }
+.paper-kv dd { margin: 0; font-weight: 600; text-align: right; }
+.paper-meter { height: 6px; border-radius: 999px; background: var(--seg-bg); margin: 14px 0 6px; overflow: hidden; }
+.paper-meter span { display: block; height: 100%; background: var(--accent-fill); }
+
+/* One row per symbol: price, the two numbers that decide a trade, and the verdict. */
+.paper-rows { list-style: none; margin: 14px 0 0; display: flex; flex-direction: column; gap: 2px; }
+.paper-row {
+  display: grid; align-items: center; gap: 4px 18px; padding: 14px 0;
+  grid-template-columns: 4.5rem 7rem 1fr 1fr auto; border-top: 1px solid var(--border);
+}
+.paper-row:last-child { border-bottom: 1px solid var(--border); }
+.paper-row .tk { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
+
+.paper-table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 14px; }
+.paper-table th { text-align: left; font: var(--label); letter-spacing: var(--label-track); text-transform: uppercase; color: var(--muted); padding: 0 12px 8px 0; }
+.paper-table td { padding: 12px 12px 12px 0; border-top: 1px solid var(--border); vertical-align: top; }
+.paper-table .tag { display: block; }
+
+.paper-runs { margin-top: 18px; }
+.paper-runs summary { cursor: pointer; color: var(--muted); font-weight: 600; min-height: 34px; display: flex; align-items: center; }
+.paper-runs ul { list-style: none; margin: 8px 0 0; display: flex; flex-direction: column; gap: 6px; }
+
+@media (max-width: 720px) {
+  /* .stats is grid-auto-flow: column and never wraps, which is right for Home's three cells
+     and wrong for five. These rows wrap to two columns instead of overflowing the screen. */
+  .paper-stats { grid-auto-flow: row; grid-template-columns: 1fr 1fr; }
+  .paper-stats .stat { border-left: 0; border-top: 1px solid var(--border); }
+  .paper-stats .stat:nth-child(odd) { border-right: 1px solid var(--border); }
+  .paper-stats .stat:first-child, .paper-stats .stat:nth-child(2) { border-top: 0; }
+  .paper-stats .stat .n { font-size: 30px; }
+  /* The symbol and its verdict stay on one line; the explaining numbers wrap beneath. */
+  .paper-row { grid-template-columns: 1fr auto; }
+  .paper-row .tag { grid-column: 1 / -1; }
+  /* A table this wide cannot shrink, so each trade becomes its own block. */
+  .paper-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .paper-table tr { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; padding: 12px 0; border-top: 1px solid var(--border); }
+  .paper-table td { border: 0; padding: 0; }
+  .paper-table td:first-child { grid-column: 1 / -1; font-size: 17px; }
+}

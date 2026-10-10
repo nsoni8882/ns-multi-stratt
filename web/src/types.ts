@@ -101,3 +101,123 @@ export interface HealthFile {
 }
 
 export type CandleStyle = "ha" | "real";
+
+/** The paper-trading account's state, as trader/export.py publishes it. */
+export interface PaperAccount {
+  opening_balance: number;
+  equity: number;
+  cash: number;
+  deployed_pct: number;
+  total_pl: number;
+  total_pl_pct: number;
+  realised_pl: number;
+  unrealised_pl: number;
+}
+
+export interface EquityPoint {
+  date: string;
+  equity: number;
+  /** Was the bot holding something that day? Flat stretches are deliberate, not a gap. */
+  in_position: boolean;
+}
+
+export interface PaperPosition {
+  symbol: string;
+  entry_date: string | null;
+  entry_price: number;
+  qty: number;
+  price: number;
+  unrealised_pl: number;
+  unrealised_pl_pct: number;
+  bars_held: number | null;
+  max_hold: number;
+}
+
+export interface PaperSignalState {
+  symbol: string;
+  rsi2: number | null;
+  sma200: number | null;
+  price: number | null;
+  trend_gap_pct: number | null;
+  buy_below: number;
+  sell_above: number;
+  /** "Oversold" | "Waiting" | "Held" | "Trend gate blocked" | "Exiting" | "No data" */
+  verdict: string;
+  reason: string | null;
+}
+
+export interface PaperRoundTrip {
+  symbol: string;
+  entry_date: string | null;
+  entry_price: number;
+  exit_date: string | null;
+  exit_price: number;
+  qty: number | null;
+  bars_held: number | null;
+  exit_reason: string | null;
+  pl: number;
+  pl_pct: number | null;
+  /** The cost of deciding on a 15:25 partial bar but filling in the closing auction. */
+  slippage_bps: number | null;
+  rules_version: string | null;
+}
+
+export interface PaperStats {
+  trades_closed: number;
+  bps_per_trade: number | null;
+  win_rate: number | null;
+  mean_bars_held: number | null;
+  slippage_bps: number | null;
+}
+
+export interface BacktestExpectation {
+  trades: number;
+  bps_per_trade: number;
+  win_rate: number;
+  t_stat: number;
+  p_vs_random: number;
+  max_dd_pct: number;
+  mean_bars_held: number;
+  positive_years: string;
+  worst_trade_pct: number;
+}
+
+export interface PaperEvaluation extends PaperStats {
+  trades_needed: number;
+  per_symbol: Record<string, PaperStats>;
+  per_rules_version: Record<string, PaperStats>;
+  per_year: Record<string, PaperStats>;
+  backtest: Record<string, BacktestExpectation>;
+  /** Stays null until trades_closed >= trades_needed. See trader/ACCEPTANCE.md. */
+  verdict: string | null;
+}
+
+export interface PaperRun {
+  at: string;
+  date: string;
+  mode: string;
+  orders: number;
+  late: boolean;
+  skip_reason: string | null;
+  minutes_to_close?: number;
+  errors?: { symbol?: string; stage?: string; error?: string }[];
+}
+
+export interface PaperTradingFile {
+  updated_at: string;
+  /** What the account figures are marked at. */
+  as_of: "close" | "intraday";
+  rules_version: string;
+  /** Semver of the trading rules that produced this file. */
+  version: string;
+  /** Newest first, shown in the clock-icon overlay like the strategy tabs. */
+  history: Release[];
+  symbols: string[];
+  account: PaperAccount;
+  equity_curve: EquityPoint[];
+  positions: PaperPosition[];
+  signal_state: PaperSignalState[];
+  trades: PaperRoundTrip[];
+  evaluation: PaperEvaluation;
+  runs: PaperRun[];
+}

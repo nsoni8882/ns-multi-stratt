@@ -6,6 +6,7 @@ import { MarketBar } from "./components/MarketBar";
 import { TopBar } from "./components/TopBar";
 import { isDataStale } from "./lib/market";
 import { Home } from "./pages/Home";
+import { PaperPage } from "./pages/PaperPage";
 import { StrategyPage } from "./pages/StrategyPage";
 import { StrategiesProvider, useStrategies } from "./strategiesContext";
 
@@ -21,6 +22,7 @@ function Shell() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/strategy/:id" element={<StrategyPage />} />
+            <Route path="/paper" element={<PaperPage />} />
             <Route path="*" element={<p className="muted center">Page not found.</p>} />
           </Routes>
         </ErrorBoundary>
