@@ -3,6 +3,7 @@ import { getPaperTrading } from "../api";
 import { ErrorState, Loading } from "../components/Feedback";
 import { HistoryModal } from "../components/HistoryModal";
 import { PaperBalance } from "../components/PaperBalance";
+import { PaperCharts } from "../components/PaperCharts";
 import { PaperEquityCurve } from "../components/PaperEquityCurve";
 import { PaperPositions } from "../components/PaperPositions";
 import { PaperRuns } from "../components/PaperRuns";
@@ -18,7 +19,7 @@ const NAME = "RSI(2) Reversion";
 
 export function PaperPage() {
   const paper = useAsync(() => getPaperTrading(), []);
-  const { market } = useStrategies();
+  const { market, data: strategyData } = useStrategies();
   const [showHistory, setShowHistory] = useState(false);
   const closeHistory = useCallback(() => setShowHistory(false), []);
 
@@ -86,6 +87,8 @@ export function PaperPage() {
       <PaperEquityCurve curve={data.equity_curve} opening={data.account.opening_balance} />
       <PaperPositions positions={data.positions} />
       <PaperSignalRows state={data.signal_state} asOf={data.signal_state_as_of} />
+      <PaperCharts symbols={data.symbols} positions={data.positions} trades={data.trades}
+                   strategies={strategyData?.strategies} />
       <PaperTrades trades={data.trades} evaluation={data.evaluation} />
       <PaperRuns runs={data.runs} missedSince={missed} />
     </>

@@ -4,11 +4,13 @@ import { getSignals, prefetchChart } from "../api";
 import { ChartModal } from "../components/ChartModal";
 import { ErrorState, Loading } from "../components/Feedback";
 import { HistoryModal } from "../components/HistoryModal";
+import { SignalPill } from "../components/SignalPill";
 import { StockCard } from "../components/StockCard";
 import { useAsync, useTimeframe } from "../hooks";
 import { loadChartView } from "../lib/chartViewLoader";
 import { wantsPrefetch, whenIdle } from "../lib/prefetch";
 import { ALL_SECTORS, DEFAULT_FILTERS, filterSignals, sectorsOf, type Filters } from "../lib/filters";
+import { signalReason } from "../lib/signalReason";
 import { useStrategies } from "../strategiesContext";
 import type { SignalRow } from "../types";
 
@@ -126,7 +128,17 @@ export function StrategyPage() {
         )
       )}
 
-      {open && <ChartModal row={open} tf={tf} strategyId={strategy.id} config={strategy.chart} onClose={close} />}
+      {open && (
+        <ChartModal
+          subject={open}
+          tf={tf}
+          strategyId={strategy.id}
+          config={strategy.chart}
+          pill={<SignalPill side={open.side} conviction={open.conviction} />}
+          note={signalReason(strategy.id, open)}
+          onClose={close}
+        />
+      )}
     </>
   );
 }

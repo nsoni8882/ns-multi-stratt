@@ -37,6 +37,13 @@ export interface StrategiesFile {
   strategies: StrategySummary[];
 }
 
+/** The minimum a chart overlay needs to title itself. SignalRow satisfies it structurally. */
+export interface ChartSubject {
+  ticker: string;
+  name: string;
+  sector: string;
+}
+
 export interface SignalRow {
   ticker: string;
   name: string;

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HashRouter } from "react-router-dom";
 import { beforeEach, expect, test, vi } from "vitest";
@@ -49,7 +49,9 @@ test("renders a day-one account with no trades without crashing", async () => {
                unrealised_pl: 0, deployed_pct: 0, cash: 100000 },
     positions: [], equity_curve: [], trades: [],
   });
-  expect(await screen.findByText(/flat/i)).toBeInTheDocument();
+  // "Flat" also appears as a pill on each chart tile, so scope to the positions panel.
+  const positions = await screen.findByRole("region", { name: "Open positions" });
+  expect(within(positions).getByText(/flat/i)).toBeInTheDocument();
 });
 
 test("offers no verdict before the acceptance bar is met", async () => {

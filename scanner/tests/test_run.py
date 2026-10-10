@@ -161,3 +161,35 @@ def test_health_json_names_a_strategy_that_threw(tmp_path):
     assert health["strategy_error_count"] == 2  # one per timeframe
     assert health["strategy_errors"][0]["strategy_id"] == "boom"
     assert "ValueError: bad frame" in health["strategy_errors"][0]["error"]
+
+
+TRADED_UNIVERSE = pd.DataFrame({
+    "ticker": ["AAA", "AMZN", "AAPL"],
+    "name": ["Alpha", "Amazon", "Apple"],
+    "sector": ["Tech", "Consumer", "Tech"],
+})
+
+
+def fake_fetch_traded(tickers, timeframe, now):
+    flat = make_df([100.0] * 300)
+    return {"AAA": make_df(buy_closes()), "AMZN": flat, "AAPL": flat}, []
+
+
+def test_the_traded_symbols_are_always_charted_even_with_no_signal(tmp_path):
+    """trader/ holds AMZN and AAPL, and the paper tab charts them whether or not they fired.
+    Without this they have no chart file at all: the scanner only charts what it flags."""
+    out, db = tmp_path / "data", tmp_path / "signals.db"
+    run(out, db, now=NOW, universe=TRADED_UNIVERSE, fetch=fake_fetch_traded)
+    for symbol in ("AMZN", "AAPL"):
+        chart = json.loads((out / "charts" / "1d" / f"{symbol}.json").read_text())
+        assert chart["ticker"] == symbol
+        assert chart["signals"] == []  # charted, but nothing fired
+        assert len(chart["bars"]) > 0
+
+
+def test_a_traded_symbol_missing_from_the_universe_is_not_an_error(tmp_path):
+    """The universe can lose a name to a fetch failure, and a missing chart must not take
+    the whole scan down with it."""
+    out, db = tmp_path / "data", tmp_path / "signals.db"
+    run(out, db, now=NOW, universe=UNIVERSE, fetch=fake_fetch)  # no AMZN/AAPL at all
+    assert not (out / "charts" / "1d" / "AMZN.json").exists()

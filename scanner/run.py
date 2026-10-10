@@ -11,6 +11,9 @@ import pandas as pd
 
 from scanner.data import fetch_bars
 from scanner.export import chart_payload, signal_row, write_json
+# The names trader/ places orders for. Imported rather than duplicated so the two cannot
+# disagree about what is traded; trader.params is stdlib-only, so this costs nothing.
+from trader.params import SYMBOLS as TRADED_SYMBOLS
 from scanner.market import market_payload
 from scanner.store import SignalRecord, SignalStore
 from scanner.strategies import STRATEGIES
@@ -106,8 +109,13 @@ def run(out_dir: Path, db_path: Path, now: "pd.Timestamp | None" = None,
     write_json(out_dir / "strategies.json", {"updated_at": updated_at, "strategies": summaries})
     write_json(out_dir / "market.json", market_payload(now))
 
-    flagged = {(h.timeframe, h.ticker) for h in hits}
-    for tf, ticker in sorted(flagged):
+    # Charts are written for what fired -- plus the names trader/ actually trades, which the
+    # paper tab charts every day whether or not they signalled. A traded symbol missing from
+    # the universe (a fetch failure) is skipped rather than fatal.
+    charted = {(h.timeframe, h.ticker) for h in hits}
+    charted |= {(tf, ticker) for tf in bars_by_tf for ticker in TRADED_SYMBOLS
+                if ticker in bars_by_tf[tf]}
+    for tf, ticker in sorted(charted):
         marks = [
             {"strategy_id": h.strategy_id, "side": h.signal.side, "bar_time": int(h.signal.bar_time.timestamp())}
             for h in hits if h.timeframe == tf and h.ticker == ticker
