@@ -4,7 +4,7 @@ import { HashRouter } from "react-router-dom";
 import { beforeEach, expect, test, vi } from "vitest";
 import * as api from "../api";
 import { StrategiesProvider } from "../strategiesContext";
-import { market, paperTradingFile, strategies } from "../test-fixtures";
+import { chart, market, paperTradingFile, strategies } from "../test-fixtures";
 import { PaperPage } from "./PaperPage";
 
 /** PaperPage reads the trading calendar from the provider to spot a missed run, so the
@@ -92,10 +92,13 @@ test("a 404 before the first trading run reads as not-yet, not as an error", asy
   vi.spyOn(api, "getStrategies").mockResolvedValue(strategies);
   vi.spyOn(api, "getMarket").mockResolvedValue(market);
   vi.spyOn(api, "getHealth").mockRejectedValue(new Error("not needed"));
+  vi.spyOn(api, "getChart").mockResolvedValue(chart);
   vi.spyOn(api, "getPaperTrading").mockRejectedValue(
     new Error("Could not load paper-trading.json (HTTP 404)"));
   render(page());
-  expect(await screen.findByText(/not published yet|no paper-trading data/i)).toBeInTheDocument();
+  expect(await screen.findByText(/has not traded yet/i)).toBeInTheDocument();
+  // Not an error state: no alert, no retry button.
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 });
 
 test("announces a missed run when a session has closed since the bot last ran", async () => {
@@ -108,4 +111,17 @@ test("announces a missed run when a session has closed since the bot last ran", 
   expect(await screen.findByRole("status", { name: "Missed runs" }))
     .toHaveTextContent(/has not run since 2026-10-05/i);
   vi.useRealTimers();
+});
+
+test("before the first run the charts are still offered, not a bare sentence", async () => {
+  vi.spyOn(api, "getStrategies").mockResolvedValue(strategies);
+  vi.spyOn(api, "getMarket").mockResolvedValue(market);
+  vi.spyOn(api, "getHealth").mockRejectedValue(new Error("not needed"));
+  vi.spyOn(api, "getChart").mockResolvedValue(chart);
+  vi.spyOn(api, "getPaperTrading").mockRejectedValue(
+    new Error("Could not load paper-trading.json (HTTP 404)"));
+  render(page());
+  expect(await screen.findByText(/has not traded yet/i)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /AMZN chart/i })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /AAPL chart/i })).toBeInTheDocument();
 });

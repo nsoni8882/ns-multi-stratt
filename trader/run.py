@@ -70,27 +70,31 @@ def run(api, *, live: bool, data_dir, today: "str | None" = None) -> dict:
               "skip_reason": None, "decisions": {}, "errors": [], "crashed": False}
     record |= provenance()
 
+    # None of these end the run any more -- they only take away the right to trade. The rule
+    # is still read and recorded, so the site can show what it sees from the last close
+    # rather than going blank between Friday's close and Monday's run.
     if not clock["is_open"]:
         record["skip_reason"] = "market closed"
-        log("market closed; next open", clock["next_open"])
-        return _finish(record, data_dir, st, state_file)
+        log("market closed; reading the rule anyway. Next open", clock["next_open"])
+    else:
+        left = minutes_to_close(clock)
+        record["minutes_to_close"] = round(left, 1)
+        if left < CUTOFF_MINUTES:
+            record["late"] = True
+            record["skip_reason"] = (f"inside the {CUTOFF_MINUTES}-minute cutoff; "
+                                     "cls orders would be rejected")
+            log(record["skip_reason"])
+        elif left > MAX_MINUTES_TO_CLOSE:
+            # The winter cron fires at 14:25 ET. Deciding on a bar that far from the close is
+            # a different strategy from the backtested one, so stand down and say why.
+            record["early"] = True
+            record["skip_reason"] = (f"{left:.0f} minutes to the close is too early; this "
+                                     f"rule decides within {MAX_MINUTES_TO_CLOSE} minutes "
+                                     "of it")
+            log(record["skip_reason"])
 
-    left = minutes_to_close(clock)
-    record["minutes_to_close"] = round(left, 1)
-    if left < CUTOFF_MINUTES:
-        record["late"] = True
-        record["skip_reason"] = (f"inside the {CUTOFF_MINUTES}-minute cutoff; "
-                                 "cls orders would be rejected")
-        log(record["skip_reason"])
-        return _finish(record, data_dir, st, state_file)
-    if left > MAX_MINUTES_TO_CLOSE:
-        # The winter cron fires at 14:25 ET. Deciding on a bar that far from the close is a
-        # different strategy from the backtested one, so stand down and say why.
-        record["early"] = True
-        record["skip_reason"] = (f"{left:.0f} minutes to the close is too early; this rule "
-                                 f"decides within {MAX_MINUTES_TO_CLOSE} minutes of it")
-        log(record["skip_reason"])
-        return _finish(record, data_dir, st, state_file)
+    # The one gate that matters for an order. Everything below still reads and records.
+    may_trade = record["skip_reason"] is None
 
     try:
         positions = api.positions()
@@ -128,10 +132,13 @@ def run(api, *, live: bool, data_dir, today: "str | None" = None) -> dict:
         log(f"{symbol}: {d.action} ({d.reason}) "
             f"rsi2={'n/a' if d.rsi2 is None else round(d.rsi2, 1)} px={d.price}")
 
+        if d.action in ("skip", "wait", "hold"):
+            continue
+        if not may_trade:
+            row["skipped"] = record["skip_reason"]
+            continue
         if symbol in open_orders:
             row["skipped"] = "an order is already working"
-            continue
-        if d.action in ("skip", "wait", "hold"):
             continue
         # A held position whose entry date nothing knows cannot have its time stop judged.
         # Exit on the RSI rule only, and say so rather than guessing the date.

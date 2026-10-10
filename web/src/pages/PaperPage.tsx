@@ -16,6 +16,12 @@ import { useStrategies } from "../strategiesContext";
 // Named after its rule, like the two screener tabs. The "Paper money" pill carries the
 // fact that this is the one strategy that actually places orders.
 const NAME = "RSI(2) Reversion";
+/** The rule in one line, shared by the normal page and the not-yet-traded one. */
+const RULE = "Buys AMZN or AAPL when RSI(2) falls under 10 while the price is still above " +
+  "its 200-day average, and sells when RSI(2) recovers past 65 or ten trading days pass. " +
+  "Half the account per name, no stop. Orders go in at the closing auction.";
+/** Only used before the bot has ever published; after that the file names its own symbols. */
+const FALLBACK_SYMBOLS = ["AMZN", "AAPL"];
 
 export function PaperPage() {
   const paper = useAsync(() => getPaperTrading(), []);
@@ -27,12 +33,24 @@ export function PaperPage() {
   if (paper.error) {
     // The file does not exist until the trader's first run, and a 404 then is normal rather
     // than a fault -- saying "something went wrong" would be wrong.
+    // The file does not exist until the bot's first run. That is not a fault, and it is no
+    // reason to show an empty page: the charts come from the scanner and are already there.
     if (/\b404\b/.test(paper.error.message)) {
       return (
-        <p className="muted center">
-          No paper-trading data is published yet. The bot writes this after its first run,
-          on a weekday at 15:25 New York time.
-        </p>
+        <>
+          <section className="hero">
+            <div className="row title">
+              <h1>{NAME}</h1>
+              <span className="pill faint">Paper money</span>
+            </div>
+            <p>
+              {RULE} This strategy has not traded yet — the account appears here after its
+              first run, on a weekday at 15:25 New York time.
+            </p>
+          </section>
+          <PaperCharts symbols={FALLBACK_SYMBOLS} positions={[]} trades={[]}
+                       strategies={strategyData?.strategies} />
+        </>
       );
     }
     return <ErrorState error={paper.error} onRetry={paper.retry} />;
@@ -71,11 +89,7 @@ export function PaperPage() {
             <span className="vtag">v{data.version}</span>
           </button>
         </div>
-        <p>
-          Buys {data.symbols.join(" or ")} when RSI(2) falls under 10 while the price is still
-          above its 200-day average, and sells when RSI(2) recovers past 65 or ten trading days
-          pass. Half the account per name, no stop. Orders go in at the closing auction.
-        </p>
+        <p>{RULE}</p>
         <p className="tag num">
           Account marked {marked} · updated{" "}
           {new Date(data.updated_at).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}

@@ -287,3 +287,34 @@ def test_a_transport_error_while_submitting_is_recorded_and_not_retried(tmp_path
     assert sorted(calls) == sorted(params.SYMBOLS)
     assert len(calls) == len(set(calls))
     assert len(record["errors"]) == 2
+
+
+def test_a_closed_market_still_reads_the_rule_from_the_last_close(tmp_path):
+    """A weekend run cannot trade, but it can still say what the rule sees. Without this the
+    page has nothing to show between Friday's close and Monday's run."""
+    api = Fake(is_open=False)
+    record = run.run(api, live=True, data_dir=tmp_path, today="2026-10-10")
+    assert api.submitted == []
+    assert record["skip_reason"] == "market closed"
+    assert record["decisions"]["AMZN"]["rsi2"] < params.BUY_BELOW
+    assert record["decisions"]["AMZN"]["action"] == "buy"  # what it would do, had it been open
+    assert record["orders"] == 0
+
+
+def test_a_closed_market_never_submits_even_when_the_rule_fires(tmp_path):
+    api = Fake(is_open=False)
+    run.run(api, live=True, data_dir=tmp_path, today="2026-10-10")
+    assert api.submitted == []
+    rows = [json.loads(l) for l in (tmp_path / "paper_runs.jsonl").read_text().splitlines()]
+    assert rows[-1]["decisions"]["AMZN"]["skipped"] == "market closed"
+
+
+def test_an_early_run_still_records_what_the_rule_sees(tmp_path):
+    api = Fake()
+    api.clock = lambda: {"is_open": True, "timestamp": "2026-01-15T14:25:00-05:00",
+                         "next_close": "2026-01-15T16:00:00-05:00",
+                         "next_open": "2026-01-16T09:30:00-05:00"}
+    record = run.run(api, live=True, data_dir=tmp_path, today="2026-01-15")
+    assert api.submitted == []
+    assert record["early"] is True
+    assert record["decisions"]["AAPL"]["rsi2"] is not None
