@@ -1,0 +1,4 @@
+{"id": "a1b2c3d4-0000-0000-0000-000000000001", "symbol": "AMZN", "side": "buy",
+ "qty": "190", "filled_qty": "190", "filled_avg_price": "262.43", "type": "market",
+ "time_in_force": "cls", "status": "filled",
+ "submitted_at": "2026-10-12T19:25:11.000000Z", "filled_at": "2026-10-12T20:00:02.000000Z"}
