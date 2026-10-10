@@ -1,5 +1,6 @@
+import type { MarketFile } from "../types";
 import { market } from "../test-fixtures";
-import { formatNextUpdate, isDataStale, marketStatus, updateDueTimes } from "./market";
+import { formatNextUpdate, isDataStale, marketStatus, updateDueTimes, missedRunSince } from "./market";
 
 const at = (iso: string) => new Date(iso);
 const iso = (d: Date | null) => d?.toISOString();
@@ -69,5 +70,34 @@ describe("formatNextUpdate", () => {
   it("uses 'today' for the same Eastern date, otherwise the weekday and date", () => {
     expect(formatNextUpdate(at("2026-10-02T20:05:00Z"), at("2026-10-02T15:00:00Z"))).toBe("today 16:05 ET");
     expect(formatNextUpdate(at("2026-10-05T17:35:00Z"), at("2026-10-03T12:00:00Z"))).toBe("Mon 5 Oct, 13:35 ET");
+  });
+});
+
+describe("missedRunSince", () => {
+  const m: MarketFile = {
+    updated_at: "2026-10-06T20:07:00+00:00",
+    sessions: [
+      { date: "2026-10-05", open: "2026-10-05T13:30:00+00:00", close: "2026-10-05T20:00:00+00:00", early: false },
+      { date: "2026-10-06", open: "2026-10-06T13:30:00+00:00", close: "2026-10-06T20:00:00+00:00", early: false },
+      { date: "2026-10-07", open: "2026-10-07T13:30:00+00:00", close: "2026-10-07T20:00:00+00:00", early: false },
+    ],
+    holidays: [],
+  };
+
+  it("says nothing when the bot ran on the last closed session", () => {
+    expect(missedRunSince("2026-10-06", m, new Date("2026-10-06T21:00:00Z"))).toBeNull();
+  });
+
+  it("reports the last run when a later session has since closed", () => {
+    expect(missedRunSince("2026-10-05", m, new Date("2026-10-07T21:00:00Z"))).toBe("2026-10-05");
+  });
+
+  it("does not complain mid-session, before the close", () => {
+    expect(missedRunSince("2026-10-06", m, new Date("2026-10-07T15:00:00Z"))).toBeNull();
+  });
+
+  it("says nothing when the bot has never run or the calendar is missing", () => {
+    expect(missedRunSince(undefined, m, new Date())).toBeNull();
+    expect(missedRunSince("2026-10-05", undefined, new Date())).toBeNull();
   });
 });

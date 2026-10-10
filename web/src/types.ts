@@ -184,6 +184,9 @@ export interface BacktestExpectation {
 
 export interface PaperEvaluation extends PaperStats {
   trades_needed: number;
+  /** Fills the ledger could not pair into a round trip. Surfaced, not hidden. */
+  unpaired_buys?: number;
+  unpaired_sells?: number;
   per_symbol: Record<string, PaperStats>;
   per_rules_version: Record<string, PaperStats>;
   per_year: Record<string, PaperStats>;

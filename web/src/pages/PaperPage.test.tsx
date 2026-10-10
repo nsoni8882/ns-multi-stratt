@@ -3,12 +3,26 @@ import userEvent from "@testing-library/user-event";
 import { HashRouter } from "react-router-dom";
 import { beforeEach, expect, test, vi } from "vitest";
 import * as api from "../api";
-import { paperTradingFile } from "../test-fixtures";
+import { StrategiesProvider } from "../strategiesContext";
+import { market, paperTradingFile, strategies } from "../test-fixtures";
 import { PaperPage } from "./PaperPage";
 
+/** PaperPage reads the trading calendar from the provider to spot a missed run, so the
+ *  provider has to be present -- the same shape App renders it in. */
+function page() {
+  return (
+    <HashRouter>
+      <StrategiesProvider><PaperPage /></StrategiesProvider>
+    </HashRouter>
+  );
+}
+
 function show(file = paperTradingFile) {
+  vi.spyOn(api, "getStrategies").mockResolvedValue(strategies);
+  vi.spyOn(api, "getMarket").mockResolvedValue(market);
+  vi.spyOn(api, "getHealth").mockRejectedValue(new Error("not needed"));
   vi.spyOn(api, "getPaperTrading").mockResolvedValue(file);
-  return render(<HashRouter><PaperPage /></HashRouter>);
+  return render(page());
 }
 
 beforeEach(() => {
@@ -64,14 +78,32 @@ test("the clock icon opens the change history", async () => {
 });
 
 test("shows an error state with a retry when the file cannot be loaded", async () => {
+  vi.spyOn(api, "getStrategies").mockResolvedValue(strategies);
+  vi.spyOn(api, "getMarket").mockResolvedValue(market);
+  vi.spyOn(api, "getHealth").mockRejectedValue(new Error("not needed"));
   vi.spyOn(api, "getPaperTrading").mockRejectedValue(new Error("HTTP 500"));
-  render(<HashRouter><PaperPage /></HashRouter>);
+  render(page());
   expect(await screen.findByText(/HTTP 500/)).toBeInTheDocument();
 });
 
 test("a 404 before the first trading run reads as not-yet, not as an error", async () => {
+  vi.spyOn(api, "getStrategies").mockResolvedValue(strategies);
+  vi.spyOn(api, "getMarket").mockResolvedValue(market);
+  vi.spyOn(api, "getHealth").mockRejectedValue(new Error("not needed"));
   vi.spyOn(api, "getPaperTrading").mockRejectedValue(
     new Error("Could not load paper-trading.json (HTTP 404)"));
-  render(<HashRouter><PaperPage /></HashRouter>);
+  render(page());
   expect(await screen.findByText(/not published yet|no paper-trading data/i)).toBeInTheDocument();
+});
+
+test("announces a missed run when a session has closed since the bot last ran", async () => {
+  // The fixture calendar's last session closes 2026-10-06; the run is older than that.
+  vi.setSystemTime(new Date("2026-10-07T21:00:00Z"));
+  show({
+    ...paperTradingFile,
+    runs: [{ ...paperTradingFile.runs[0], at: "2026-10-05T19:25:00+00:00", date: "2026-10-05" }],
+  });
+  expect(await screen.findByRole("status", { name: "Missed runs" }))
+    .toHaveTextContent(/has not run since 2026-10-05/i);
+  vi.useRealTimers();
 });

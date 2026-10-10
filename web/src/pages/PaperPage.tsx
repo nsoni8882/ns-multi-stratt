@@ -9,6 +9,8 @@ import { PaperRuns } from "../components/PaperRuns";
 import { PaperSignalRows } from "../components/PaperSignalRows";
 import { PaperTrades } from "../components/PaperTrades";
 import { useAsync } from "../hooks";
+import { missedRunSince } from "../lib/market";
+import { useStrategies } from "../strategiesContext";
 
 // Named after its rule, like the two screener tabs. The "Paper money" pill carries the
 // fact that this is the one strategy that actually places orders.
@@ -16,6 +18,7 @@ const NAME = "RSI(2) Reversion";
 
 export function PaperPage() {
   const paper = useAsync(() => getPaperTrading(), []);
+  const { market } = useStrategies();
   const [showHistory, setShowHistory] = useState(false);
   const closeHistory = useCallback(() => setShowHistory(false), []);
 
@@ -38,6 +41,9 @@ export function PaperPage() {
 
   const marked = data.as_of === "close" ? "at the close" : "intraday";
   const lastRun = data.runs[0];
+  // A session that closed with no run means the bot stopped; the panels below are then not
+  // current, and saying so matters more than any of them.
+  const missed = missedRunSince(lastRun?.date, market, new Date());
 
   return (
     <>
@@ -81,7 +87,7 @@ export function PaperPage() {
       <PaperPositions positions={data.positions} />
       <PaperSignalRows state={data.signal_state} asOf={data.signal_state_as_of} />
       <PaperTrades trades={data.trades} evaluation={data.evaluation} />
-      <PaperRuns runs={data.runs} />
+      <PaperRuns runs={data.runs} missedSince={missed} />
     </>
   );
 }

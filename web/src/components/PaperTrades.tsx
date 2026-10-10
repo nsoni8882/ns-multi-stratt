@@ -48,6 +48,14 @@ export function PaperTrades({ trades, evaluation }: {
               format={(s) => `${s >= 0 ? "+" : ""}${s.toFixed(1)} bps`} />
       </div>
 
+      {(evaluation.unpaired_buys ?? 0) + (evaluation.unpaired_sells ?? 0) > 0 && (
+        <p className="warnline" role="status" aria-label="Incomplete ledger">
+          {(evaluation.unpaired_buys ?? 0) + (evaluation.unpaired_sells ?? 0)} fills could not
+          be paired into a round trip, so the record below is incomplete. This usually means a
+          run failed partway through.
+        </p>
+      )}
+
       <p className="tag">
         What the backtest said to expect, per name:{" "}
         {expectations.map(([symbol, b], i) => (

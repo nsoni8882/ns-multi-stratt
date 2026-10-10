@@ -117,3 +117,35 @@ test("a missed or late run is announced", () => {
   expect(screen.getByRole("status", { name: "Last run warning" }))
     .toHaveTextContent(/cutoff/i);
 });
+
+test("an error alongside a successful order does not claim nothing was placed", () => {
+  render(<PaperRuns runs={[{ ...f.runs[0], orders: 1,
+                             errors: [{ symbol: "AMZN", stage: "data", error: "HTTP 500" }] }]} />);
+  const banner = screen.getByRole("status", { name: "Last run warning" });
+  expect(banner).toHaveTextContent(/AMZN/);
+  expect(banner).not.toHaveTextContent(/placed no orders/i);
+});
+
+test("a late run with no orders does say nothing was placed", () => {
+  render(<PaperRuns runs={[{ ...f.runs[0], orders: 0, late: true,
+                             skip_reason: "inside the cutoff" }]} />);
+  expect(screen.getByRole("status", { name: "Last run warning" }))
+    .toHaveTextContent(/placed no orders/i);
+});
+
+test("a run that is days old is announced as missed", () => {
+  render(<PaperRuns runs={f.runs} missedSince="2026-10-13" />);
+  expect(screen.getByRole("status", { name: "Missed runs" }))
+    .toHaveTextContent(/has not run since/i);
+});
+
+test("a current run raises no missed-run banner", () => {
+  render(<PaperRuns runs={f.runs} />);
+  expect(screen.queryByRole("status", { name: "Missed runs" })).not.toBeInTheDocument();
+});
+
+test("unpaired fills in the ledger are surfaced rather than hidden", () => {
+  render(<PaperTrades trades={[]} evaluation={{ ...f.evaluation, unpaired_buys: 1,
+                                                unpaired_sells: 2 }} />);
+  expect(screen.getByText(/3 fills could not be paired/i)).toBeInTheDocument();
+});

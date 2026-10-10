@@ -67,3 +67,20 @@ export function formatNextUpdate(next: Date, now: Date): string {
   const day = new Intl.DateTimeFormat("en-GB", { timeZone: ET, weekday: "short", day: "numeric", month: "short" }).format(next);
   return `${day.replace(",", "")}, ${time} ET`;
 }
+
+/** The last date the paper-trading bot should have run, or null if it is up to date.
+ *
+ *  The bot runs once per session, so a session that has closed with no run since means it
+ *  missed one — a workflow failure, a disabled schedule, an expired token. Without this the
+ *  page shows a week-old account as though it were current, which is the one thing a
+ *  portfolio panel must never do.
+ */
+export function missedRunSince(lastRunDate: string | undefined, m: MarketFile | undefined,
+                               now: Date): string | null {
+  if (!lastRunDate || !m) return null;
+  const closed = m.sessions
+    .filter((s) => new Date(s.close) < now && s.date > lastRunDate)
+    .map((s) => s.date)
+    .sort();
+  return closed.length > 0 ? lastRunDate : null;
+}
