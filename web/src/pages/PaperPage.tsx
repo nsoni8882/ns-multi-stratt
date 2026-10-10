@@ -77,7 +77,7 @@ export function PaperPage() {
       <PaperBalance account={data.account} />
       <PaperEquityCurve curve={data.equity_curve} opening={data.account.opening_balance} />
       <PaperPositions positions={data.positions} />
-      <PaperSignalRows state={data.signal_state} />
+      <PaperSignalRows state={data.signal_state} asOf={data.signal_state_as_of} />
       <PaperTrades trades={data.trades} evaluation={data.evaluation} />
       <PaperRuns runs={data.runs} />
     </>

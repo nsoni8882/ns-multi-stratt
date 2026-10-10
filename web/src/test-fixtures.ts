@@ -101,6 +101,7 @@ export const paperTradingFile: PaperTradingFile = {
   version: "1.0.0",
   history: [{ version: "1.0.0", date: "2026-10-10", summary: "First version. Buys AMZN or AAPL when RSI(2) falls under 10 while the price is still above its 200-day average." }],
   symbols: ["AMZN", "AAPL"],
+  signal_state_as_of: "2026-10-12",
   account: {
     opening_balance: 100000, equity: 100592, cash: 50780, deployed_pct: 49.5,
     total_pl: 592, total_pl_pct: 0.592, realised_pl: 0, unrealised_pl: 592,

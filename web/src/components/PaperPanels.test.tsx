@@ -54,6 +54,16 @@ test("signal state shows the threshold each symbol is measured against", () => {
   expect(screen.getAllByText(/10/).length).toBeGreaterThan(0);
 });
 
+test("the rule state says which session it was read on", () => {
+  render(<PaperSignalRows state={f.signal_state} asOf="2026-10-09" />);
+  expect(screen.getByText(/read on 2026-10-09/)).toBeInTheDocument();
+});
+
+test("before the bot has ever looked, the rule state says so", () => {
+  render(<PaperSignalRows state={f.signal_state} asOf={null} />);
+  expect(screen.getByText(/has not looked yet/i)).toBeInTheDocument();
+});
+
 test("a blocked trend gate is named as such", () => {
   render(<PaperSignalRows state={[{ ...f.signal_state[0], verdict: "Trend gate blocked",
                                     trend_gap_pct: -3.2 }]} />);

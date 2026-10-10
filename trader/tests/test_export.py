@@ -128,3 +128,27 @@ def test_write_is_valid_json_with_a_trailing_newline(tmp_path):
     text = p.read_text()
     assert text.endswith("\n")
     assert json.loads(text)["account"]["equity"] == 100000.0
+
+
+def test_a_market_closed_run_falls_back_to_the_last_run_that_decided():
+    """A weekend run records no decisions. Reporting "Unknown" for every symbol would be
+    useless to a reader, when yesterday's reading is sitting right there in the ledger."""
+    runs = [
+        {"at": "2026-10-09T19:25:00+00:00", "date": "2026-10-09", "decisions": DECISIONS},
+        {"at": "2026-10-10T14:18:00+00:00", "date": "2026-10-10", "decisions": {},
+         "skip_reason": "market closed"},
+    ]
+    out = build(account=ACCOUNT, positions={}, history=HISTORY, trade_rows=[], run_rows=runs,
+                state={"opening_balance": 100000.0}, decisions={}, as_of="close")
+    by_symbol = {s["symbol"]: s for s in out["signal_state"]}
+    assert by_symbol["AMZN"]["verdict"] == "Waiting"
+    assert by_symbol["AMZN"]["rsi2"] == 64.2
+    assert out["signal_state_as_of"] == "2026-10-09"
+
+
+def test_before_the_bot_has_ever_decided_the_state_says_so():
+    out = build(account=ACCOUNT, positions={}, history=HISTORY, trade_rows=[], run_rows=[],
+                state={"opening_balance": 100000.0}, decisions={}, as_of="close")
+    by_symbol = {s["symbol"]: s for s in out["signal_state"]}
+    assert by_symbol["AMZN"]["verdict"] == "Not checked yet"
+    assert out["signal_state_as_of"] is None

@@ -213,6 +213,8 @@ export interface PaperTradingFile {
   /** Newest first, shown in the clock-icon overlay like the strategy tabs. */
   history: Release[];
   symbols: string[];
+  /** The session the rule state was read on; null before the bot has ever decided. */
+  signal_state_as_of: string | null;
   account: PaperAccount;
   equity_curve: EquityPoint[];
   positions: PaperPosition[];

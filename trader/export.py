@@ -18,6 +18,7 @@ from trader.alpaca import Alpaca
 
 VERDICT_LABEL = {"buy": "Oversold", "sell": "Exiting", "hold": "Held",
                  "wait": "Waiting", "skip": "No data"}
+NOT_CHECKED = "Not checked yet"
 RUNS_SHOWN = 10
 
 
@@ -29,13 +30,33 @@ def _read_jsonl(path) -> "list[dict]":
 
 
 def _verdict(decision: dict) -> str:
+    if not decision:
+        return NOT_CHECKED
     if decision.get("action") == "wait" and decision.get("reason") == "trend gate blocked":
         return "Trend gate blocked"
-    return VERDICT_LABEL.get(decision.get("action", ""), "Unknown")
+    return VERDICT_LABEL.get(decision.get("action", ""), NOT_CHECKED)
+
+
+def last_decisions(run_rows: "list[dict]", fallback: dict) -> "tuple[dict, str | None]":
+    """The most recent run that actually reached a decision, and the day it did.
+
+    A run on a closed market records no decisions, so the newest row is routinely empty --
+    every weekend, and every holiday. Reporting "unknown" for both symbols then would throw
+    away a perfectly good reading from the last session, which is sitting in the ledger.
+    """
+    if fallback:
+        newest = max((r for r in run_rows if r.get("decisions")),
+                     key=lambda r: r.get("at") or "", default=None)
+        return fallback, (newest or {}).get("date")
+    for row in sorted(run_rows, key=lambda r: r.get("at") or "", reverse=True):
+        if row.get("decisions"):
+            return row["decisions"], row.get("date")
+    return {}, None
 
 
 def build(*, account: dict, positions: dict, history: dict, trade_rows: "list[dict]",
           run_rows: "list[dict]", state: dict, decisions: dict, as_of: str) -> dict:
+    decisions, decided_on = last_decisions(run_rows, decisions)
     equity = float(account["equity"])
     cash = float(account["cash"])
     opening = float(state.get("opening_balance") or equity)
@@ -79,6 +100,9 @@ def build(*, account: dict, positions: dict, history: dict, trade_rows: "list[di
         # strategy tabs show. Newest first, as params.py declares it.
         "history": [r.as_dict() for r in params.HISTORY],
         "symbols": params.SYMBOLS,
+        # Which session the rule state below was read on. Not always today: a closed market
+        # records no decisions, so this is the last day the bot actually looked.
+        "signal_state_as_of": decided_on,
         "account": {
             "opening_balance": round(opening, 2),
             "equity": round(equity, 2),
@@ -135,7 +159,7 @@ def main(argv=None) -> int:
         trade_rows=_read_jsonl(data_dir / "paper_trades.jsonl"),
         run_rows=run_rows,
         state=state.load(data_dir / "paper_state.json"),
-        decisions=(run_rows[-1].get("decisions") if run_rows else {}) or {},
+        decisions={},  # build() picks the newest run that reached a decision
         as_of=args.as_of,
     )
     write(args.out, payload)

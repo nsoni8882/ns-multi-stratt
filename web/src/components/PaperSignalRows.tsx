@@ -8,10 +8,17 @@ const PILL: Record<string, string> = {
 
 /** Why the bot did or did not act today, per symbol. The two numbers that decide it, next to
  *  the thresholds they are measured against. */
-export function PaperSignalRows({ state }: { state: PaperSignalState[] }) {
+export function PaperSignalRows({ state, asOf }: {
+  state: PaperSignalState[]; asOf?: string | null;
+}) {
   return (
     <section className="panel" aria-label="Rule state">
-      <h2>What the rule sees</h2>
+      <div className="row between">
+        <h2>What the rule sees</h2>
+        <div className="tag num">
+          {asOf ? `read on ${asOf}` : "the bot has not looked yet"}
+        </div>
+      </div>
       <ul className="paper-rows">
         {state.map((s) => (
           <li key={s.symbol} className="paper-row">
