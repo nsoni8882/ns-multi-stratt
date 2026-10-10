@@ -17,7 +17,7 @@ export function TopBar() {
           <NavLink key={s.id} to={{ pathname: `/strategy/${s.id}`, search }}>{s.name}</NavLink>
         ))}
         {/* Not driven by strategies.json: this is a portfolio view, not a signal list. */}
-        <NavLink to={{ pathname: "/paper", search }}>Paper Trading</NavLink>
+        <NavLink to={{ pathname: "/paper", search }}>RSI(2) Reversion</NavLink>
       </nav>
       {!onPaper && <TimeframeToggle />}
     </header>

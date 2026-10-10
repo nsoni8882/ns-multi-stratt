@@ -17,9 +17,9 @@ function at(path: string) {
   );
 }
 
-test("the paper trading tab is always offered, even before strategies load", async () => {
+test("the RSI(2) Reversion tab is always offered, even before strategies load", async () => {
   at("/");
-  expect(await screen.findByRole("link", { name: "Paper Trading" })).toBeInTheDocument();
+  expect(await screen.findByRole("link", { name: "RSI(2) Reversion" })).toBeInTheDocument();
 });
 
 test("the timeframe toggle is offered on the signal lists", async () => {
@@ -27,8 +27,8 @@ test("the timeframe toggle is offered on the signal lists", async () => {
   expect(await screen.findByRole("button", { name: /1D/i })).toBeInTheDocument();
 });
 
-test("the timeframe toggle is hidden on paper trading, which is daily only", async () => {
+test("the timeframe toggle is hidden on RSI(2) Reversion, which is daily only", async () => {
   at("/paper");
-  await screen.findByRole("link", { name: "Paper Trading" });
+  await screen.findByRole("link", { name: "RSI(2) Reversion" });
   expect(screen.queryByRole("button", { name: /4H/i })).not.toBeInTheDocument();
 });

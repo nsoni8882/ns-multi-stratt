@@ -10,14 +10,16 @@ import { PaperSignalRows } from "../components/PaperSignalRows";
 import { PaperTrades } from "../components/PaperTrades";
 import { useAsync } from "../hooks";
 
-const NAME = "Paper Trading";
+// Named after its rule, like the two screener tabs. The "Paper money" pill carries the
+// fact that this is the one strategy that actually places orders.
+const NAME = "RSI(2) Reversion";
 
 export function PaperPage() {
   const paper = useAsync(() => getPaperTrading(), []);
   const [showHistory, setShowHistory] = useState(false);
   const closeHistory = useCallback(() => setShowHistory(false), []);
 
-  if (paper.loading) return <Loading what="paper trading" />;
+  if (paper.loading) return <Loading what="the account" />;
   if (paper.error) {
     // The file does not exist until the trader's first run, and a 404 then is normal rather
     // than a fault -- saying "something went wrong" would be wrong.

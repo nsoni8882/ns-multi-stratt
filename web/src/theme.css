@@ -251,7 +251,7 @@ main { max-width: 1120px; margin: 0 auto; padding: 4px 32px 48px; min-height: 60
   .chart-canvas { height: 480px; }
 }
 
-/* ---------------------------------------------------------------- paper trading
+/* ------------------------------------------------------------- RSI(2) Reversion
    A portfolio view rather than a signal list, so it reuses the stat row, the big cards and
    the pills, and adds only what none of those cover. Every colour is an existing token. */
 .panel { margin: 26px 0 0; }
