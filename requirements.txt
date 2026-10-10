@@ -6,3 +6,4 @@ requests>=2.32
 curl_cffi>=0.7
 exchange-calendars>=4.13,<5
 pytest>=8
+PyYAML>=6  # trader/tests/test_workflow.py reads the workflow files

@@ -114,6 +114,18 @@ jobs:
             --test "python=${{ steps.pytest.outcome }}" \
             --test "web=${{ steps.webtest.outcome }}"
 
+      # The trader writes this on its own schedule and never deploys; scan.yml owns the only
+      # path to Pages. A missing file is normal before the first trading run and must not
+      # fail the scan -- the page renders its absence as "not published yet".
+      - name: Include the paper-trading dashboard, if the trader has written one
+        run: |
+          if [ -f history/paper-trading.json ]; then
+            cp history/paper-trading.json web/public/data/paper-trading.json
+            echo "published paper-trading.json"
+          else
+            echo "no paper-trading.json on the data branch yet; skipping"
+          fi
+
       - run: npm run build
         working-directory: web
       - uses: actions/configure-pages@v5
