@@ -1,0 +1,153 @@
+{
+ "account": {
+  "cash": 100000.0,
+  "deployed_pct": 0.0,
+  "equity": 100000.0,
+  "opening_balance": 100000.0,
+  "realised_pl": 0,
+  "total_pl": 0.0,
+  "total_pl_pct": 0.0,
+  "unrealised_pl": 0
+ },
+ "as_of": "intraday",
+ "equity_curve": [
+  {
+   "date": "2026-10-09",
+   "equity": 100000.0,
+   "in_position": false
+  },
+  {
+   "date": "2026-10-10",
+   "equity": 100000.0,
+   "in_position": false
+  }
+ ],
+ "evaluation": {
+  "backtest": {
+   "AAPL": {
+    "bps_per_trade": 117.5,
+    "max_dd_pct": -32.4,
+    "mean_bars_held": 4.16,
+    "p_vs_random": 0.01,
+    "positive_years": "23/26",
+    "t_stat": 5.1,
+    "trades": 245,
+    "win_rate": 75.1,
+    "worst_trade_pct": -18.6
+   },
+   "AMZN": {
+    "bps_per_trade": 150.1,
+    "max_dd_pct": -27.7,
+    "mean_bars_held": 3.68,
+    "p_vs_random": 0.002,
+    "positive_years": "19/24",
+    "t_stat": 5.53,
+    "trades": 232,
+    "win_rate": 75.9,
+    "worst_trade_pct": -16.9
+   }
+  },
+  "bps_per_trade": null,
+  "mean_bars_held": null,
+  "per_rules_version": {},
+  "per_symbol": {},
+  "per_year": {},
+  "slippage_bps": null,
+  "trades_closed": 0,
+  "trades_needed": 30,
+  "unpaired_buys": 0,
+  "unpaired_sells": 0,
+  "verdict": null,
+  "win_rate": null
+ },
+ "history": [
+  {
+   "date": "2026-10-10",
+   "summary": "The bot now stands down if it wakes up more than 45 minutes before the close. Its wake-up times are set in UTC, so through the winter one of them landed an hour and a half early, and a decision taken that far from the close is not the one this strategy was tested on.",
+   "version": "1.1.0"
+  },
+  {
+   "date": "2026-10-10",
+   "summary": "First version. Buys AMZN or AAPL when RSI(2) falls under 10 while the price is still above its 200-day average, and sells when RSI(2) recovers past 65 or ten trading days pass. Half the account per name, no stop, paper money only.",
+   "version": "1.0.0"
+  }
+ ],
+ "positions": [],
+ "rules_version": "f5e0af26ffd9",
+ "runs": [
+  {
+   "at": "2026-10-10T14:52:05+00:00",
+   "crashed": false,
+   "date": "2026-10-10",
+   "decisions": {
+    "AAPL": {
+     "action": "wait",
+     "bars_held": 0,
+     "entry_date": null,
+     "held": false,
+     "price": 336.64,
+     "reason": "not oversold",
+     "rsi2": 42.27675607410111,
+     "sma200": 290.4025,
+     "trend_gap_pct": 15.921867063816597
+    },
+    "AMZN": {
+     "action": "wait",
+     "bars_held": 0,
+     "entry_date": null,
+     "held": false,
+     "price": 262.43,
+     "reason": "not oversold",
+     "rsi2": 77.18106029044641,
+     "sma200": 242.15155,
+     "trend_gap_pct": 8.374280486744778
+    }
+   },
+   "early": false,
+   "equity": 100000.0,
+   "errors": [],
+   "event": "workflow_dispatch",
+   "late": false,
+   "mode": "dry-run",
+   "opening_balance": 100000.0,
+   "orders": 0,
+   "rules_version": "f5e0af26ffd9",
+   "run_id": "38061213458",
+   "sha": "fcd485fd294e",
+   "skip_reason": "market closed",
+   "url": "https://github.com/nsoni8882/ns-multi-stratt/actions/runs/38061213458"
+  }
+ ],
+ "signal_state": [
+  {
+   "buy_below": 10.0,
+   "price": 262.43,
+   "reason": "not oversold",
+   "rsi2": 77.18106029044641,
+   "sell_above": 65.0,
+   "sma200": 242.15155,
+   "symbol": "AMZN",
+   "trend_gap_pct": 8.374280486744778,
+   "verdict": "Waiting"
+  },
+  {
+   "buy_below": 10.0,
+   "price": 336.64,
+   "reason": "not oversold",
+   "rsi2": 42.27675607410111,
+   "sell_above": 65.0,
+   "sma200": 290.4025,
+   "symbol": "AAPL",
+   "trend_gap_pct": 15.921867063816597,
+   "verdict": "Waiting"
+  }
+ ],
+ "signal_state_as_of": "2026-10-10",
+ "symbols": [
+  "AMZN",
+  "AAPL"
+ ],
+ "trades": [],
+ "updated_at": "2026-10-10T14:52:05+00:00",
+ "version": "1.1.0"
+}
