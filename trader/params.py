@@ -70,5 +70,5 @@ HISTORY = (
             "First version. Buys AMZN or AAPL when RSI(2) falls under 10 while the price "
             "is still above its 200-day average, and sells when RSI(2) recovers past 65 or "
             "ten trading days pass. Half the account per name, no stop, paper money only.",
-            fingerprint=""),  # filled in at Task 8, read off the code rather than typed
+            fingerprint="512f04ab1a78"),
 )
