@@ -19,14 +19,10 @@ export function TopBar() {
         {/* Not driven by strategies.json: this is a portfolio view, not a signal list. */}
         <NavLink to={{ pathname: "/paper", search }}>RSI(2) Reversion</NavLink>
       </nav>
-      {/* Held in the layout rather than unmounted. `.top` is space-between with three
-          children, so dropping this one slides the nav from the middle to the right edge the
-          moment you open /paper. visibility:hidden keeps the exact slot — the labels are
-          fixed, so it is pixel-identical — and takes the buttons out of both the tab order
-          and the accessibility tree, which an unusable 1D/4H switch has no business being in. */}
-      <div className={onPaper ? "slot-off" : undefined}>
-        <TimeframeToggle />
-      </div>
+      {/* Safe to drop entirely: `.top` is a grid with fixed columns, so the nav stays centred
+          whether or not this third child exists. It used to be a flex row with space-between,
+          where removing this slid the nav to the right edge on /paper. */}
+      {!onPaper && <TimeframeToggle />}
     </header>
   );
 }

@@ -30,15 +30,15 @@ test("the timeframe toggle is offered on the signal lists", async () => {
 test("the timeframe toggle is hidden on RSI(2) Reversion, which is daily only", async () => {
   at("/paper");
   await screen.findByRole("link", { name: "RSI(2) Reversion" });
-  // Hidden, but still holding its slot: unmounting it left `.top`'s space-between with two
-  // children and slid the nav to the right edge. jsdom does not load theme.css, so the class
-  // is the contract under test; `.slot-off` is what makes it visibility:hidden in the browser.
-  const slot = screen.getByRole("group", { name: "Timeframe" }).parentElement;
-  expect(slot).toHaveClass("slot-off");
+  expect(screen.queryByRole("button", { name: /4H/i })).not.toBeInTheDocument();
 });
 
-test("the timeframe slot takes no class on the pages that can use it", async () => {
-  at("/");
-  const slot = (await screen.findByRole("group", { name: "Timeframe" })).parentElement;
-  expect(slot).not.toHaveClass("slot-off");
+test("the nav keeps its own grid column, so dropping the toggle cannot move it", async () => {
+  at("/paper");
+  // Why this is pinned: the bar was a flex row with space-between, and losing the third
+  // child slid the nav from the middle to the right edge. The fix is structural — fixed
+  // grid columns — so the nav must never be the element the end-alignment rule targets.
+  const nav = await screen.findByRole("navigation", { name: "Primary" });
+  expect(nav).toHaveClass("pillnav");
+  expect(nav.parentElement).toHaveClass("top");
 });
