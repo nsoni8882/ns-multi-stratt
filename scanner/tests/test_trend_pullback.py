@@ -5,9 +5,16 @@ import pandas as pd
 import pytest
 
 from scanner.strategies.base import HIGH, LOW, STANDARD
-from scanner.strategies.trend_pullback import (RSI_BUY_LEVEL, TrendPullback, TrendPullbackConfig, VARIANTS,
-                                               dip_depth, dip_length, rule_side)
+from scanner.strategies.trend_pullback import (RSI_BUY_LEVEL, SHIPPED_CONFIG, TrendPullback,
+                                               TrendPullbackConfig, VARIANTS, dip_depth,
+                                               dip_length, rule_side)
 from scanner.tests.conftest import make_df
+
+# The price half of the rule, i.e. what shipped up to 1.6.0. Since 1.7.0 the shipped config
+# also gates on volume, so the tests below that are about the RSI-and-trend conditions pass
+# this explicitly: fed a frame with no volume series, the shipped config would raise rather
+# than answer, and these tests are not about that.
+PRICE_ONLY = VARIANTS["price-only"]
 
 
 def series(values):
@@ -16,7 +23,8 @@ def series(values):
 
 def test_rule_buy_in_uptrend_when_rsi_crosses_40():
     close, ema50, ema200 = series([110, 110]), series([105, 105]), series([100, 100])
-    assert rule_side(close, ema50, ema200, series([38, 41]), 1) == ("BUY", STANDARD)
+    assert rule_side(close, ema50, ema200, series([38, 41]), 1,
+                     cfg=PRICE_ONLY) == ("BUY", STANDARD)
 
 
 def test_rule_buy_blocked_without_uptrend():
@@ -29,7 +37,8 @@ def test_rule_sell_in_downtrend_when_rsi_crosses_below_60():
     """The mirror is published again, but never above LOW: shorting these measured -2.08%
     over 12 years (t -8.14), so the tier is pinned. See research/FINDINGS.md."""
     close, ema50, ema200 = series([90, 90]), series([95, 95]), series([100, 100])
-    assert rule_side(close, ema50, ema200, series([62, 59]), 1) == ("SELL", LOW)
+    assert rule_side(close, ema50, ema200, series([62, 59]), 1,
+                     cfg=PRICE_ONLY) == ("SELL", LOW)
     assert rule_side(close, ema50, ema200, series([62, 59]), 1,
                      cfg=VARIANTS["long-only"]) is None
 
@@ -46,7 +55,7 @@ def _uptrend_with_dip():
 
 
 def test_evaluate_buy_on_pullback_in_uptrend():
-    sig = TrendPullback().evaluate(make_df(_uptrend_with_dip()))
+    sig = TrendPullback(PRICE_ONLY).evaluate(make_df(_uptrend_with_dip()))
     assert sig is not None and sig.side == "BUY" and sig.bars_ago == 0
     assert sig.details["ema50"] > sig.details["ema200"]
     # The level that fired it travels with the signal, so the site can say why without
@@ -60,7 +69,7 @@ def test_evaluate_sell_on_rally_in_downtrend():
     rally = dn[-1] * np.cumprod(np.full(3, 1 + 0.015))
     closes = list(np.concatenate([dn, rally, [rally[-1] * 0.99]]))
     assert TrendPullback(VARIANTS["long-only"]).evaluate(make_df(closes)) is None
-    sig = TrendPullback().evaluate(make_df(closes))
+    sig = TrendPullback(PRICE_ONLY).evaluate(make_df(closes))
     assert sig is not None and sig.side == "SELL" and sig.bars_ago == 0
     assert sig.conviction == LOW  # the short leg showed no measurable edge in backtesting
     # The rally the SELL resolves is measured on the mirrored series, so the card can
@@ -72,8 +81,8 @@ def test_evaluate_sell_on_rally_in_downtrend():
 
 def test_needs_400_bars():
     """EMA200 is still seed-biased before ~400 bars, so short histories are skipped."""
-    assert TrendPullback().evaluate(make_df(_uptrend_with_dip()[-399:])) is None
-    assert TrendPullback().evaluate(make_df(_uptrend_with_dip())) is not None
+    assert TrendPullback(PRICE_ONLY).evaluate(make_df(_uptrend_with_dip()[-399:])) is None
+    assert TrendPullback(PRICE_ONLY).evaluate(make_df(_uptrend_with_dip())) is not None
 
 
 def test_flat_prices_give_no_signal():
@@ -83,10 +92,24 @@ def test_flat_prices_give_no_signal():
 # --- configurable gates (research/measure.py is the only non-default caller) ---
 
 
-def test_default_config_is_the_shipped_rule():
+def test_field_defaults_are_still_the_price_only_rule():
+    """Every entry in VARIANTS is a delta from these, so the whole comparison table in
+    research/results/ depends on them not drifting. The rule that ships is SHIPPED_CONFIG."""
     cfg = TrendPullbackConfig()
     assert cfg.adx_min is None and cfg.depth_tiers == () and cfg.require_ema50_above_ema200
     assert cfg.rsi_buy_level == 40 and not cfg.require_rising_ema200
+    assert cfg.max_dip_rvol is None and not cfg.require_obv_above_ema
+    assert cfg == PRICE_ONLY
+
+
+def test_shipped_config_is_the_measured_quiet_pullback():
+    """1.7.0: the two gates that measured +1.30% (t +2.47) are on, and nothing else is.
+    If this changes, research/results/trend_pullback.md no longer describes what ships."""
+    assert SHIPPED_CONFIG == TrendPullback().config
+    assert SHIPPED_CONFIG.max_dip_rvol == 0.9 and SHIPPED_CONFIG.require_obv_above_ema
+    assert SHIPPED_CONFIG.min_trigger_rvol is None and not SHIPPED_CONFIG.mfi_confluence
+    assert SHIPPED_CONFIG.adx_min is None and SHIPPED_CONFIG.max_ema50_distance is None
+    assert SHIPPED_CONFIG.depth_tiers == () and SHIPPED_CONFIG.enable_short
 
 
 def test_adx_gate_blocks_a_signal_in_chop():
@@ -172,7 +195,8 @@ def test_near_ema50_gate_rejects_an_extended_name():
     assert rule_side(series([106, 106]), ema50, ema200, r, 1, None, None, cfg=cfg) == ("BUY", STANDARD)
     assert rule_side(series([131, 131]), ema50, ema200, r, 1, None, None, cfg=cfg) is None
     # unchanged without the gate
-    assert rule_side(series([131, 131]), ema50, ema200, r, 1) == ("BUY", STANDARD)
+    assert rule_side(series([131, 131]), ema50, ema200, r, 1,
+                     cfg=PRICE_ONLY) == ("BUY", STANDARD)
 
 
 def test_near_ema50_gate_boundary_is_inclusive():
@@ -232,7 +256,9 @@ def test_params_cover_every_config_field_so_the_fingerprint_cannot_miss_one():
 def test_rules_version_changes_when_a_gate_changes_and_not_otherwise():
     from scanner.strategies.base import rules_version
     shipped = rules_version(TrendPullback().params)
-    assert shipped == rules_version(TrendPullback(TrendPullbackConfig()).params)
+    assert shipped == rules_version(TrendPullback(SHIPPED_CONFIG).params)
+    # The gates added in 1.7.0 are in the fingerprint, so the pre-1.7.0 rule hashes apart.
+    assert shipped != rules_version(TrendPullback(PRICE_ONLY).params)
     assert shipped != rules_version(TrendPullback(TrendPullbackConfig(adx_min=20)).params)
     assert shipped != rules_version(TrendPullback(TrendPullbackConfig(rsi_buy_level=35)).params)
     assert len(shipped) == 12
@@ -246,13 +272,31 @@ def _with_volume(closes, volumes):
     return df
 
 
-def test_volume_gates_are_off_by_default():
-    """The shipped rule must be blind to volume: these were added for measurement only."""
-    cfg = TrendPullbackConfig()
-    assert cfg.max_dip_rvol is None and cfg.min_trigger_rvol is None
-    assert cfg.require_obv_above_ema is False and cfg.mfi_confluence is False
-    loud = _with_volume(_uptrend_with_dip(), [1000] * 420 + [50_000] * 4)
-    assert TrendPullback().evaluate(loud) is not None  # a volume spike changes nothing
+def _quiet_dip(closes):
+    """The dip trades at 0.4x its own normal, the recovery bar back at normal. Constant
+    volume is 1.0x and deliberately is *not* a dry-up."""
+    return _with_volume(closes, [1000] * (len(closes) - 4) + [400, 400, 400, 1000])
+
+
+def test_the_shipped_rule_wants_a_quiet_dip_and_rejects_a_heavy_one():
+    """The whole point of 1.7.0: same price action, different volume, different answer."""
+    closes = _uptrend_with_dip()
+    heavy = _with_volume(closes, [1000] * (len(closes) - 4) + [5000, 5000, 5000, 1000])
+    assert TrendPullback().evaluate(_quiet_dip(closes)) is not None
+    assert TrendPullback().evaluate(heavy) is None
+    # ...and the rule it replaced took both, which is why the list was 25x longer.
+    assert TrendPullback(PRICE_ONLY).evaluate(heavy) is not None
+
+
+def test_the_shipped_rule_needs_obv_above_its_average():
+    """The second gate, in isolation: a quiet dip on distribution is not the setup."""
+    closes = _uptrend_with_dip()
+    ind = TrendPullback().indicators(_quiet_dip(closes))
+    assert ind["obv_dev"] is not None and ind["rvol"] is not None
+    assert ind["obv_dev"].iloc[-1] > 0  # the fixture is accumulating, so it fires
+    sig = rule_side(**{**ind, "obv_dev": ind["obv_dev"] * -1}, i=len(closes) - 1,
+                    cfg=SHIPPED_CONFIG)
+    assert sig is None
 
 
 def test_dryup_gate_rejects_a_dip_that_traded_heavily():
@@ -303,7 +347,7 @@ def test_volume_gates_are_part_of_the_fingerprint():
 def test_signal_details_describe_this_dip_not_the_rule():
     """Per-stock numbers for the card's explanation: how long the dip was, how deep it went,
     and where price sits against each mean. Descriptive, so none of them is in `params`."""
-    sig = TrendPullback().evaluate(make_df(_uptrend_with_dip()))
+    sig = TrendPullback(PRICE_ONLY).evaluate(make_df(_uptrend_with_dip()))
     assert sig is not None and sig.side == "BUY"
     d = sig.details
     assert d["dip_bars"] >= 1

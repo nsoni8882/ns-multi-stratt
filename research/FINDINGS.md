@@ -201,7 +201,7 @@ half than the first* (+1.77%, t +2.09, against +0.85%, t +1.33). Every other can
 including dry-up on its own, earns its alpha before 2020 and nothing after. It also survives
 dropping its best year (2021, +6.40%) and is positive in 9 of 11.
 
-**Nothing ships.** Against ACCEPTANCE.md:
+**Neither candidate clears ACCEPTANCE.md:**
 
 - `dryup-0.8`: passes 1, 3, 4. Fails 2 (t 2.19 < 2.5) and 5 (n indep 378 < 500).
 - `dryup-0.9+obv`: passes 1, 3, 4, and 3 in the strong form. Fails 2 (t 2.47, *just* under)
@@ -212,15 +212,32 @@ Both fail on the same two rules, and the pattern is structural rather than bad l
 near +1.0%. A gate selective enough to leave 2-3 names a day cannot also leave 500
 independent events in twelve years. **Rule 5 and "fewer, better signals" are in direct
 conflict, and no amount of measuring resolves it** -- it is a decision about how much evidence
-is enough, which ACCEPTANCE.md says is not to be made after seeing the numbers.
+is enough, and measuring harder does not make it.
 
-So the shipped rule is unchanged, the gates stay in `TrendPullbackConfig` defaulting to off,
-and the way to settle `dryup-0.9+obv` is forward: it fires about 4% as often as the shipped
-rule, which is ~25 independent signals a year across the S&P 500, so a pre-registered live
-sample reaches n = 500 in about two decades and a halving of the bar in about ten. That is
-the real cost of the standard, stated plainly rather than quietly bent.
+**`dryup-0.9+obv` shipped anyway, as 1.7.0, on the owner's instruction** -- the brief was a
+list short enough to read, and this leaves about 2 names a day against 46. The two failures
+are on the record in the amendment at the end of ACCEPTANCE.md, together with what did *not*
+change: the t 2.5 bar was not lowered for anything else, and the next candidate is measured
+against the original numbers. The case for making this the exception rather than `dryup-0.8`
+is rule 3 in its strong form -- it is the only cohort in this repo whose second half beats its
+first, which is the opposite of every variant rejected here, several of which were killed
+precisely because their edge died after 2020.
 
-One methodological fix came out of this run and is already in `measure.py`: see below.
+It ships on probation, and the test is forward: ~25 independent signals a year, re-measured
+on the pinned universe. If the second half that justified it stops holding, 1.7.0 goes back
+to the price-only rule rather than being defended. The price-only rule stays measurable as
+`VARIANTS["price-only"]` for exactly that reason, and it is what every other variant is still
+a delta from, so the tables above remain comparable.
+
+Two things found on the way, both now fixed in the tree:
+
+- **The dry-up gate silently deleted the entire SELL leg**, and for an arithmetic reason, not
+  a measured one: `dip_mean_rvol` walks back through *sub*-level RSI bars, but the run before
+  a SELL sits above the level, so on the raw series it averaged nothing, returned NaN, and the
+  gate read NaN as "unmeasured, reject". It is mirrored now, the same way `evaluate` already
+  mirrored the descriptive helpers, and the short leg measures -1.75% (t -2.13, n indep 130)
+  under the shipped gates -- reliably wrong, as it has been in every cut of this data.
+- **The yardstick was moving:** see below.
 
 ## The yardstick was moving (2026-10-12)
 

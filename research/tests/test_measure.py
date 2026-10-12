@@ -9,6 +9,12 @@ from scanner.tests.conftest import make_df
 
 # Every call below scores Trend Pullback; the reversal strategy has its own run.
 PULLBACK = TARGETS["trend-pullback"]
+# The ungated rule, i.e. Trend Pullback up to 1.6.0. Most tests here are about the harness --
+# windows, forward returns, year tagging, subsets -- and want the variant that fires most
+# often on a synthetic frame. The rule that ships since 1.7.0 also gates on volume, and
+# `make_df` gives every bar the same volume, which is deliberately not a dry-up.
+BASELINE = VARIANTS["price-only"]
+BASELINE_LABEL = "price-only"
 
 HORIZON = 20
 
@@ -69,7 +75,7 @@ def _uptrend(n=MIN_BARS + 240, drift=0.006, drop=0.02, every=45, length=7):
 
 def test_scan_ticker_finds_signals_and_scores_a_full_forward_window():
     df = make_df(_uptrend())
-    rows = scan_ticker(df, VARIANTS["shipped"], HORIZON, PULLBACK)
+    rows = scan_ticker(df, BASELINE, HORIZON, PULLBACK)
     assert rows, "the synthetic uptrend should produce pullback signals"
     assert all(r.bar >= MIN_BARS for r in rows)
     assert all(r.bar < len(df) - HORIZON for r in rows)  # never scored without a full window
@@ -77,25 +83,26 @@ def test_scan_ticker_finds_signals_and_scores_a_full_forward_window():
 
 
 def test_scan_ticker_returns_nothing_without_enough_history():
-    assert scan_ticker(make_df(_uptrend(n=MIN_BARS + HORIZON)), VARIANTS["shipped"], HORIZON, PULLBACK) == []
+    assert scan_ticker(make_df(_uptrend(n=MIN_BARS + HORIZON)), BASELINE, HORIZON, PULLBACK) == []
 
 
 def test_scan_ticker_forward_return_matches_the_raw_close_ratio():
     df = make_df(_uptrend())
-    rows = scan_ticker(df, VARIANTS["shipped"], HORIZON, PULLBACK)
+    rows = scan_ticker(df, BASELINE, HORIZON, PULLBACK)
     close = df["close"].to_numpy(dtype=float)
     r = rows[0]
     assert r.fwd == pytest.approx(close[r.bar + HORIZON] / close[r.bar] - 1.0)
 
 
-def test_gated_variants_can_only_ever_remove_shipped_signals():
-    """Every gate is a filter on the shipped rule, never a source of new signals."""
+def test_gated_variants_can_only_ever_remove_baseline_signals():
+    """Every gate is a filter on the ungated rule, never a source of new signals."""
     df = make_df(_uptrend())
-    shipped = {r.bar for r in scan_ticker(df, VARIANTS["shipped"], HORIZON, PULLBACK) if r.side == "BUY"}
-    assert shipped, "fixture must fire under the shipped rule for this to mean anything"
-    for cfg in (VARIANTS["adx20"], VARIANTS["adx25"], VARIANTS["rising200"]):
+    base = {r.bar for r in scan_ticker(df, BASELINE, HORIZON, PULLBACK) if r.side == "BUY"}
+    assert base, "fixture must fire under the ungated rule for this to mean anything"
+    for cfg in (VARIANTS["adx20"], VARIANTS["adx25"], VARIANTS["rising200"],
+                VARIANTS["shipped"], VARIANTS["dryup-0.9"]):
         gated = {r.bar for r in scan_ticker(df, cfg, HORIZON, PULLBACK) if r.side == "BUY"}
-        assert gated <= shipped
+        assert gated <= base
 
     blocked = scan_ticker(df, TrendPullbackConfig(adx_min=99), HORIZON, PULLBACK)
     assert [r for r in blocked if r.side == "BUY"] == []  # a gate that nothing can pass
@@ -106,7 +113,7 @@ def test_a_lower_rsi_trigger_moves_the_entry_rather_than_filtering_it():
     40, so the deeper level buys the same pullback a couple of bars earlier and cheaper.
     Read its alpha as a different entry, not as a stricter filter."""
     df = make_df(_uptrend())
-    shipped = sorted(r.bar for r in scan_ticker(df, VARIANTS["shipped"], HORIZON, PULLBACK) if r.side == "BUY")
+    shipped = sorted(r.bar for r in scan_ticker(df, BASELINE, HORIZON, PULLBACK) if r.side == "BUY")
     deeper = sorted(r.bar for r in scan_ticker(df, VARIANTS["rsi35"], HORIZON, PULLBACK) if r.side == "BUY")
     assert len(deeper) == len(shipped)
     assert all(d < s for d, s in zip(deeper, shipped))
@@ -115,7 +122,7 @@ def test_a_lower_rsi_trigger_moves_the_entry_rather_than_filtering_it():
 
 def test_tiered_variant_keeps_the_same_signals_and_only_relabels_them():
     df = make_df(_uptrend())
-    shipped = sorted(r.bar for r in scan_ticker(df, VARIANTS["shipped"], HORIZON, PULLBACK) if r.side == "BUY")
+    shipped = sorted(r.bar for r in scan_ticker(df, BASELINE, HORIZON, PULLBACK) if r.side == "BUY")
     tiered = scan_ticker(df, VARIANTS["tiered-deep-is-strong"], HORIZON, PULLBACK)
     assert sorted(r.bar for r in tiered if r.side == "BUY") == shipped
     assert {r.conviction for r in tiered if r.side == "BUY"} - {"high", "standard", "low"} == set()
@@ -181,16 +188,16 @@ def test_era_midpoints_split_the_scored_range_not_the_whole_frame():
 
 def test_measure_reports_each_cohort_split_into_halves():
     bars = {"AAA": make_df(_uptrend()), "BBB": make_df(_uptrend(drift=0.007))}
-    out = measure(bars, ["shipped"], HORIZON, PULLBACK)
-    eras = out["shipped"]["eras"]
+    out = measure(bars, [BASELINE_LABEL], HORIZON, PULLBACK)
+    eras = out[BASELINE_LABEL]["eras"]
     assert set(eras) >= {"BUY"}
     assert set(eras["BUY"]) == {"first", "second"}
-    assert eras["BUY"]["first"]["n"] + eras["BUY"]["second"]["n"] == out["shipped"]["BUY"]["n"]
+    assert eras["BUY"]["first"]["n"] + eras["BUY"]["second"]["n"] == out[BASELINE_LABEL]["BUY"]["n"]
 
 
 def test_to_markdown_includes_the_sub_period_section():
     bars = {"AAA": make_df(_uptrend())}
-    out = to_markdown(measure(bars, ["shipped"], HORIZON, PULLBACK), _meta(tickers=1, bars=1))
+    out = to_markdown(measure(bars, [BASELINE_LABEL], HORIZON, PULLBACK), _meta(tickers=1, bars=1))
     assert "Sub-period check" in out and "(first half)" in out and "(second half)" in out
 
 
@@ -204,13 +211,13 @@ def test_by_year_groups_rows_by_signal_year():
 
 def test_scan_ticker_tags_rows_with_the_signal_bar_year():
     df = make_df(_uptrend(), start="2015-01-01")
-    rows = scan_ticker(df, VARIANTS["shipped"], HORIZON, PULLBACK)
+    rows = scan_ticker(df, BASELINE, HORIZON, PULLBACK)
     assert rows and all(r.year == df.index[r.bar].year for r in rows)
 
 
 def test_to_markdown_renders_a_per_year_column_per_year_seen():
     bars = {"AAA": make_df(_uptrend(), start="2015-01-01")}
-    out = to_markdown(measure(bars, ["shipped"], HORIZON, PULLBACK), _meta(tickers=1, bars=1))
+    out = to_markdown(measure(bars, [BASELINE_LABEL], HORIZON, PULLBACK), _meta(tickers=1, bars=1))
     assert "Per-year alpha by cohort" in out and "2016" in out
 
 

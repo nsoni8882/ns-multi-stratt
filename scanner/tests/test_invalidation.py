@@ -59,7 +59,10 @@ def test_the_ccl_shape_is_flagged_but_still_listed():
 def test_a_fresh_signal_is_not_flagged():
     up = 100 * np.cumprod(1 + 0.002 + 0.003 * np.sin(np.arange(420) / 3))
     dip = up[-1] * np.cumprod(np.full(3, 1 - 0.015))
-    sig = TrendPullback().evaluate(make_df(list(np.concatenate([up, dip, [dip[-1] * 1.01]]))))
+    # The price-only config: this is about the invalidation label, not about 1.7.0's volume
+    # gates, and make_df gives every bar the same volume, which is not a dry-up.
+    sig = TrendPullback(VARIANTS["price-only"]).evaluate(
+        make_df(list(np.concatenate([up, dip, [dip[-1] * 1.01]]))))
     assert sig is not None and sig.bars_ago == 0
     assert sig.invalidated is False
 

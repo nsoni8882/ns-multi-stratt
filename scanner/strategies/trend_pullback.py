@@ -30,13 +30,14 @@ EMA_FAST, EMA_SLOW, EMA_SHORT, RSI_LENGTH = 50, 200, 20, 14
 
 @dataclass(frozen=True)
 class TrendPullbackConfig:
-    """Tunable gates for the setup. The defaults reproduce the shipped rule exactly, so a
-    variant is only ever active where it was explicitly asked for -- see research/measure.py,
-    which is the only caller that passes a non-default config.
+    """Tunable gates for the setup. The field defaults below are the *price-only* rule that
+    shipped from 1.0.0 to 1.6.0, not what ships now: `SHIPPED_CONFIG` turns two volume gates
+    on top of them. They are left as they are so every entry in VARIANTS stays a delta from
+    one fixed baseline and the measurement tables stay comparable across versions.
 
-    Every gate below has been measured over 163 S&P names x 12y and *none of them beat the
-    defaults* -- full write-up in research/FINDINGS.md. Short version, 20-bar alpha on the
-    non-overlapping sample, against the shipped rule's +0.11% (t=+0.74):
+    Every gate below has been measured over 163 S&P names x 12y -- full write-up in
+    research/FINDINGS.md. Short version, 20-bar alpha on the non-overlapping sample, against
+    the price-only rule's +0.11% (t=+0.74). Only the last two beat it:
 
         RSI trigger 40 -> 35      -0.25%  (t=-1.18)
         ADX >= 20 gate            -0.08%  (t=-0.44)   ADX >= 25: -0.38% (t=-1.65)
@@ -45,6 +46,15 @@ class TrendPullbackConfig:
         close within 2% of EMA50  +0.15%  (t=+1.05)   best found; fails the t>=2.5 bar
         close below EMA20         +0.12%  (t=+0.82)
         close at/below EMA50      +0.10%  (t=+0.63)
+        quiet dip (rvol <= 0.9)   +0.50%  (t=+1.75)   n indep 705
+        ...and OBV accumulating   +1.30%  (t=+2.47)   n indep 223; what ships at 1.7.0
+
+    The last line is the shipped rule and it is the only one measured here whose edge is
+    larger out of sample than in (second half +1.77%, first half +0.85%). It is also the only
+    thing in this repo shipped *below* the ACCEPTANCE.md bar, on the owner's instruction and
+    for a stated reason: at a 20-bar horizon, t >= 2.5 with n indep >= 500 needs alpha near
+    +1.0%, so no gate selective enough to leave a readable list can also leave 500
+    independent events in twelve years. The t 2.5 bar still stands for everything else.
 
     Grading conviction by pullback depth looked like the one real finding (deep dips -1.55%,
     t=-4.04) but it is the COVID crash: 70 signals in 2020 at -15.16% carry all of it, and
@@ -55,7 +65,9 @@ class TrendPullbackConfig:
     rsi_buy_level: float = RSI_BUY_LEVEL
     rsi_sell_level: float = RSI_SELL_LEVEL
     # The short leg does not just lack an edge, it is reliably wrong: shorting these returned
-    # -2.08% over 20 bars (t = -8.14, n indep 1,487, win 43.5%) and was negative in 9 of 11
+    # -2.08% over 20 bars (t = -8.14, n indep 1,487, win 43.5%) under the price-only rule, and
+    # -1.75% (t = -2.13, n indep 130) under the volume gates that ship at 1.7.0 -- the gates
+    # thin it without rescuing it, which is what a leg with no edge looks like. Negative in 9 of 11
     # years. It is published anyway, on request, so the leg can be watched live against that
     # number -- NOT because anything re-measured in its favour. It fails ACCEPTANCE.md and is
     # pinned to LOW conviction. Turning it back off is `VARIANTS["long-only"]`.
@@ -89,11 +101,29 @@ class TrendPullbackConfig:
     mfi_length: int = 14
 
 
-DEFAULT_CONFIG = TrendPullbackConfig()
+# The rule that ships. Written out rather than taken from the field defaults, which stay the
+# price-only rule of 1.0.0-1.6.0 on purpose: every entry in VARIANTS below is a delta from
+# those defaults, so moving them would silently add the volume gates to all two dozen
+# variants and quietly invalidate the whole comparison table.
+#
+# Shipped 2026-10-12 on the owner's instruction, to make the published list short enough to
+# read. It is the best-measured tightening in this repo -- +1.30% alpha on the independent
+# sample against the price-only rule's +0.11%, t +2.47, and the only cohort measured here
+# whose second half (+1.77%) beats its first (+0.85%) -- and it still misses ACCEPTANCE.md
+# rules 2 (t >= 2.5) and 5 (n indep >= 500), at t 2.47 and n 223. Both failures are recorded
+# in the amendment at the end of ACCEPTANCE.md and in round three of FINDINGS.md; neither
+# bar was lowered for anything else.
+SHIPPED_CONFIG = TrendPullbackConfig(max_dip_rvol=0.9, require_obv_above_ema=True)
+DEFAULT_CONFIG = SHIPPED_CONFIG
 
 # Variants wired up for measurement, keyed by the label the harness reports them under.
+# Every one is a delta from the *field* defaults -- the price-only rule -- not from
+# SHIPPED_CONFIG, so the rows stay comparable with the tables generated before 1.7.0.
 VARIANTS = {
-    "shipped": DEFAULT_CONFIG,
+    "shipped": SHIPPED_CONFIG,
+    # The rule that shipped from 1.0.0 to 1.6.0: price alone, no volume gate. Kept under its
+    # own name so the table always carries the thing the current rule replaced.
+    "price-only": TrendPullbackConfig(),
     "with-shorts": TrendPullbackConfig(enable_short=True),  # what ships today
     "long-only": TrendPullbackConfig(enable_short=False),  # the leg the measurement prefers
     "rsi35": TrendPullbackConfig(rsi_buy_level=35, rsi_sell_level=65),
@@ -211,7 +241,14 @@ def _volume_agrees(i: int, side: str, level: float, r: pd.Series, rvol: "pd.Seri
     if cfg.max_dip_rvol is not None:
         if rvol is None:
             raise ValueError("max_dip_rvol is set but no relative-volume series was supplied")
-        mean_rvol = dip_mean_rvol(rvol, r, i, level)
+        # Mirrored for a SELL, exactly as `evaluate` mirrors the descriptive helpers: the run
+        # preceding a SELL sits *above* the level, and `dip_mean_rvol` walks back through
+        # sub-level bars, so on the raw series it would break at once, average nothing and
+        # return NaN -- which this gate reads as "unmeasured" and rejects. Before this was
+        # mirrored, switching the gate on silently removed every SELL signal, for a reason
+        # that was arithmetic rather than measured.
+        sgn = 1.0 if side == "BUY" else -1.0
+        mean_rvol = dip_mean_rvol(rvol, sgn * r, i, sgn * level)
         if pd.isna(mean_rvol) or mean_rvol > cfg.max_dip_rvol:
             return False
     if cfg.min_trigger_rvol is not None:
@@ -291,9 +328,12 @@ class TrendPullback:
     name = "Trend Pullback"
     description = (
         "BUY when price is in an uptrend (above the 200 EMA, with the 50 EMA above it) "
-        "and RSI(14) dips below 40 then crosses back above it. The mirror setup in a "
-        "downtrend is published as a SELL, but always at low conviction: over 12 years "
-        "shorting it lost money reliably, and it is listed only to be watched."
+        "and RSI(14) dips below 40 then crosses back above it — and the dip is quiet: it "
+        "has to trade below 0.9x the stock's normal volume while on-balance volume stays "
+        "above its own average. That is a pullback nobody is selling into, and it leaves "
+        "about one signal in twenty-five. The mirror setup in a downtrend is published as "
+        "a SELL, but always at low conviction: over 12 years shorting it lost money "
+        "reliably, and it is listed only to be watched."
     )
     min_bars = MIN_BARS
     # The same 40/60 levels are used on 1d and 4H. Checked, not assumed: on 4H the BUY leg
@@ -307,6 +347,13 @@ class TrendPullback:
     # Newest first. Add an entry at the top whenever `params` changes -- the fingerprint on
     # the top entry is asserted against the live one, so the build fails otherwise.
     history = (
+        Release("1.7.0", "2026-10-12",
+                "A signal now also needs a quiet dip: volume through the pullback under "
+                "nine tenths of this stock's normal, with on-balance volume above its own "
+                "average. About one in twenty-five survives, and over 12 years those beat "
+                "the stock's own drift by 1.3% against 0.1%. A small sample, so partly "
+                "judgement.",
+                fingerprint="62069f2c4838"),
         Release("1.6.0", "2026-10-04",
                 "SELL signals are back, on purpose and under watch. They are not better "
                 "than when they were removed — shorting them still lost 2.08% over the "

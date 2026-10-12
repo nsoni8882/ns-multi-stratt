@@ -99,3 +99,43 @@ once the numbers are in.
 Ship order if it ever clears the bar: flag first (extend the existing "Setup changed" label),
 conviction demotion second, entry gate last and only on its own evidence. Each step goes into
 `params` and needs its own history entry.
+
+## The one thing shipped below this bar (2026-10-12)
+
+`TrendPullback` 1.7.0 gates on a quiet pullback — volume through the dip under 0.9x that
+stock's normal, with OBV above its own EMA — and **it does not clear the five rules above.**
+It is recorded here rather than tidied away, because an acceptance bar that is silently
+stepped over is worse than none.
+
+What it scores, 163 names x 12y, independent sample, against the price-only rule's +0.11%
+(t +0.74, n indep 3,589):
+
+1. Positive and above the rule it replaces — **pass**, +1.30% against +0.11%.
+2. |t indep| >= 2.5 — **fail, 2.47.** Short by 0.03.
+3. Positive in both halves — **pass, in the strong form**: +0.85% (t +1.33) then +1.77%
+   (t +2.09). It is the only cohort measured in this repo that is *better* in the second
+   half, which is the opposite of the pattern every rejected variant shows.
+4. Survives dropping its best year — **pass**: positive in 9 of 11 years, worst −2.05%
+   (2020), and still positive without 2021.
+5. n indep >= 500 — **fail, 223.**
+
+It was shipped anyway, on the owner's instruction, to make the published list short enough to
+be read: the price-only rule put ~46 names on the daily page against 1 for the reversal, and
+this leaves about 2. The decision was taken knowing both failures.
+
+**What this does not change.** The bar stands as written for everything else, and in
+particular:
+
+- **t >= 2.5 is not now 2.4.** Rules 2 and 5 were not lowered, amended, or re-scoped. One
+  variant was shipped in spite of them, which is a different act from moving them, and the
+  next candidate is measured against the original numbers.
+- **Rules 2 and 5 are in permanent tension with a short list, and that is now explicit.** At
+  a 20-bar horizon the per-signal standard deviation is ~8–9%, so t >= 2.5 at n = 500 needs
+  alpha near +1.0%. A gate selective enough to leave 2–3 names a day cannot also leave 500
+  independent events in twelve years. Any future request for a quieter screener runs into the
+  same wall, and the answer is a judgement call, not a measurement.
+- **It is on probation, forward.** The gate fires ~4% as often as the rule it replaced, which
+  is roughly 25 independent signals a year across the S&P 500. `research/measure.py` re-run on
+  the pinned universe is the check: if the second-half result that justified this does not
+  hold up as live signals accumulate, 1.7.0 is reverted to the price-only rule rather than
+  defended.
