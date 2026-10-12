@@ -30,5 +30,15 @@ test("the timeframe toggle is offered on the signal lists", async () => {
 test("the timeframe toggle is hidden on RSI(2) Reversion, which is daily only", async () => {
   at("/paper");
   await screen.findByRole("link", { name: "RSI(2) Reversion" });
-  expect(screen.queryByRole("button", { name: /4H/i })).not.toBeInTheDocument();
+  // Hidden, but still holding its slot: unmounting it left `.top`'s space-between with two
+  // children and slid the nav to the right edge. jsdom does not load theme.css, so the class
+  // is the contract under test; `.slot-off` is what makes it visibility:hidden in the browser.
+  const slot = screen.getByRole("group", { name: "Timeframe" }).parentElement;
+  expect(slot).toHaveClass("slot-off");
+});
+
+test("the timeframe slot takes no class on the pages that can use it", async () => {
+  at("/");
+  const slot = (await screen.findByRole("group", { name: "Timeframe" })).parentElement;
+  expect(slot).not.toHaveClass("slot-off");
 });
