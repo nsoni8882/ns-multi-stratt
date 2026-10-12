@@ -1,4 +1,5 @@
 import { HashRouter, Route, Routes } from "react-router-dom";
+import { Backdrop } from "./components/Backdrop";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ErrorFooter } from "./components/ErrorFooter";
 import { FailingTestsNote, StaleBanner } from "./components/Feedback";
@@ -14,6 +15,8 @@ function Shell() {
   const { data, market, health } = useStrategies();
   return (
     <>
+      {/* Behind everything, and outside the routes: the drift should not restart on navigation. */}
+      <Backdrop />
       <TopBar />
       {market && <MarketBar market={market} />}
       {data && isDataStale(data.updated_at, new Date(), market) && <StaleBanner />}

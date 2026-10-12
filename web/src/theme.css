@@ -189,6 +189,88 @@ main { max-width: 1120px; margin: 0 auto; padding: 4px 32px 48px; min-height: 60
 .warnline { color: #8a5a00; }
 .errlog pre { margin-top: 8px; max-height: 260px; overflow: auto; text-align: left; white-space: pre-wrap; word-break: break-word; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; font-size: 11.5px; }
 @keyframes fade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* ---------------------------------------------------------------- the ambient layer
+   Mounted by components/Backdrop.tsx, which explains what each piece is for and why it
+   opts out on a metered connection. Everything here animates transform or opacity only,
+   so the drift never costs a layout or a repaint; the reduced-motion rule below stops all
+   of it, leaving a surface that is still tinted rather than flat.
+
+   The alphas are low on purpose. Body text is #241f1b on #fffbf6 — about 15:1 — and the
+   heaviest wash any of these lays down is ~4%, which leaves that contrast ratio intact. */
+.backdrop { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+
+/* One cell wider than the viewport, so translating by exactly one cell loops seamlessly. */
+.backdrop-grid {
+  position: absolute; inset: 0 -64px 0 0;
+  background-image:
+    linear-gradient(to right, rgba(169, 143, 115, 0.13) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(169, 143, 115, 0.09) 1px, transparent 1px);
+  background-size: 64px 64px;
+  /* Fades out at the bottom: gridlines are a chart's furniture, and the footer is not a chart. */
+  mask-image: linear-gradient(to bottom, transparent, #000 18%, #000 62%, transparent);
+  animation: drift 22s linear infinite;
+}
+@keyframes drift { to { transform: translate3d(-64px, 0, 0); } }
+
+.backdrop-bloom { position: absolute; border-radius: 50%; will-change: transform; }
+/* Clay, the accent, warming the top-left where the hero sits. */
+.backdrop-bloom.one {
+  width: 62vmax; height: 62vmax; top: -22vmax; left: -16vmax;
+  background: radial-gradient(circle at center, rgba(204, 120, 92, 0.16), rgba(204, 120, 92, 0) 68%);
+  animation: orbit-one 46s ease-in-out infinite;
+}
+/* The BUY green, far enough off-phase that the two never line up into one blob. */
+.backdrop-bloom.two {
+  width: 54vmax; height: 54vmax; right: -18vmax; top: 32vmax;
+  background: radial-gradient(circle at center, rgba(39, 105, 75, 0.11), rgba(39, 105, 75, 0) 68%);
+  animation: orbit-two 61s ease-in-out infinite;
+}
+@keyframes orbit-one {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(7vmax, 4vmax, 0) scale(1.1); }
+}
+@keyframes orbit-two {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1.06); }
+  50% { transform: translate3d(-6vmax, -5vmax, 0) scale(1); }
+}
+
+/* Under the sticky top bar the drift would read as a glitch behind fixed chrome. */
+.backdrop-veil {
+  position: absolute; inset: 0 0 auto; height: 220px;
+  background: linear-gradient(to bottom, var(--bg), rgba(255, 251, 246, 0));
+}
+
+/* The chrome and the content sheets sit on the cream, not on the drift. The strip, the
+   cards and the modals already paint var(--surface); these are the two that did not. */
+.top { background: color-mix(in srgb, var(--chrome) 88%, transparent); backdrop-filter: blur(10px); }
+.stale { position: relative; }
+
+/* --- entrance: content arrives, it does not blink into place -----------------------------
+   Scoped to what a visitor reads first. Deliberately NOT on .grid > .scard: that list
+   re-renders on every keystroke in the search box, so a per-card entrance would re-fire
+   several times a second while someone types. The grid fades as one block instead. */
+.hero, .stats, .grid { animation: rise 0.42s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.big .bigcard { animation: rise 0.44s cubic-bezier(0.16, 1, 0.3, 1) both; }
+/* 45ms apart: enough to read as a sequence, short enough that the third card is up in
+   under a tenth of a second. Three strategies today; a fourth would want a line here. */
+.big .bigcard:nth-child(2) { animation-delay: 45ms; }
+.big .bigcard:nth-child(3) { animation-delay: 90ms; }
+.stats { animation-delay: 60ms; }
+@keyframes rise { from { opacity: 0; transform: translate3d(0, 12px, 0); } to { opacity: 1; transform: none; } }
+
+/* The market dot, when the market is actually open. The one animation on this page that
+   reports a fact: it stops when trading does. The ring is a separate pseudo-element so the
+   dot's own 3px halo stays put while the pulse expands. */
+.marketbar .dot.on { position: relative; }
+.marketbar .dot.on::after {
+  content: ""; position: absolute; inset: 0; border-radius: 50%;
+  border: 1.5px solid var(--buy); animation: ping 2.6s cubic-bezier(0.3, 0, 0.6, 1) infinite;
+}
+@keyframes ping {
+  0% { transform: scale(1); opacity: 0.55; }
+  70%, 100% { transform: scale(3.4); opacity: 0; }
+}
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 
 /* --- strategy change history --- */
