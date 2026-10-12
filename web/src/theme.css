@@ -245,6 +245,26 @@ main { max-width: 1120px; margin: 0 auto; padding: 4px 32px 48px; min-height: 60
   background: linear-gradient(to bottom, var(--bg), rgba(255, 251, 246, 0));
 }
 
+
+/* Windows High Contrast forces its own colours and, in Chromium, drops gradient background
+   images — which is every layer above, so the whole backdrop silently disappears there. The
+   blooms and the veil are pure atmosphere and are better gone. The grid is not: it is the one
+   piece carrying the chart metaphor, so it is redrawn from system colours on a narrowly
+   scoped forced-color-adjust:none layer. Static, and at 4x the spacing, because a swept line
+   of solid CanvasText is a distraction where a 13%-alpha hairline was furniture. */
+@media (forced-colors: active) {
+  .backdrop-bloom, .backdrop-veil { display: none; }
+  .backdrop-grid {
+    forced-color-adjust: none;
+    background-image:
+      linear-gradient(to right, CanvasText 1px, transparent 1px),
+      linear-gradient(to bottom, CanvasText 1px, transparent 1px);
+    background-size: 256px 256px;
+    opacity: 0.1;
+    animation: none;
+  }
+}
+
 /* The chrome and the content sheets sit on the cream, not on the drift. The strip, the
    cards and the modals already paint var(--surface); these are the two that did not. */
 .top { background: color-mix(in srgb, var(--chrome) 88%, transparent); backdrop-filter: blur(10px); }
