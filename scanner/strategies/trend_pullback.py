@@ -126,6 +126,18 @@ VARIANTS = {
     "mfi-confluence": TrendPullbackConfig(mfi_confluence=True),  # volume-weighted RSI agrees
     # The textbook setup in full: quiet pullback, loud recovery.
     "dryup+trigger": TrendPullbackConfig(max_dip_rvol=0.9, min_trigger_rvol=1.2),
+    # A threshold ladder on the one gate that moved per-signal alpha. A real effect should
+    # be monotone in the threshold; a single lucky cut would not be. 1.1 and 1.0 exist to buy
+    # back the sample size that 0.9 costs, which is what the t-stat is short of.
+    "dryup-1.1": TrendPullbackConfig(max_dip_rvol=1.1),
+    "dryup-1.0": TrendPullbackConfig(max_dip_rvol=1.0),
+    "dryup-0.8": TrendPullbackConfig(max_dip_rvol=0.8),
+    # Dry-up crossed with the price-structure gates that were individually too weak to ship.
+    "dryup-1.0+near-ema50-2pct": TrendPullbackConfig(max_dip_rvol=1.0, max_ema50_distance=0.02),
+    "dryup-0.9+near-ema50-2pct": TrendPullbackConfig(max_dip_rvol=0.9, max_ema50_distance=0.02),
+    "dryup-0.9+below-ema20": TrendPullbackConfig(max_dip_rvol=0.9, require_below_ema20=True),
+    "dryup-0.9+obv": TrendPullbackConfig(max_dip_rvol=0.9, require_obv_above_ema=True),
+    "dryup-0.9+rising200": TrendPullbackConfig(max_dip_rvol=0.9, require_rising_ema200=True),
 }
 
 

@@ -64,6 +64,7 @@ TARGETS = {
                               breakout.MIN_BARS, "volume_breakout"),
 }
 CACHE_DIR = Path(__file__).parent / ".cache"
+UNIVERSE_SNAPSHOT = Path(__file__).resolve().parent.parent / "scanner" / "universe_fallback.csv"
 RESULTS_DIR = Path(__file__).parent / "results"
 BATCH = 40
 PAUSE = 1.5
@@ -369,6 +370,14 @@ def main() -> int:
     parser.add_argument("--strategy", choices=list(TARGETS), default="trend-pullback")
     parser.add_argument("--variants", nargs="*", default=None)
     parser.add_argument("--out", type=Path, default=RESULTS_DIR)
+    # The scanner scrapes the index live, which is right for a screener and wrong for a
+    # yardstick: `pick_tickers` strides through the sorted universe, so one constituent change
+    # shifts which names are sampled and every number in the table moves with it. Re-running
+    # the committed table nine days later moved the shipped rule's alpha from +0.11% to +0.01%
+    # with no code change behind it. Research pins the committed snapshot instead, so two runs
+    # are comparable; --universe live is there if a run deliberately wants today's index.
+    parser.add_argument("--universe", default=str(UNIVERSE_SNAPSHOT),
+                        help="path to a universe CSV, or 'live' to scrape the index")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
@@ -379,7 +388,8 @@ def main() -> int:
         parser.error(f"unknown variants {unknown}; available: {list(target.variants)}")
 
     now = pd.Timestamp.now(tz="UTC")
-    tickers = pick_tickers(args.tickers)
+    universe = None if args.universe == "live" else pd.read_csv(args.universe)
+    tickers = pick_tickers(args.tickers, universe)
     bars = fetch_history(tickers, args.years, now)
     usable = {t: df for t, df in bars.items() if len(df) > target.min_bars + args.horizon}
     log.info("%d tickers fetched, %d with enough history", len(bars), len(usable))
@@ -396,6 +406,7 @@ def main() -> int:
         "generated": now.strftime("%Y-%m-%d"),
         "strategy": args.strategy,
         "strategy_name": target.strategy.name,
+        "universe": args.universe,
         "base": unconditional(usable, args.horizon, target.min_bars),
     }
 

@@ -138,7 +138,9 @@ Five volume gates, 163 names x 12y, 20-bar horizon, against the shipped rule's +
 **Half the textbook is wrong here.** "Loud recovery bar" is worthless (−0.03%) and the
 volume-weighted RSI is actively harmful (−0.32%). Only the *quiet pullback* half carries
 anything, and it is dose-responsive: tightening 0.9 → 0.75 raises alpha +0.50% → +0.75%
-while thinning the sample, which is the shape a real effect has.
+while thinning the sample, which is the shape a real effect has. **Superseded: three more
+thresholds were measured on 2026-10-12 and the gradient does not hold -- see round three
+below.**
 
 Against `ACCEPTANCE.md`, `dryup-0.9` scores 3 of 5:
 
@@ -156,6 +158,83 @@ much since — which is what you would expect of an edge that became widely know
 
 The gates stay in `TrendPullbackConfig`, all defaulting to off, so the result can be
 re-measured when there is more out-of-sample data rather than rebuilt from scratch.
+
+## Round three, asked for directly: can the rule be tightened to 2-3 signals a day? (2026-10-12)
+
+The live list shows ~46 names on 1d, against 1 for the reversal, and the owner asked for
+fewer and more confident ones. Everything already measured that tightens entry is above and
+*lowers* alpha -- RSI 35, ADX 20/25, every price-structure gate. The one exception is the
+quiet pullback, so the dry-up threshold was extended from the two points measured before
+(0.9, 0.75) to five, in both directions: 1.1 and 1.0 to buy back the sample size the t-stat
+is short of, 0.8 to fill the gap. The previous section says the gate was not to be re-tried
+at a third threshold; this is a deliberate exception, run as a monotonicity check rather than
+a search for a better cut, and every point measured is reported here.
+
+163 names x 12y, 20-bar horizon, independent sample. Shipped rule: +0.11%, t +0.74, n 3,589.
+
+| max dip rvol | n indep | alpha indep | t indep | share of shipped signals |
+|---|---:|---:|---:|---:|
+| 1.1 | 1,580 | +0.28% | +1.43 | 35% |
+| 1.0 | 1,146 | +0.04% | +0.17 | 24% |
+| 0.9 | 705 | +0.50% | +1.75 | 13% |
+| 0.8 | 378 | +0.89% | +2.19 | 7% |
+| 0.75 | 263 | +0.75% | +1.56 | 5% |
+
+**The dose-response claim in the previous section does not survive the extra points.** Read
+off two thresholds it looked like a clean gradient; read off five it is +0.28, +0.04, +0.50,
++0.89, +0.75 -- noisy, non-monotone at 1.0 and reversing at 0.75. That is what a two-point
+"gradient" is worth, and it is the same mistake as believing a pooled t-stat before looking
+at the per-year table, one layer up.
+
+Crossing dry-up with the gates that were individually too weak to ship adds nothing except in
+one case:
+
+| variant | n indep | alpha indep | t indep | 1st half | 2nd half |
+|---|---:|---:|---:|---:|---:|
+| dryup-0.9 + near-ema50-2pct | 700 | +0.54% | +1.88 | +1.02% | +0.05% |
+| dryup-0.9 + below-ema20 | 661 | +0.50% | +1.66 | | |
+| dryup-0.9 + rising EMA200 | 698 | +0.52% | +1.78 | | |
+| **dryup-0.9 + OBV above its EMA** | 223 | **+1.30%** | **+2.47** | +0.85% | **+1.77%** |
+
+`dryup-0.9+obv` is the only cohort measured in this repo whose edge is *larger in the second
+half than the first* (+1.77%, t +2.09, against +0.85%, t +1.33). Every other candidate,
+including dry-up on its own, earns its alpha before 2020 and nothing after. It also survives
+dropping its best year (2021, +6.40%) and is positive in 9 of 11.
+
+**Nothing ships.** Against ACCEPTANCE.md:
+
+- `dryup-0.8`: passes 1, 3, 4. Fails 2 (t 2.19 < 2.5) and 5 (n indep 378 < 500).
+- `dryup-0.9+obv`: passes 1, 3, 4, and 3 in the strong form. Fails 2 (t 2.47, *just* under)
+  and 5 (n indep 223 < 500).
+
+Both fail on the same two rules, and the pattern is structural rather than bad luck: with a
+20-bar horizon the per-signal standard deviation is ~8-9%, so t >= 2.5 at n = 500 needs alpha
+near +1.0%. A gate selective enough to leave 2-3 names a day cannot also leave 500
+independent events in twelve years. **Rule 5 and "fewer, better signals" are in direct
+conflict, and no amount of measuring resolves it** -- it is a decision about how much evidence
+is enough, which ACCEPTANCE.md says is not to be made after seeing the numbers.
+
+So the shipped rule is unchanged, the gates stay in `TrendPullbackConfig` defaulting to off,
+and the way to settle `dryup-0.9+obv` is forward: it fires about 4% as often as the shipped
+rule, which is ~25 independent signals a year across the S&P 500, so a pre-registered live
+sample reaches n = 500 in about two decades and a halving of the bar in about ten. That is
+the real cost of the standard, stated plainly rather than quietly bent.
+
+One methodological fix came out of this run and is already in `measure.py`: see below.
+
+## The yardstick was moving (2026-10-12)
+
+`research/measure.py` called `load_universe()`, which **scrapes Wikipedia live**, and
+`pick_tickers` strides through the sorted result -- so a single S&P constituent change shifts
+which 163 names are sampled and every number in every table moves with it. Re-running the
+committed table nine days later, with no code change and an untouched price cache, moved the
+shipped rule's alpha from +0.11% to +0.01% and `dryup-0.9` from +0.50% (t 1.75) to +0.13%
+(t 0.42) -- which reads exactly like an edge failing to replicate, and is not.
+
+Research now pins `scanner/universe_fallback.csv`, the committed snapshot, and `--universe
+live` is opt-in. With it pinned, every number in `results/trend_pullback.md` reproduces the
+2026-10-03 run exactly. A yardstick that changes length between measurements is worse than a
+coarse one, because its movements look like findings.
 
 ## The reversal strategy's exhaustion thesis predicts a volume climax. It isn't there.
 
