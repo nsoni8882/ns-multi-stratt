@@ -176,7 +176,7 @@ directly (same Blink engine Arc renders with):
 ```bash
 cd web && npm run build && npx vite preview --port 4317 --strictPort &
 # then a node script with executablePath set to
-# ~/Library/Caches/ms-playwright/chromium-1243/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing
+# ~/Library/Caches/ms-playwright/chromium-1248/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing
 ```
 
 Worth doing for user-facing copy: unit tests pass on text that reads badly, and a screenshot
