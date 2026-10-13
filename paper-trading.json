@@ -76,6 +76,48 @@
  "rules_version": "f5e0af26ffd9",
  "runs": [
   {
+   "at": "2026-10-13T01:28:43+00:00",
+   "crashed": false,
+   "date": "2026-10-12",
+   "decisions": {
+    "AAPL": {
+     "action": "wait",
+     "bars_held": 0,
+     "entry_date": null,
+     "held": false,
+     "price": 340.97,
+     "reason": "not oversold",
+     "rsi2": 74.65203352174288,
+     "sma200": 290.74925,
+     "trend_gap_pct": 17.27287344679307
+    },
+    "AMZN": {
+     "action": "wait",
+     "bars_held": 0,
+     "entry_date": null,
+     "held": false,
+     "price": 259.53,
+     "reason": "not oversold",
+     "rsi2": 53.33737631379796,
+     "sma200": 242.2885,
+     "trend_gap_pct": 7.116103323104461
+    }
+   },
+   "early": false,
+   "equity": 100000.0,
+   "errors": [],
+   "event": "schedule",
+   "late": false,
+   "mode": "live",
+   "opening_balance": 100000.0,
+   "orders": 0,
+   "rules_version": "f5e0af26ffd9",
+   "run_id": "38332212254",
+   "sha": "4ca53616670e",
+   "skip_reason": "market closed",
+   "url": "https://github.com/nsoni8882/ns-multi-stratt/actions/runs/38332212254"
+  },
+  {
    "at": "2026-10-10T14:52:05+00:00",
    "crashed": false,
    "date": "2026-10-10",
@@ -121,33 +163,33 @@
  "signal_state": [
   {
    "buy_below": 10.0,
-   "price": 262.43,
+   "price": 259.53,
    "reason": "not oversold",
-   "rsi2": 77.18106029044641,
+   "rsi2": 53.33737631379796,
    "sell_above": 65.0,
-   "sma200": 242.15155,
+   "sma200": 242.2885,
    "symbol": "AMZN",
-   "trend_gap_pct": 8.374280486744778,
+   "trend_gap_pct": 7.116103323104461,
    "verdict": "Waiting"
   },
   {
    "buy_below": 10.0,
-   "price": 336.64,
+   "price": 340.97,
    "reason": "not oversold",
-   "rsi2": 42.27675607410111,
+   "rsi2": 74.65203352174288,
    "sell_above": 65.0,
-   "sma200": 290.4025,
+   "sma200": 290.74925,
    "symbol": "AAPL",
-   "trend_gap_pct": 15.921867063816597,
+   "trend_gap_pct": 17.27287344679307,
    "verdict": "Waiting"
   }
  ],
- "signal_state_as_of": "2026-10-10",
+ "signal_state_as_of": "2026-10-12",
  "symbols": [
   "AMZN",
   "AAPL"
  ],
  "trades": [],
- "updated_at": "2026-10-10T14:52:05+00:00",
+ "updated_at": "2026-10-13T01:28:44+00:00",
  "version": "1.1.0"
 }
