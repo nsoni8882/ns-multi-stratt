@@ -9,7 +9,7 @@
   "total_pl_pct": 0.0,
   "unrealised_pl": 0
  },
- "as_of": "close",
+ "as_of": "intraday",
  "equity_curve": [
   {
    "date": "2026-10-09",
@@ -80,6 +80,48 @@
  "positions": [],
  "rules_version": "f5e0af26ffd9",
  "runs": [
+  {
+   "at": "2026-10-13T23:47:02+00:00",
+   "crashed": false,
+   "date": "2026-10-13",
+   "decisions": {
+    "AAPL": {
+     "action": "wait",
+     "bars_held": 0,
+     "entry_date": null,
+     "held": false,
+     "price": 341.27,
+     "reason": "not oversold",
+     "rsi2": 76.47998130641508,
+     "sma200": 291.09025,
+     "trend_gap_pct": 17.238554022334984
+    },
+    "AMZN": {
+     "action": "wait",
+     "bars_held": 0,
+     "entry_date": null,
+     "held": false,
+     "price": 258.58,
+     "reason": "not oversold",
+     "rsi2": 44.35896281736811,
+     "sma200": 242.4195,
+     "trend_gap_pct": 6.666336660210903
+    }
+   },
+   "early": false,
+   "equity": 100000.0,
+   "errors": [],
+   "event": "schedule",
+   "late": false,
+   "mode": "live",
+   "opening_balance": 100000.0,
+   "orders": 0,
+   "rules_version": "f5e0af26ffd9",
+   "run_id": "38486179852",
+   "sha": "4ca53616670e",
+   "skip_reason": "market closed",
+   "url": "https://github.com/nsoni8882/ns-multi-stratt/actions/runs/38486179852"
+  },
   {
    "at": "2026-10-13T23:21:22+00:00",
    "crashed": false,
@@ -279,6 +321,6 @@
   "AAPL"
  ],
  "trades": [],
- "updated_at": "2026-10-13T23:45:19+00:00",
+ "updated_at": "2026-10-13T23:47:03+00:00",
  "version": "1.1.0"
 }
