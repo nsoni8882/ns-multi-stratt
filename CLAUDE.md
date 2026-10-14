@@ -182,6 +182,11 @@ cd web && npm run build && npx vite preview --port 4317 --strictPort &
 Worth doing for user-facing copy: unit tests pass on text that reads badly, and a screenshot
 caught a literal `--` rendering in the history overlay that every test had accepted.
 
+## Workflow
+
+Use Plan Mode before new features, significant design tradeoffs, and bugs that
+survive the first attempted fix.
+
 ## Git
 
 Commit every change and push to `origin main` — leave nothing uncommitted. Commit in logical
