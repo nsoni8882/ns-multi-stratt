@@ -8,12 +8,15 @@ account. No real money anywhere.
 ## Commands
 
 ```bash
-.venv/bin/python -m pytest scanner/tests research/tests trader/tests -q   # Python tests (~50s)
+.venv/bin/python -m pytest scanner/tests research/tests trader/tests lab/tests -q   # Python tests (~50s)
 cd web && npm test -- --run                                  # web tests (~2s)
 .venv/bin/python -m scanner.run --out web/public/data --db signals.db   # full scan (network)
 .venv/bin/python -m research.measure                         # backtest variants (network, cached)
 .venv/bin/python -m research.news_judgment --dry-run         # news state for live signals, no API call
 ALPACA_KEY_ID=... ALPACA_SECRET_KEY=... .venv/bin/python -m trader.run --dry-run  # decide, place nothing
+ALPACA_KEY_ID=... ALPACA_SECRET_KEY=... .venv/bin/python -m lab.run fetch              # freeze universe, cache 5-min bars
+ALPACA_KEY_ID=... ALPACA_SECRET_KEY=... .venv/bin/python -m lab.run backtest spec.json # gate a strategy spec (appends a trial)
+.venv/bin/python -m lab.run export --out lab.json                                       # the Lab tab's data
 ```
 
 Always use `.venv/bin/python` — there is no activated environment, and the system Python
@@ -35,6 +38,11 @@ lacks the deps. `scanner/tests/test_smoke_network.py` is skipped by default; it 
   the paper endpoint, its own `trade.yml` workflow on a 15:25 ET cron. `params.py` holds every
   threshold and fingerprints them, `ACCEPTANCE.md` holds the bar, `evaluate.py` compares the
   live record to the backtest. `research/rsi2/` is the research it came from.
+- `lab/` — the intraday lab: declarative strategy specs over a fixed family registry, a costed
+  backtester, a trial-count-deflated gate with a sealed holdout (`ACCEPTANCE.md` is the bar,
+  `trials.jsonl` the append-only record of every idea tried). Nothing in it places orders. Do not
+  edit `config.py`, `gate.py`, `costs.py` or `ACCEPTANCE.md` to make a strategy pass; a new
+  gate number goes in `config.params()` or the fingerprint test fails.
 - `web/` — Vite + React + TypeScript, reads the JSON the scanner writes.
 - `docs/superpowers/` — the original dated spec and plan. A record of how the MVP was
   decided, not the current contract: both predate the short legs being dropped. This file

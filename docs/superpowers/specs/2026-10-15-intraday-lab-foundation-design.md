@@ -162,3 +162,11 @@ options, leverage; sizing off `buying_power` (always equity, per the trader's ru
   caps round trips per day and may force the holdout/sizing choices.
 - The cost-model defaults per liquidity tier, to be measured (quoted spread from Alpaca quotes on a
   sample) before they are fixed, then recorded in `FINDINGS`-style notes.
+
+## Amendments made during implementation (2026-10-15)
+- `breakdowns` live inside each strategy in `lab.json`, not at the top level.
+- Per-trade chart bars (`charts`) are deferred to the Lab-tab plan; they need stored bars.
+- The deflated threshold is the expected maximum of N null t-statistics (an approximation in the
+  spirit of the Deflated Sharpe Ratio); `lab/ACCEPTANCE.md` says so.
+- The holdout is enforced by the gate being the only module that calls `BacktestResult.after`
+  (pinned by `lab/tests/test_sealed.py`), not by a separate data loader.
