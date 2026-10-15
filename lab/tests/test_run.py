@@ -66,3 +66,36 @@ def test_backtest_then_export_round_trip_keeps_dates_as_dates(tmp_path, monkeypa
     assert len(doc["strategies"]) == 1 and doc["strategies"][0]["stage"] == "rejected"
     for pt in doc["strategies"][0]["equity_curve"]:
         assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", pt["t"]), pt["t"]
+
+
+def test_paced_client_backs_off_on_429_and_gives_up_eventually():
+    from trader.alpaca import AlpacaError
+    slept, calls = [], []
+
+    class C:
+        def bars(self, *a):
+            calls.append(a)
+            if len(calls) < 3:
+                raise AlpacaError(429, "slow down", "GET", "/x")
+            return ["ok"]
+
+        def calendar(self, *a):
+            raise AlpacaError(500, "boom", "GET", "/y")
+
+    p = run.Paced(C(), pace=0.1, sleep=slept.append)
+    assert p.bars("AAPL") == ["ok"] and len(calls) == 3
+    assert 1 in slept and 2 in slept  # exponential backoff between the two 429s
+    with pytest.raises(AlpacaError):
+        p.calendar("a", "b")  # anything but 429 is not retried
+
+
+def test_data_dir_moves_every_piece_of_state(tmp_path, monkeypatch):
+    from lab import lifecycle, trials
+    monkeypatch.setattr(lifecycle, "DEFAULT", lifecycle.DEFAULT)
+    monkeypatch.setattr(trials, "DEFAULT", trials.DEFAULT)
+    monkeypatch.setattr(run, "RESULTS", run.RESULTS)
+    monkeypatch.setattr(run, "MEMBERSHIP", run.MEMBERSHIP)
+    run.configure(str(tmp_path / "lab"))
+    assert lifecycle.Registry().path == tmp_path / "lab" / "registry.json"
+    assert trials.Ledger().path == tmp_path / "lab" / "trials.jsonl"
+    assert run.RESULTS == tmp_path / "lab" / "results" and run.MEMBERSHIP == tmp_path / "lab" / "membership.json"

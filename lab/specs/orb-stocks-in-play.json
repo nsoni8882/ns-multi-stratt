@@ -1,0 +1,8 @@
+{
+  "name": "Opening-range breakout, stocks in play",
+  "family": "orb",
+  "timeframe": "5Min",
+  "params": {"range_bars": 3, "last_entry_bar": 30, "min_rvol": 1.5, "rvol_days": 14},
+  "risk": {"stop_pct": 0.006, "target_pct": 0.012, "max_hold_bars": 40, "size_pct": 0.1, "max_concurrent": 5},
+  "hypothesis": "Names breaking their first 15-minute high on heavy relative volume keep going into the late morning. Written before any run; the published version of this idea reports a gross edge, so the question is whether it survives spread and slippage."
+}

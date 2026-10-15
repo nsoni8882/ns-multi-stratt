@@ -11,8 +11,8 @@ class LedgerError(RuntimeError):
 
 
 class Ledger:
-    def __init__(self, path: Path = DEFAULT):
-        self.path = Path(path)
+    def __init__(self, path: "Path | None" = None):
+        self.path = Path(path or DEFAULT)  # looked up at call time so a data dir can be set
 
     def read(self) -> "list[dict]":
         if not self.path.exists():

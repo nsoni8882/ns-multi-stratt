@@ -1,0 +1,106 @@
+name: Intraday lab
+
+# Manual only, on purpose. Every `backtest` appends to the trial ledger and raises the bar for
+# the next idea, so a stray trigger would spend trials. There is no schedule and, as with
+# trade.yml, no push trigger: merging code must never run an experiment.
+on:
+  workflow_dispatch:
+    inputs:
+      command:
+        description: "What to run"
+        type: choice
+        options: [fetch, backtest, export]
+        default: export
+      spec:
+        description: "backtest only: path of a spec file, e.g. lab/specs/orb-stocks-in-play.json"
+        type: string
+        default: ""
+
+permissions:
+  contents: write # the ledger, registry and lab.json live on the `data` branch
+  actions: write # to ask scan.yml to redeploy once lab.json changes
+
+concurrency:
+  group: lab # one run at a time: the trial ledger is append-only and must not race
+  cancel-in-progress: false
+
+jobs:
+  lab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120 # a first fetch is some 1,500 paced API calls
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Check out the ledgers (data branch)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if git ls-remote --exit-code --heads "$REMOTE" data >/dev/null 2>&1; then
+            git clone --quiet --branch data --single-branch --depth 1 "$REMOTE" history
+          else
+            git init --quiet -b data history
+            git -C history remote add origin "$REMOTE"
+          fi
+          mkdir -p history/lab
+
+      - uses: actions/cache@v4
+        with:
+          path: lab/.cache
+          key: lab-bars-${{ github.run_id }}
+          restore-keys: lab-bars-
+
+      - run: pip install -r requirements.txt
+      - name: Test before running
+        run: python -m pytest lab/tests -q
+
+      - name: Run
+        env:
+          ALPACA_KEY_ID: ${{ secrets.ALPACA_KEY_ID }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+          COMMAND: ${{ inputs.command }}
+          SPEC: ${{ inputs.spec }}
+        run: |
+          case "$COMMAND" in
+            fetch)    python -m lab.run --data-dir history/lab fetch ;;
+            backtest) test -f "$SPEC" || { echo "no such spec: $SPEC"; exit 1; }
+                      python -m lab.run --data-dir history/lab backtest "$SPEC" ;;
+            export)   ;;
+            *)        echo "unknown command: $COMMAND"; exit 1 ;;
+          esac
+
+      - name: Publish the dashboard file
+        run: python -m lab.run --data-dir history/lab export --out history/lab/lab.json
+
+      # always(): a backtest that ran and then failed later has still spent a trial, and that
+      # row must reach the ledger or the next run would count one trial too few.
+      - name: Save the ledgers
+        if: always()
+        env:
+          COMMAND: ${{ inputs.command }}
+        run: |
+          cd history
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A lab
+          if git diff --cached --quiet; then
+            echo "nothing changed"
+          else
+            git commit --quiet -m "lab $COMMAND $(date -u +%FT%TZ)"
+            pushed=no
+            for attempt in 1 2 3; do
+              if git push --quiet origin HEAD:data; then pushed=yes; break; fi
+              git pull --quiet --rebase origin data || true
+              sleep $(( attempt * 3 ))
+            done
+            [ "$pushed" = yes ] || { echo "could not push the ledger to the data branch"; exit 1; }
+          fi
+
+      - name: Redeploy so the site picks up lab.json
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run scan.yml
