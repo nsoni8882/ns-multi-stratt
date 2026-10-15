@@ -233,3 +233,60 @@ export interface PaperTradingFile {
   evaluation: PaperEvaluation;
   runs: PaperRun[];
 }
+
+/* --- The Lab: lab.json, as lab/export.py publishes it ----------------------------------- */
+export type LabStage = "proposed" | "backtested" | "shadow" | "paper" | "kept" | "rejected" | "retired";
+
+export interface LabMetrics {
+  n_trades: number; n_days: number; mean_bps: number; t: number; threshold: number;
+  win_rate: number; profit_factor: number | null; sharpe: number;
+  halves_bps: [number, number]; years: Record<string, { mean_bps: number; days: number }>;
+}
+export interface LabFailureRule { metric: string; op: "lt" | "gt"; threshold: number; after_trades: number }
+export interface LabBucket { key: string; net_bps: number; total_pct: number; trades: number }
+export interface LabBreakdowns {
+  by_symbol: LabBucket[]; by_hour: LabBucket[]; by_weekday: LabBucket[];
+  daily_pnl: { day: string; net_bps: number }[];
+  exit_reasons: Record<string, number>;
+  histogram: { from_bps: number; to_bps: number; count: number }[];
+}
+export interface LabStrategy {
+  id: string; fingerprint: string; name: string; family: string; stage: LabStage; hypothesis: string;
+  params: Record<string, number>;
+  risk: { stop_pct: number; target_pct: number; max_hold_bars: number; size_pct: number; max_concurrent: number };
+  failure_rules: LabFailureRule[] | null;
+  backtest: Partial<LabMetrics>;
+  live: Record<string, number> | null;
+  equity_curve: { t: string; equity: number; drawdown: number }[];
+  history: { stage: LabStage; when: string; reason: string }[];
+  breakdowns: LabBreakdowns;
+}
+export interface LabTrade {
+  strategy: string; symbol: string; side: "long"; entry_time: string; exit_time: string;
+  entry_px: number; exit_px: number; bars_held: number; exit_reason: string;
+  gross_bps: number; cost_bps: number; net_bps: number;
+}
+export interface LabTrial {
+  when: string; fingerprint: string; name: string; family: string; hypothesis?: string;
+  verdict: "pass" | "fail"; failed: string[]; threshold: number; n_trades: number;
+  mean_bps: number; t: number; holdout_look: boolean;
+}
+export interface LabPosition {
+  strategy: string; symbol: string; qty: number; entry_time: string; entry_price: number;
+  mark: number; unrealised_pnl: number; stop: number; target: number; bars_held: number;
+}
+export interface LabRun { time: string; strategy: string; decision: string; orders: number; errors: string[] }
+export interface LabFile {
+  meta: {
+    generated_at: string; universe_version: string; rules_version: string; trials_total: number;
+    holdout_start: string; cost_bps_per_side: Record<string, number>;
+  };
+  account: null | { equity: number; cash: number; day_pnl: number; total_pnl: number };
+  equity_curve: { t: string; equity: number; drawdown: number }[];
+  summary: { strategies: number; live: number; rejected: number; retired: number; trials: number; passed: number };
+  strategies: LabStrategy[];
+  positions: LabPosition[];
+  trades: LabTrade[];
+  trials: LabTrial[];
+  runs: LabRun[];
+}
