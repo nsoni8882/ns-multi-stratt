@@ -103,6 +103,24 @@ class Alpaca:
             if not token:
                 return out
 
+    def bars(self, symbol: str, timeframe: str, start: datetime, end: datetime) -> "list[dict]":
+        """Raw bars, oldest first, split/dividend adjusted. `end` is held 16 minutes back, which
+        is what lets a free account read the SIP feed."""
+        end = min(end, datetime.now(timezone.utc) - END_HOLDBACK)
+        out, token = [], None
+        while True:
+            q = {"symbols": symbol, "timeframe": timeframe,
+                 "start": start.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                 "end": end.strftime("%Y-%m-%dT%H:%M:%SZ"), "adjustment": "all",
+                 "feed": FEED, "sort": "asc", "limit": 10000}
+            if token:
+                q["page_token"] = token
+            r = self._call(DATA, "/v2/stocks/bars", q)
+            out += (r.get("bars") or {}).get(symbol, [])
+            token = r.get("next_page_token")
+            if not token:
+                return out
+
     def order(self, order_id: str) -> dict:
         """One order by id, for finding out what the closing auction actually did with it."""
         return self._call(TRADING, f"/v2/orders/{order_id}")

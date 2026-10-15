@@ -14,3 +14,7 @@ web/public/data/
 # local paper-trading state (the real one lives on the data branch)
 paper_state.json
 trader/.cache/
+
+# lab: intraday bar cache and generated results
+lab/.cache/
+lab/results/
