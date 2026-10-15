@@ -11,7 +11,7 @@ export function PositionsTable({ positions }: { positions: LabPosition[] }) {
         <p className="muted">Nothing is open. Positions appear here once a strategy has graduated to paper trading.</p>
       ) : (
         <div className="lab-scroll"><table className="lab-table">
-          <thead><tr><th>Symbol</th><th>Qty</th><th>Entry</th><th>Mark</th><th>P&L</th><th>Stop</th><th>Target</th><th>Bars</th></tr></thead>
+          <thead><tr><th>Symbol</th><th className="num">Qty</th><th className="num">Entry</th><th className="num">Mark</th><th className="num">P&L</th><th className="num">Stop</th><th className="num">Target</th><th className="num">Bars</th></tr></thead>
           <tbody>{positions.map((p) => (
             <tr key={`${p.strategy}${p.symbol}`}>
               <th scope="row">{p.symbol}</th><td className="num">{p.qty}</td><td className="num">{px(p.entry_price)}</td>
@@ -66,7 +66,7 @@ export function TradesTable({ trades, strategyId, name }: { trades: LabTrade[]; 
             </div>
           </div>
           <div className="lab-scroll"><table className="lab-table">
-            <thead><tr><th>When</th><th>Symbol</th><th>Exit</th><th>Gross</th><th>Cost</th><th>Net</th></tr></thead>
+            <thead><tr><th>When</th><th>Symbol</th><th>Exit</th><th className="num">Gross</th><th className="num">Cost</th><th className="num">Net</th></tr></thead>
             <tbody>{shown.map((t) => {
               const id = `${t.strategy}${t.entry_time}${t.symbol}`;
               return (

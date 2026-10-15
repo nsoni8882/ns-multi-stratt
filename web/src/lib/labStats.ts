@@ -61,7 +61,7 @@ export function gateRows(s: LabStrategy, trial: LabTrial | undefined): GateRow[]
     positive_expectancy: m.mean_bps == null ? NA : `${m.mean_bps.toFixed(1)} bps a day`,
     deflated_t: m.t == null ? NA : `t ${ratio(m.t)} vs ${ratio(m.threshold ?? trial?.threshold)}`,
     both_halves: m.halves_bps ? `${m.halves_bps[0].toFixed(1)} / ${m.halves_bps[1].toFixed(1)} bps` : NA,
-    drop_best_year: Object.keys(m.years ?? {}).length ? `${Object.keys(m.years ?? {}).length} years tested` : NA,
+    drop_best_year: Object.keys(m.years ?? {}).length ? `${Object.keys(m.years ?? {}).length} ${Object.keys(m.years ?? {}).length === 1 ? "year" : "years"} tested` : NA,
     cost_stress: "at 2x costs",
     holdout: "pass or fail only",
   };

@@ -9,7 +9,9 @@ const BH = 130;
 function Columns({ title, items }: { title: string; items: { label: string; value: number; note: string }[] }) {
   const max = Math.max(...items.map((i) => Math.abs(i.value)), 1);
   const gap = 6;
-  const w = (BW - gap * (items.length + 1)) / Math.max(items.length, 1);
+  // Capped, so a chart with three buckets is three tidy columns rather than three slabs.
+  const w = Math.min(44, (BW - gap * (items.length + 1)) / Math.max(items.length, 1));
+  const inset = (BW - items.length * w - gap * (items.length - 1)) / 2;
   const mid = BH / 2;
   return (
     <figure className="lab-fig">
@@ -18,7 +20,7 @@ function Columns({ title, items }: { title: string; items: { label: string; valu
         <line x1={0} x2={BW} y1={mid} y2={mid} className="lab-ref" />
         {items.map((it, k) => {
           const h = (Math.abs(it.value) / max) * (mid - 6);
-          const x = gap + k * (w + gap);
+          const x = inset + k * (w + gap);
           return (
             <g key={it.label}>
               <rect x={x} y={it.value >= 0 ? mid - h : mid} width={w} height={Math.max(h, 1)} rx={3}

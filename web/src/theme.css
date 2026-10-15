@@ -480,10 +480,15 @@ main { max-width: 1120px; margin: 0 auto; padding: 4px 32px 48px; min-height: 60
 .lab-stage { background: var(--st-bg); color: var(--st-fg); }
 
 .lab-kpis {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; margin-top: 14px;
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; margin-top: 14px;
   background: var(--border); border: 1px solid var(--border); border-radius: 18px; overflow: hidden;
 }
-.lab-kpis .stat { background: var(--surface); border-left: 0; }
+.lab-kpis .stat { background: var(--surface); border-left: 0; padding: 16px 16px 18px; }
+.lab-kpis .stat .n { font-size: 31px; }
+@media (max-width: 1060px) {
+  .lab-kpis { grid-template-columns: repeat(2, 1fr); }
+  .lab-kpis .stat:last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
 
 .lab-readout { margin: 6px 0 4px; }
 .lab-equity { width: 100%; height: auto; display: block; touch-action: pan-y; cursor: crosshair; }
@@ -528,7 +533,7 @@ main { max-width: 1120px; margin: 0 auto; padding: 4px 32px 48px; min-height: 60
 .lab-table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 520px; }
 .lab-table th, .lab-table td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
 .lab-table thead th { font: var(--label); letter-spacing: var(--label-track); text-transform: uppercase; color: var(--muted); }
-.lab-table td.num { text-align: right; }
+.lab-table td.num, .lab-table th.num { text-align: right; }
 .lab-row { cursor: pointer; }
 .lab-row:hover { background: var(--chrome); }
 .lab-rowbtn { background: none; border: 0; padding: 0; font-weight: 500; text-align: left; }
@@ -563,3 +568,4 @@ main { max-width: 1120px; margin: 0 auto; padding: 4px 32px 48px; min-height: 60
   .lab-card { padding: 18px; }
   .lab-trials li { grid-template-columns: 1fr; gap: 6px; }
 }
+.lab-trials .pill { justify-self: start; }

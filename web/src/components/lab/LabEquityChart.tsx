@@ -3,9 +3,10 @@ import type { LabStrategy } from "../../types";
 import { shortDay, signedPct, usd } from "../../lib/labFormat";
 import { START_EQUITY } from "../../lib/labStats";
 
-const W = 720;
-const H = 200;
-const DD = 54;
+const W = 960;
+const H = 190;
+const DD = 46;
+const PAD = 8; // room for the cursor dot at either edge
 
 /** Equity with the drawdown beneath it. Hand-drawn SVG: the series is a point per trading day,
  *  so it needs no charting library and does not touch the measured chart load path. */
@@ -53,7 +54,7 @@ export function LabEquityChart({ strategy }: { strategy?: LabStrategy }) {
         {shortDay(cursor.t)} · <strong>{usd(cursor.equity)}</strong> · {signedPct((cursor.equity / START_EQUITY - 1) * 100)}
         {" "}· drawdown {signedPct(cursor.drawdown * 100, 1)}
       </p>
-      <svg className="lab-equity" viewBox={`0 0 ${W} ${H + DD + 14}`} role="img"
+      <svg className="lab-equity" viewBox={`${-PAD} -${PAD} ${W + 2 * PAD} ${H + DD + 14 + 2 * PAD}`} role="img"
            aria-label={`Backtest equity from ${shortDay(curve[0].t)} to ${shortDay(last.t)}, ending at ${usd(last.equity)}`}
            onPointerMove={move} onPointerLeave={() => setHover(null)}>
         <line x1={0} x2={W} y1={y(START_EQUITY)} y2={y(START_EQUITY)} className="lab-ref" />

@@ -55,3 +55,9 @@ test("stage counts and trade filters", () => {
   const sym = all[0].symbol;
   expect(filterTrades(f.trades, best.id, { symbol: sym, reason: "" }).every((t) => t.symbol === sym)).toBe(true);
 });
+
+test("gate details use correct grammar for one year", () => {
+  const f = labFixture();
+  const s = { ...f.strategies[0], backtest: { ...f.strategies[0].backtest, years: { "2026": { mean_bps: 1, days: 10 } } } };
+  expect(gateRows(s, undefined).find((r) => r.name === "drop_best_year")!.detail).toBe("1 year tested");
+});

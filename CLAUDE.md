@@ -43,7 +43,9 @@ lacks the deps. `scanner/tests/test_smoke_network.py` is skipped by default; it 
   `trials.jsonl` the append-only record of every idea tried). Nothing in it places orders. Do not
   edit `config.py`, `gate.py`, `costs.py` or `ACCEPTANCE.md` to make a strategy pass; a new
   gate number goes in `config.params()` or the fingerprint test fails.
-- `web/` — Vite + React + TypeScript, reads the JSON the scanner writes.
+- `web/` — Vite + React + TypeScript, reads the JSON the scanner writes. The Lab tab (`pages/LabPage.tsx`,
+  `components/lab/`) renders `lab.json`; `src/lab-fixture.ts` is a test-only stand-in, never published,
+  and `lib/labStats.ts` mirrors a few `lab/config.py` numbers for display only.
 - `docs/superpowers/` — the original dated spec and plan. A record of how the MVP was
   decided, not the current contract: both predate the short legs being dropped. This file
   and `research/FINDINGS.md` are the live documents.
