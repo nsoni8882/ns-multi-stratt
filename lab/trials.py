@@ -31,8 +31,10 @@ class Ledger:
     def has(self, fingerprint: str) -> bool:
         return any(r.get("fingerprint") == fingerprint for r in self.read())
 
-    def holdout_looks(self) -> int:
-        return sum(1 for r in self.read() if r.get("holdout_look"))
+    def holdout_looks(self, window: "str | None" = None) -> int:
+        """Looks at the sealed holdout; with `window`, only those at that window."""
+        return sum(1 for r in self.read() if r.get("holdout_look")
+                   and (window is None or r.get("holdout_window") == window))
 
     def append(self, rec: dict) -> None:
         self.read()  # validates; a ledger we cannot read is never extended

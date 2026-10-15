@@ -82,7 +82,22 @@ def test_evaluate_refuses_a_corrupt_ledger_without_a_verdict(tmp_path):
 def test_the_holdout_is_burned_after_the_allowed_looks(tmp_path, monkeypatch):
     led = Ledger(tmp_path / "t.jsonl")
     for i in range(config.MAX_HOLDOUT_LOOKS):
-        led.append({"fingerprint": f"x{i}", "holdout_look": True})
+        led.append({"fingerprint": f"x{i}", "holdout_look": True, "holdout_window": data_cutoff_iso()})
     monkeypatch.setattr(gate, "dev_checks", lambda *a, **k: ([gate.Check("all", True, "")], {"mean_bps": 5, "n_trades": 0, "t": 0}))
     res = gate.evaluate(SPEC, {"A": sessions(random_walk())}, {"A": "large"}, None, led)
     assert not res.passed and any("exhausted" in c.detail for c in res.checks)
+
+
+def test_burned_looks_in_an_old_window_do_not_burn_the_new_one(tmp_path, monkeypatch):
+    led = Ledger(tmp_path / "t.jsonl")
+    for i in range(config.MAX_HOLDOUT_LOOKS):
+        led.append({"fingerprint": f"x{i}", "holdout_look": True, "holdout_window": "an-older-window"})
+    monkeypatch.setattr(gate, "dev_checks", lambda *a, **k: ([gate.Check("all", True, "")], {"mean_bps": 5, "n_trades": 0, "t": 0}))
+    res = gate.evaluate(SPEC, {"A": sessions(random_walk())}, {"A": "large"}, None, led)
+    assert not any("exhausted" in c.detail for c in res.checks)
+    assert led.read()[-1]["holdout_window"] == data_cutoff_iso()
+
+
+def data_cutoff_iso():
+    from lab import data
+    return data.dev_cutoff().isoformat()

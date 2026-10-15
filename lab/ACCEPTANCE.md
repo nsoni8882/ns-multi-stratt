@@ -14,10 +14,10 @@ A strategy passes only if **all** hold on net-of-cost results, judged on develop
 4. **Both halves positive** when development is split in time.
 5. **No single year carries it:** drop the best year, expectancy stays positive (needs 2+ years).
 6. **Cost stress:** with costs doubled, expectancy is still positive.
-7. **Sealed holdout:** the most recent 6 months are never read by search or by the LLM. Only if
+7. **Sealed holdout:** a fixed window (`HOLDOUT_START` in config, currently 2026-04-15) is never read by search or by the LLM. Only if
    1-6 pass is the holdout opened, once per strategy, and it must show at least 30 trades,
    positive expectancy, and at least half of development's. The caller sees pass/fail, not numbers.
-   After 5 looks the holdout is burned and must be rolled forward; the gate refuses until then.
+   After 5 looks at a window it is burned. Rolling it forward means changing `HOLDOUT_START` and adding a Release entry; looks are counted per window, so the roll is explicit and recorded, never implicit.
 
 A strategy fingerprint can be evaluated once. A rejected fingerprint is recorded, not retried
 with a nudged threshold — nudging produces a new fingerprint, a new trial, and a higher bar.

@@ -10,7 +10,7 @@ from pathlib import Path
 import pandas as pd
 
 from lab import backtest, data, export, gate, universe
-from lab.lifecycle import LifecycleError, Registry
+from lab.lifecycle import Registry
 from lab.spec import Spec, SpecError
 from lab.trials import Ledger
 
@@ -70,20 +70,27 @@ def cmd_backtest(args) -> int:
     frames = _frames(spec, membership)
     tiers, allowed = universe.tiers_from(membership), universe.allowed_years(membership)
     reg, ledger = Registry(), Ledger()
+    if spec.fingerprint() in reg.all():
+        print(f"{spec.fingerprint()} is already {reg.get(spec.fingerprint())['stage']}", file=sys.stderr)
+        return 2
     try:
-        fp = reg.register(spec)
         res = gate.evaluate(spec, frames, tiers, allowed, ledger)
-    except (gate.AlreadyTried, LifecycleError) as e:
+    except gate.AlreadyTried as e:
         print(e, file=sys.stderr)
         return 2
+    # Only now that a verdict and its ledger row exist is the spec registered, so a crash in
+    # the gate never strands a fingerprint in `proposed`.
+    fp = reg.register(spec)
     reg.advance(fp, "backtested", reason="gate evaluated")
     if not res.passed:
         reg.advance(fp, "rejected", reason="failed: " + ", ".join(c.name for c in res.checks if not c.ok))
-    full = backtest.run(spec, frames, tiers, allowed=allowed).before(data.dev_cutoff(frames))
+    full = backtest.run(spec, frames, tiers, allowed=allowed).before(data.dev_cutoff())
+    curve = full.equity_curve()
+    curve["t"] = curve["t"].astype(str)  # dates, not epoch milliseconds, in lab.json
     RESULTS.mkdir(exist_ok=True)
     (RESULTS / f"{fp}.json").write_text(json.dumps({
         "metrics": res.metrics, "trades": json.loads(full.frame().to_json(orient="split", date_format="iso")),
-        "equity": json.loads(full.equity_curve().to_json(orient="split"))}))
+        "equity": json.loads(curve.to_json(orient="split"))}))
     for c in res.checks:
         print(f"{'PASS' if c.ok else 'FAIL'}  {c.name:<20} {c.detail}")
     print("VERDICT:", "pass -> eligible for shadow" if res.passed else "rejected", f"[{fp}]")

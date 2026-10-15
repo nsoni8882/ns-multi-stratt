@@ -25,7 +25,7 @@ def test_fingerprint_is_stable():
 
 def test_every_gate_number_is_in_params():
     p = config.params()
-    for key in ("base_t", "min_trades", "min_days", "min_years", "stress_mult", "holdout_months",
+    for key in ("base_t", "min_trades", "min_days", "min_years", "stress_mult", "holdout_start",
                 "max_holdout_looks", "holdout_min_ratio", "min_holdout_trades",
                 "cost_bps_per_side", "mega_rank", "universe_size"):
         assert key in p, key

@@ -23,7 +23,11 @@ MIN_TRADES = 400
 MIN_DAYS = 150
 MIN_YEARS = 2
 STRESS_MULT = 2.0  # costs x2 must still leave positive expectancy
-HOLDOUT_MONTHS = 6
+# The holdout is a FIXED window, not "the latest six months": a moving window means every look
+# sees a different slice, and last quarter's sealed data leaks into development. Rolling it
+# forward is a deliberate act: change this date and add a Release entry. Looks are counted per
+# window, so a roll starts a fresh allowance.
+HOLDOUT_START = "2026-04-15"
 MAX_HOLDOUT_LOOKS = 5  # after this many looks the holdout is burned; roll it forward
 HOLDOUT_MIN_RATIO = 0.5  # holdout expectancy must be at least this share of development's
 MIN_HOLDOUT_TRADES = 30
@@ -42,7 +46,7 @@ def params() -> dict:
         "min_days": MIN_DAYS,
         "min_years": MIN_YEARS,
         "stress_mult": STRESS_MULT,
-        "holdout_months": HOLDOUT_MONTHS,
+        "holdout_start": HOLDOUT_START,
         "max_holdout_looks": MAX_HOLDOUT_LOOKS,
         "holdout_min_ratio": HOLDOUT_MIN_RATIO,
         "min_holdout_trades": MIN_HOLDOUT_TRADES,
@@ -54,6 +58,10 @@ def rules_version() -> str:
 
 
 HISTORY = (
+    Release("1.1.0", "2026-10-15",
+            "The hidden recent period is now a fixed window instead of a sliding one, so every "
+            "look at it is of the same data and a spent allowance can only be renewed on purpose.",
+            fingerprint="c448bbf367b2"),
     Release("1.0.0", "2026-10-15",
             "First version of the lab's bar for a strategy: costs on every trade, a threshold "
             "that rises with every idea tried, and a hidden recent period it must also survive.",

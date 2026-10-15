@@ -89,7 +89,8 @@ def evaluate(spec, frames, tiers, allowed, ledger, *, cutoff=None) -> GateResult
     if ledger.has(fp):
         raise AlreadyTried(f"{fp} was already evaluated; a nudged spec is a new fingerprint and a new trial")
     threshold = stats.deflated_threshold(ledger.count() + 1, config.BASE_T)
-    cutoff = cutoff if cutoff is not None else data.dev_cutoff(frames)
+    cutoff = cutoff if cutoff is not None else data.dev_cutoff()
+    window = cutoff.isoformat()
 
     full = backtest.run(spec, frames, tiers, allowed=allowed)
     stress = backtest.run(spec, frames, tiers, allowed=allowed, cost_mult=config.STRESS_MULT).before(cutoff)
@@ -99,7 +100,7 @@ def evaluate(spec, frames, tiers, allowed, ledger, *, cutoff=None) -> GateResult
 
     looked = False
     if all(c.ok for c in checks):
-        if ledger.holdout_looks() >= config.MAX_HOLDOUT_LOOKS:
+        if ledger.holdout_looks(window) >= config.MAX_HOLDOUT_LOOKS:
             checks.append(Check("holdout", False, "holdout exhausted; roll the window forward"))
         else:
             looked = True
@@ -111,7 +112,7 @@ def evaluate(spec, frames, tiers, allowed, ledger, *, cutoff=None) -> GateResult
         "params": spec.params, "risk": spec.canonical()["risk"], "hypothesis": spec.hypothesis,
         "verdict": "pass" if passed else "fail",
         "failed": [c.name for c in checks if not c.ok], "threshold": threshold,
-        "rules_version": config.rules_version(), "holdout_look": looked,
+        "rules_version": config.rules_version(), "holdout_look": looked, "holdout_window": window,
         "n_trades": metrics["n_trades"], "mean_bps": metrics["mean_bps"], "t": metrics["t"],
     })
     return GateResult(passed, checks, metrics, fp, looked)

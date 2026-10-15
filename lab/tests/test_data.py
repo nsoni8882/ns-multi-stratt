@@ -51,8 +51,56 @@ def test_closed_only_drops_the_forming_bar():
     assert len(data.closed_only(df, now)) == 2
 
 
-def test_dev_cutoff_is_six_months_before_the_latest_bar():
-    a = make_days(["2023-01-03"])
-    b = make_days(["2024-03-04"])
-    cutoff = data.dev_cutoff({"A": pd.concat([a, b])})
-    assert cutoff.tz_convert(data.ET).strftime("%Y-%m") == "2023-09"
+def test_dev_cutoff_is_pinned_not_derived_from_the_latest_bar():
+    """The holdout must not drift as new bars arrive, or each look sees a different window."""
+    from lab import config
+    a = data.dev_cutoff()
+    assert a == pd.Timestamp(config.HOLDOUT_START, tz="UTC")
+    assert a == data.dev_cutoff()
+
+
+class FakeClient:
+    def __init__(self, frames, calendar):
+        self.frames, self.rows, self.cal = list(frames), None, calendar
+
+    def calendar(self, start, end):
+        return self.cal
+
+    def bars(self, symbol, timeframe, start, end):
+        df = self.frames[self._i()]
+        df = df[(df.index >= pd.Timestamp(start)) & (df.index <= pd.Timestamp(end))]
+        return [{"t": t.strftime("%Y-%m-%dT%H:%M:%SZ"), "o": r.open, "h": r.high, "l": r.low,
+                 "c": r.close, "v": r.volume} for t, r in df.iterrows()]
+
+    _n = 0
+
+    def _i(self):
+        i = min(self._n, len(self.frames) - 1)
+        self._n += 1
+        return i
+
+
+def cal_rows(days_close):
+    return [{"date": d, "open": "09:30", "close": c} for d, c in days_close]
+
+
+def test_early_close_afterhours_bars_are_not_session(tmp_path):
+    from datetime import datetime, timezone
+    full = make_days(["2024-11-29"], n=78)  # prints through 15:55, but the market closed at 13:00
+    client = FakeClient([full], cal_rows([("2024-11-29", "13:00")]))
+    df = data._fetch_5min(client, "X", datetime(2024, 11, 1, tzinfo=timezone.utc),
+                          datetime(2024, 12, 5, tzinfo=timezone.utc), tmp_path)
+    assert len(df) == 42 and df.index[-1].tz_convert(data.ET).strftime("%H:%M") == "12:55"
+
+
+def test_a_split_rebuilds_the_cache_instead_of_stitching_two_price_bases(tmp_path):
+    from datetime import datetime, timezone
+    days = ["2024-03-04", "2024-03-05", "2024-03-06"]
+    pre = make_days(days[:2], base=100.0)
+    post = make_days(days, base=100.0)
+    post[["open", "high", "low", "close"]] = post[["open", "high", "low", "close"]] / 10  # 10:1, re-based
+    client = FakeClient([pre, post], cal_rows([(d, "16:00") for d in days]))
+    start, end = datetime(2024, 3, 1, tzinfo=timezone.utc), datetime(2024, 3, 8, tzinfo=timezone.utc)
+    data._fetch_5min(client, "X", start, end, tmp_path)           # caches the pre-split history
+    df = data._fetch_5min(client, "X", start, end, tmp_path)      # sees a re-based history
+    assert df["close"].max() < 20, "old unadjusted bars survived the split"

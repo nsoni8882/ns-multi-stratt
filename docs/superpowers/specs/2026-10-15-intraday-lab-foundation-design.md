@@ -170,3 +170,5 @@ options, leverage; sizing off `buying_power` (always equity, per the trader's ru
   spirit of the Deflated Sharpe Ratio); `lab/ACCEPTANCE.md` says so.
 - The holdout is enforced by the gate being the only module that calls `BacktestResult.after`
   (pinned by `lab/tests/test_sealed.py`), not by a separate data loader.
+- After review, the holdout became a fixed window (`HOLDOUT_START` in `lab/config.py`) instead of
+  "the latest six months"; looks are counted per window and each ledger row records its window.

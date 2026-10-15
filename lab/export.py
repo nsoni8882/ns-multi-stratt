@@ -74,7 +74,7 @@ def build(registry: dict, ledger: "list[dict]", results: dict, *, generated_at: 
     return {
         "meta": {"generated_at": generated_at, "universe_version": universe_version,
                  "rules_version": config.rules_version(), "trials_total": len(ledger),
-                 "holdout_months": config.HOLDOUT_MONTHS, "cost_bps_per_side": config.COST_BPS_PER_SIDE},
+                 "holdout_start": config.HOLDOUT_START, "cost_bps_per_side": config.COST_BPS_PER_SIDE},
         "account": None, "equity_curve": [], "positions": [], "runs": [],
         "summary": {"strategies": len(strategies), "live": len(live),
                     "rejected": sum(s["stage"] == "rejected" for s in strategies),
