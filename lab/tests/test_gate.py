@@ -101,3 +101,32 @@ def test_burned_looks_in_an_old_window_do_not_burn_the_new_one(tmp_path, monkeyp
 def data_cutoff_iso():
     from lab import data
     return data.dev_cutoff().isoformat()
+
+
+def test_a_strategy_that_loses_per_trade_cannot_pass_on_quiet_days_alone():
+    """Found on the deep VWAP stretch: quiet days (few trades) won, busy days (many trades) lost
+    badly, so the equal-weight day mean was positive while every trade on average lost."""
+    rows = []
+    days = list(pd.bdate_range("2021-01-04", periods=500).date)
+    for i, d in enumerate(days):
+        busy = i % 5 == 4  # 100 busy days of 10 trades, 400 quiet days of 1
+        rows += [(d, -0.003)] * 10 if busy else [(d, 0.004)]
+    t = pd.DataFrame(rows, columns=["day", "net"])
+    v = verdict(gate.dev_checks(t, 0.001, 2.5)[0])
+    assert v["positive_expectancy"], "the day mean is positive, which is the trap"
+    assert not v["positive_per_trade"]
+
+
+def test_the_stress_value_is_the_worse_of_the_day_and_trade_means():
+    from lab import backtest
+    ts = pd.Timestamp("2024-03-04 15:00", tz="UTC")
+    quiet = [backtest.Trade("A", ts + pd.Timedelta(days=i), ts + pd.Timedelta(days=i, minutes=5), 1, 1, 1, "time", 0.0, 0.004) for i in range(4)]
+    busy = [backtest.Trade("A", ts + pd.Timedelta(days=10, minutes=i), ts + pd.Timedelta(days=10, minutes=i + 1), 1, 1, 1, "time", 0.0, -0.003) for i in range(10)]
+    res = backtest.BacktestResult(quiet + busy, 0.1)
+    assert res.daily_mean().mean() > 0 > res.frame()["net"].mean()
+    assert gate.stress_value(res) < 0
+
+
+def test_the_gate_runs_exactly_the_checks_the_fingerprint_names():
+    names = [c.name for c in gate.dev_checks(trades_from_daily(series(1, 0.002)), 0.001, 2.5)[0]]
+    assert names + ["holdout"] == list(config.GATE_CHECKS)

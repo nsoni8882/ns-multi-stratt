@@ -32,6 +32,11 @@ MAX_HOLDOUT_LOOKS = 5  # after this many looks the holdout is burned; roll it fo
 HOLDOUT_MIN_RATIO = 0.5  # holdout expectancy must be at least this share of development's
 MIN_HOLDOUT_TRADES = 30
 
+# The checks the gate runs, in order. A check added or removed changes the fingerprint, so the
+# rules cannot change through gate.py alone; test_gate pins gate.py to this list.
+GATE_CHECKS = ("min_trades", "min_days", "positive_expectancy", "positive_per_trade", "deflated_t",
+               "both_halves", "drop_best_year", "cost_stress", "holdout")
+
 START_EQUITY = 100_000.0
 
 
@@ -50,6 +55,7 @@ def params() -> dict:
         "max_holdout_looks": MAX_HOLDOUT_LOOKS,
         "holdout_min_ratio": HOLDOUT_MIN_RATIO,
         "min_holdout_trades": MIN_HOLDOUT_TRADES,
+        "gate_checks": list(GATE_CHECKS),
     }
 
 
@@ -58,6 +64,10 @@ def rules_version() -> str:
 
 
 HISTORY = (
+    Release("1.2.0", "2026-10-16",
+            "A strategy now also has to make money per trade, not only on the average day. A "
+            "strategy that won on quiet days and lost on crowded ones used to look positive.",
+            fingerprint="4c51616de1d5"),
     Release("1.1.0", "2026-10-15",
             "The hidden recent period is now a fixed window instead of a sliding one, so every "
             "look at it is of the same data and a spent allowance can only be renewed on purpose.",

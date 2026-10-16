@@ -61,3 +61,14 @@ test("gate details use correct grammar for one year", () => {
   const s = { ...f.strategies[0], backtest: { ...f.strategies[0].backtest, years: { "2026": { mean_bps: 1, days: 10 } } } };
   expect(gateRows(s, undefined).find((r) => r.name === "drop_best_year")!.detail).toBe("1 year tested");
 });
+
+test("a result from before the per-trade check shows it as not measured, never as passed", () => {
+  const f = labFixture();
+  const old = f.strategies[1];
+  const { per_trade_bps: _drop, ...rest } = old.backtest;
+  void _drop;
+  const rows = gateRows({ ...old, backtest: rest }, trialFor(f.trials, old.fingerprint));
+  const row = rows.find((r) => r.name === "positive_per_trade")!;
+  expect(row.ok).toBeNull();
+  expect(row.detail).toBe("not measured then");
+});

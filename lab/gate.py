@@ -38,6 +38,7 @@ def dev_checks(trades: pd.DataFrame, stress_mean: float, threshold: float):
     daily = trades.groupby("day")["net"].mean() if n else pd.Series(dtype=float)
     nd = len(daily)
     mean = float(daily.mean()) if nd else 0.0
+    per_trade = float(trades["net"].mean()) if n else 0.0
     t = stats.t_stat(daily.to_numpy())
     half = nd // 2
     h1 = float(daily.iloc[:half].mean()) if half else 0.0
@@ -57,6 +58,10 @@ def dev_checks(trades: pd.DataFrame, stress_mean: float, threshold: float):
         Check("min_trades", n >= config.MIN_TRADES, f"{n} trades, need {config.MIN_TRADES}"),
         Check("min_days", nd >= config.MIN_DAYS, f"{nd} days, need {config.MIN_DAYS}"),
         Check("positive_expectancy", mean > 0, f"{_bps(mean):+.1f} bps per day"),
+        # The day mean weights a quiet one-trade day like a crowded ten-trade day. Money does
+        # not: it follows the trades. A strategy that wins quiet days and loses crowded ones
+        # (correlated losses) can show a positive day mean and lose on every trade on average.
+        Check("positive_per_trade", per_trade > 0, f"{_bps(per_trade):+.1f} bps a trade"),
         Check("deflated_t", t >= threshold, f"t={t:.2f}, needs {threshold:.2f}"),
         Check("both_halves", h1 > 0 and h2 > 0, f"{_bps(h1):+.1f} / {_bps(h2):+.1f} bps"),
         Check("drop_best_year", no_single_year, year_detail),
@@ -66,7 +71,7 @@ def dev_checks(trades: pd.DataFrame, stress_mean: float, threshold: float):
     losses = -trades["net"][trades["net"] < 0].sum()
     sd = float(daily.std(ddof=1)) if nd > 1 else 0.0
     metrics = {
-        "n_trades": n, "n_days": nd, "mean_bps": _bps(mean), "t": t, "threshold": threshold,
+        "n_trades": n, "n_days": nd, "mean_bps": _bps(mean), "per_trade_bps": _bps(per_trade), "t": t, "threshold": threshold,
         "win_rate": float((trades["net"] > 0).mean()) if n else 0.0,
         "profit_factor": float(wins / losses) if losses > 0 else None,
         "sharpe": float(mean / sd * np.sqrt(252)) if sd > 0 else 0.0,
@@ -75,6 +80,12 @@ def dev_checks(trades: pd.DataFrame, stress_mean: float, threshold: float):
                   for y, r in years.iterrows()},
     }
     return checks, metrics
+
+
+def stress_value(res: "backtest.BacktestResult") -> float:
+    """The doubled-cost result: the worse of the day mean and the per-trade mean."""
+    f = res.frame()
+    return min(float(res.daily_mean().mean()), float(f["net"].mean())) if len(f) else 0.0
 
 
 def _holdout_check(hold: "backtest.BacktestResult", dev_mean_bps: float) -> Check:
@@ -94,9 +105,7 @@ def evaluate(spec, frames, tiers, allowed, ledger, *, cutoff=None) -> GateResult
 
     full = backtest.run(spec, frames, tiers, allowed=allowed)
     stress = backtest.run(spec, frames, tiers, allowed=allowed, cost_mult=config.STRESS_MULT).before(cutoff)
-    stress_daily = stress.daily_mean()
-    checks, metrics = dev_checks(full.before(cutoff).frame(),
-                                 float(stress_daily.mean()) if len(stress_daily) else 0.0, threshold)
+    checks, metrics = dev_checks(full.before(cutoff).frame(), stress_value(stress), threshold)
 
     looked = False
     if all(c.ok for c in checks):

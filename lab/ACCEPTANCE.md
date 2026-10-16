@@ -7,13 +7,17 @@ A strategy passes only if **all** hold on net-of-cost results, judged on develop
 
 1. **Enough evidence:** at least 400 trades on at least 150 distinct days.
 2. **Positive expectancy** on the day-level series. The day is the unit, not the trade:
-   trades on one day share a market, so trade-level t-stats run far too high.
+   trades on one day share a market, so trade-level t-stats run far too high. **And positive
+   per trade** (added 2026-10-16): the day mean weights a quiet day like a crowded one, but money
+   follows the trades, so a strategy that wins quiet days and loses crowded ones must not pass.
+   Found on the deep VWAP stretch: +3.7 bps on the day mean, -6.0 bps per trade.
 3. **Deflated t:** the day-level t must reach `max(2.5, E[max t over N null trials])`, where N is
    the number of strategies ever evaluated (the trial ledger). Every idea tried — kept or
    rejected — raises the bar for the next, so searching harder cannot manufacture a pass.
 4. **Both halves positive** when development is split in time.
 5. **No single year carries it:** drop the best year, expectancy stays positive (needs 2+ years).
-6. **Cost stress:** with costs doubled, expectancy is still positive.
+6. **Cost stress:** with costs doubled, expectancy is still positive, on both the day mean and
+   the per-trade mean.
 7. **Sealed holdout:** a fixed window (`HOLDOUT_START` in config, currently 2026-04-15) is never read by search or by the LLM. Only if
    1-6 pass is the holdout opened, once per strategy, and it must show at least 30 trades,
    positive expectancy, and at least half of development's. The caller sees pass/fail, not numbers.

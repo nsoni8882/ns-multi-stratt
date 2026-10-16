@@ -238,7 +238,7 @@ export interface PaperTradingFile {
 export type LabStage = "proposed" | "backtested" | "shadow" | "paper" | "kept" | "rejected" | "retired";
 
 export interface LabMetrics {
-  n_trades: number; n_days: number; mean_bps: number; t: number; threshold: number;
+  n_trades: number; n_days: number; mean_bps: number; per_trade_bps?: number; t: number; threshold: number;
   win_rate: number; profit_factor: number | null; sharpe: number;
   halves_bps: [number, number]; years: Record<string, { mean_bps: number; days: number }>;
 }

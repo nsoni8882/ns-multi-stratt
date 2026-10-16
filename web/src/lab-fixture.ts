@@ -87,7 +87,7 @@ function metricsOf(trades: LabTrade[], threshold: number): LabMetrics {
     void v;
   }
   return {
-    n_trades: trades.length, n_days: daily.length, mean_bps: mean(daily),
+    n_trades: trades.length, n_days: daily.length, mean_bps: mean(daily), per_trade_bps: mean(trades.map((t) => t.net_bps)),
     t: sd(daily) ? mean(daily) / (sd(daily) / Math.sqrt(daily.length)) : 0, threshold,
     win_rate: trades.length ? trades.filter((t) => t.net_bps > 0).length / trades.length : 0,
     profit_factor: losses > 0 ? wins / losses : null,

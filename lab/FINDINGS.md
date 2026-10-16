@@ -90,3 +90,12 @@ the owner: add a per-trade expectancy check. It can only make the gate stricter.
 A regime filter (trade only when few names are stretched) would be a new idea formed from this
 diagnostic, in exactly the way the lab warns about; it needs its own written reason and, if run,
 a new trial. It is not proposed here.
+
+## 2026-10-16: the gate now also requires a profit per trade (rules 1.2.0)
+
+Added after the deep VWAP stretch, with the owner's approval: `positive_per_trade`, and the
+cost-stress check now takes the worse of the day mean and the per-trade mean. It only makes the
+gate stricter. The three earlier verdicts stand (all rejected, none passed the other checks).
+The fingerprint now covers the list of checks, so adding or removing one cannot happen without a
+`HISTORY` entry. Older ledger rows carry the earlier rules version; the Lab tab shows the new
+check as "not measured then" for them rather than as a pass.

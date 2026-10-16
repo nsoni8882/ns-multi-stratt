@@ -45,7 +45,7 @@ export interface GateRow { name: string; label: string; ok: boolean | null; deta
 
 const GATE_LABEL: [string, string][] = [
   ["min_trades", "Enough trades"], ["min_days", "Enough days"],
-  ["positive_expectancy", "Positive expectancy"], ["deflated_t", "Clears the raised bar"],
+  ["positive_expectancy", "Positive on the average day"], ["positive_per_trade", "Profitable per trade"], ["deflated_t", "Clears the raised bar"],
   ["both_halves", "Both halves positive"], ["drop_best_year", "No single year carries it"],
   ["cost_stress", "Survives doubled costs"], ["holdout", "Sealed holdout"],
 ];
@@ -59,6 +59,7 @@ export function gateRows(s: LabStrategy, trial: LabTrial | undefined): GateRow[]
     min_trades: m.n_trades == null ? NA : `${m.n_trades} of ${MIN_TRADES}`,
     min_days: m.n_days == null ? NA : `${m.n_days} of ${MIN_DAYS}`,
     positive_expectancy: m.mean_bps == null ? NA : `${m.mean_bps.toFixed(1)} bps a day`,
+    positive_per_trade: m.per_trade_bps == null ? "not measured then" : `${m.per_trade_bps.toFixed(1)} bps a trade`,
     deflated_t: m.t == null ? NA : `t ${ratio(m.t)} vs ${ratio(m.threshold ?? trial?.threshold)}`,
     both_halves: m.halves_bps ? `${m.halves_bps[0].toFixed(1)} / ${m.halves_bps[1].toFixed(1)} bps` : NA,
     drop_best_year: Object.keys(m.years ?? {}).length ? `${Object.keys(m.years ?? {}).length} ${Object.keys(m.years ?? {}).length === 1 ? "year" : "years"} tested` : NA,
@@ -69,6 +70,8 @@ export function gateRows(s: LabStrategy, trial: LabTrial | undefined): GateRow[]
     let ok: boolean | null = null;
     if (trial) {
       if (name === "holdout") ok = trial.holdout_look ? !trial.failed.includes("holdout") : null;
+      // Results from before this check existed never ran it; showing a pass would be a claim.
+      else if (name === "positive_per_trade" && m.per_trade_bps == null) ok = null;
       else ok = !trial.failed.includes(name);
     }
     return { name, label, ok, detail: name === "holdout" && ok === null ? "not opened" : detail[name] };

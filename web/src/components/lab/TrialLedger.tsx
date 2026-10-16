@@ -3,7 +3,7 @@ import type { LabTrial } from "../../types";
 import { bps, ratio, stamp } from "../../lib/labFormat";
 
 const WHY: Record<string, string> = {
-  min_trades: "too few trades", min_days: "too few days", positive_expectancy: "loses money",
+  min_trades: "too few trades", min_days: "too few days", positive_expectancy: "loses money", positive_per_trade: "loses on every trade on average",
   deflated_t: "not significant enough", both_halves: "one half lost", drop_best_year: "one year carried it",
   cost_stress: "dies at doubled costs", holdout: "failed the sealed period",
 };
