@@ -56,3 +56,37 @@ neither (43%) average zero. Gap-downs in these names are not recovered on averag
 rejections in a row on mid-sized stretches say large-cap price at 5-minute resolution carries
 no tradeable drift for these rules at these costs; the remaining ideas should be judged against
 that, not against the hope that the next threshold is the one.
+
+## 2026-10-16: VWAP reversion, deep stretches only  (943231f1400b) — REJECTED (closest so far)
+
+Hypothesis (written before the run): VWAP-benchmarked execution pulls a stock that is well under
+VWAP back toward it; only a deep (1.2%) stretch after the first hour is large enough to clear a
+fixed-bps cost. Spec: VWAP reversion, 5-minute bars, 1.2% below VWAP, bars 12 to 60, stop 2%,
+target 1%, max hold 36 bars. Same universe, 1,654 trading days, 8,614 trades. Trial 3; holdout
+not opened.
+
+| | |
+|---|---|
+| Net per day (each day weighted equally) | +3.7 bps, t = 2.18 (the bar was t >= 2.50) — **fail** |
+| Both halves | +2.2 / +5.2 bps — pass |
+| Without the best year (2023) | +2.1 bps — pass |
+| Doubled costs | -1.6 bps — **fail** |
+| Per trade (each trade weighted equally) | gross -0.7 bps, costs 5.3 bps, **net -6.0 bps**; win rate 56% |
+| Exits | target 3,508 (+95), stop 1,284 (-205), time 2,728 (-35), session 1,094 (-24) |
+
+**The two expectancies disagree, and that is the finding.** Days with 1 to 4 trades average +12
+to +20 bps, days with 5 to 8 trades +1.5 bps, and days with 9 or more trades **-29.6 bps**. 81% of
+the trades happen on days with 5 or more. Many names stretch below VWAP at once on a market-wide
+down day, and then they all keep falling together: the losses are one correlated event, not
+independent trades. The gate's day-level mean counts a quiet +20 day the same as a busy -30
+day, so it reads the strategy as marginally positive; the money (trade-weighted, and the equity
+curve) says it loses.
+
+This exposes a gap in the gate rather than a reason to loosen it: **positive_expectancy and
+cost_stress are measured on the equal-weight day mean, so a strategy that loses money per trade
+can still pass them.** It failed anyway here (t, cost stress), so no verdict changes. Proposed to
+the owner: add a per-trade expectancy check. It can only make the gate stricter.
+
+A regime filter (trade only when few names are stretched) would be a new idea formed from this
+diagnostic, in exactly the way the lab warns about; it needs its own written reason and, if run,
+a new trial. It is not proposed here.
