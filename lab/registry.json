@@ -39,5 +39,44 @@
       "timeframe": "5Min"
     },
     "stage": "rejected"
+  },
+  "e0370326ed39": {
+    "approved_by": null,
+    "failure_rules": null,
+    "history": [
+      {
+        "reason": "registered",
+        "stage": "proposed",
+        "when": "2026-10-16T06:03:09Z"
+      },
+      {
+        "reason": "gate evaluated",
+        "stage": "backtested",
+        "when": "2026-10-16T06:03:09Z"
+      },
+      {
+        "reason": "failed: positive_expectancy, deflated_t, both_halves, drop_best_year, cost_stress",
+        "stage": "rejected",
+        "when": "2026-10-16T06:03:09Z"
+      }
+    ],
+    "spec": {
+      "family": "gap_fade",
+      "hypothesis": "A liquid large cap that opens more than 1% below yesterday's close, in a thin pre-market after overnight order imbalance, retraces part of that gap during the first two hours as the regular session's deeper liquidity arrives. The cost is a fixed few bps while a 1%+ gap leaves far more room to be recovered, so net-of-cost edge is plausible where it was not for breakouts. Written before any run. If the gap-ups and gap-downs that carry real news dominate, this loses and the stop (1.5%) is what limits it.",
+      "name": "Gap-down fade, large caps",
+      "params": {
+        "entry_bar": 1,
+        "gap_pct": 0.01
+      },
+      "risk": {
+        "max_concurrent": 5,
+        "max_hold_bars": 24,
+        "size_pct": 0.1,
+        "stop_pct": 0.015,
+        "target_pct": 0.015
+      },
+      "timeframe": "5Min"
+    },
+    "stage": "rejected"
   }
 }
