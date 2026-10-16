@@ -80,6 +80,47 @@
     },
     "stage": "rejected"
   },
+  "cb2cfd0510ae": {
+    "approved_by": null,
+    "failure_rules": null,
+    "history": [
+      {
+        "reason": "registered",
+        "stage": "proposed",
+        "when": "2026-10-16T06:34:58Z"
+      },
+      {
+        "reason": "gate evaluated",
+        "stage": "backtested",
+        "when": "2026-10-16T06:34:58Z"
+      },
+      {
+        "reason": "failed: positive_expectancy, positive_per_trade, deflated_t, both_halves, drop_best_year, cost_stress",
+        "stage": "rejected",
+        "when": "2026-10-16T06:34:58Z"
+      }
+    ],
+    "spec": {
+      "family": "rsi2_intraday",
+      "hypothesis": "The daily RSI(2) reversion rule on AMZN and AAPL measured +117 to +150 bps a trade (t above 5) because short-term overshoots in liquid names are partly given back. The same overshoot on 15-minute bars, bought only while price is above a two-day average, may give back too, with fewer and less noisy bars than 5-minute data. Written before any run. This is the idea with the most outside support and the least reason to think intraday spreads allow it; a gross edge that costs erase is the likely result.",
+      "name": "Intraday RSI(2) reversion, 15-minute bars",
+      "params": {
+        "buy_below": 5.0,
+        "last_entry_bar": 22,
+        "rsi_len": 2,
+        "trend_len": 52
+      },
+      "risk": {
+        "max_concurrent": 5,
+        "max_hold_bars": 8,
+        "size_pct": 0.1,
+        "stop_pct": 0.008,
+        "target_pct": 0.01
+      },
+      "timeframe": "15Min"
+    },
+    "stage": "rejected"
+  },
   "e0370326ed39": {
     "approved_by": null,
     "failure_rules": null,
