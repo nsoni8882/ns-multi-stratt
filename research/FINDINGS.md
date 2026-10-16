@@ -472,6 +472,43 @@ NaN anywhere makes a pandas boolean frame object-dtype, and `~` on an object col
 bitwise arithmetic on the underlying ints, so `not False` comes out as −1, which is truthy.
 It produced a plausible-looking table rather than an error. `test_cross.py` pins it.
 
+## Short-term reversal, long the losers: close, and it decays (2026-10-16)
+
+Prompted by a literature sweep for edges that survive costs. Four variants, declared in
+`cross.py` before any was run (lookback 5 or 21 bars x bottom 5% or 10% of the cross-section,
+each scored at the horizon its lookback names), 164 names x 12y of daily bars, alpha against each
+name's buy-and-hold. Long only, because nothing here shorts; published reversal returns are
+long-short, so this is the half that could be traded. Results are in `research/results/reversal-5d`
+and `reversal-21d`. Bar: ACCEPTANCE rules 1-5 and 7, unchanged, and net of ~5.5 bps a round trip.
+
+| variant | n dates | alpha by date | t by date | 1st half | 2nd half | without 2020 (t) |
+|---|---:|---:|---:|---:|---:|---:|
+| rev-5d-bottom5 | 2,706 | +0.19% | +1.87 | +0.22% | +0.15% | +0.10% (1.08) |
+| rev-5d-bottom10 | 2,717 | +0.18% | +2.32 | +0.22% | +0.14% | +0.13% (1.82) |
+| rev-21d-bottom5 | 2,475 | +0.76% | **+3.34** | +1.62% | **-0.09%** | +0.46% (2.16) |
+| rev-21d-bottom10 | 2,673 | +0.35% | +2.10 | +1.00% | **-0.30%** | +0.15% (0.98) |
+
+**None passes.** Why, variant by variant:
+
+* **rev-21d-bottom5 is the only t above 2.5 and it is a historical note, not a screener.** The
+  first half earns +1.62% (t +5.04); the second half earns -0.09% (t -0.28), which fails rule 3.
+  Without 2020 it falls to t 2.16, which fails rule 4's spirit and the 2.5 bar. 2015 alone is
+  -13.77%. The edge existed and then went, which is what the literature says happened to published
+  reversal.
+* **The 5-day variants are positive in both halves but under the bar.** Gross +18 to +19 bps a
+  trade is real against ~5.5 bps of cost, so the mechanism is not dead at the weekly horizon, but
+  t by date is 1.87 and 2.32, below 2.5, and 2020 carries the larger part of the 5% cut (t 1.08
+  without it). rev-5d-bottom10 is the closest: both halves positive, t indep +3.95, second half
+  weaker (+0.14%, t 1.37).
+* **Survivorship flatters all of this.** The universe is today's S&P 500, so names that fell and
+  never recovered are absent, and buying last month's biggest losers is exactly the trade that
+  bias helps. The true figures are lower than these.
+
+What it rules out: the 21-day reversal as a live rule (second half is zero). What stays open, and
+only as a weak lead: the weekly reversal, where the sign is stable and the size is small. Not
+re-proposed: a different threshold on these four. A follow-up needs a new reason, a
+point-in-time universe, and a bar that accounts for the four trials already spent here.
+
 ## Standing guards
 
 Two things from these runs should stay regardless of what is tested next: score the
