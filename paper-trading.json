@@ -9,7 +9,7 @@
   "total_pl_pct": 0.0,
   "unrealised_pl": 0
  },
- "as_of": "close",
+ "as_of": "intraday",
  "equity_curve": [
   {
    "date": "2026-10-09",
@@ -33,6 +33,11 @@
   },
   {
    "date": "2026-10-15",
+   "equity": 100000.0,
+   "in_position": false
+  },
+  {
+   "date": "2026-10-16",
    "equity": 100000.0,
    "in_position": false
   }
@@ -90,6 +95,49 @@
  "positions": [],
  "rules_version": "f5e0af26ffd9",
  "runs": [
+  {
+   "at": "2026-10-16T22:10:33+00:00",
+   "crashed": false,
+   "date": "2026-10-16",
+   "decisions": {
+    "AAPL": {
+     "action": "wait",
+     "bars_held": 0,
+     "entry_date": null,
+     "held": false,
+     "price": 343.46,
+     "reason": "not oversold",
+     "rsi2": 79.10479356645368,
+     "sma200": 292.14225,
+     "trend_gap_pct": 17.56601450149713
+    },
+    "AMZN": {
+     "action": "buy",
+     "bars_held": 0,
+     "entry_date": null,
+     "held": false,
+     "price": 250.0,
+     "reason": "oversold in uptrend",
+     "rsi2": 9.421177235735698,
+     "skipped": "market closed",
+     "sma200": 242.7281,
+     "trend_gap_pct": 2.9959036469201505
+    }
+   },
+   "early": false,
+   "equity": 100000.0,
+   "errors": [],
+   "event": "schedule",
+   "late": false,
+   "mode": "live",
+   "opening_balance": 100000.0,
+   "orders": 0,
+   "rules_version": "f5e0af26ffd9",
+   "run_id": "38973963696",
+   "sha": "a08a5594879c",
+   "skip_reason": "market closed",
+   "url": "https://github.com/nsoni8882/ns-multi-stratt/actions/runs/38973963696"
+  },
   {
    "at": "2026-10-15T23:07:52+00:00",
    "crashed": false,
@@ -472,33 +520,33 @@
  "signal_state": [
   {
    "buy_below": 10.0,
-   "price": 254.76,
-   "reason": "not oversold",
-   "rsi2": 30.082709585820695,
+   "price": 250.0,
+   "reason": "oversold in uptrend",
+   "rsi2": 9.421177235735698,
    "sell_above": 65.0,
-   "sma200": 242.64075,
+   "sma200": 242.7281,
    "symbol": "AMZN",
-   "trend_gap_pct": 4.994729862976444,
-   "verdict": "Waiting"
+   "trend_gap_pct": 2.9959036469201505,
+   "verdict": "Oversold"
   },
   {
    "buy_below": 10.0,
-   "price": 342.0,
+   "price": 343.46,
    "reason": "not oversold",
-   "rsi2": 57.6588779881095,
+   "rsi2": 79.10479356645368,
    "sell_above": 65.0,
-   "sma200": 291.78665,
+   "sma200": 292.14225,
    "symbol": "AAPL",
-   "trend_gap_pct": 17.208926453626304,
+   "trend_gap_pct": 17.56601450149713,
    "verdict": "Waiting"
   }
  ],
- "signal_state_as_of": "2026-10-15",
+ "signal_state_as_of": "2026-10-16",
  "symbols": [
   "AMZN",
   "AAPL"
  ],
  "trades": [],
- "updated_at": "2026-10-15T23:43:41+00:00",
+ "updated_at": "2026-10-16T22:10:35+00:00",
  "version": "1.1.0"
 }
