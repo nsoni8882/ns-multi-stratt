@@ -131,3 +131,23 @@ about zero. Even free trading would leave these at roughly break-even, nowhere n
 The daily RSI(2) edge does not carry down to intraday bars in these names. The evidence so far
 favours "no tradeable edge in liquid large caps at 5- and 15-minute resolution for simple rules."
 Not re-proposed: any threshold change to these four.
+
+## 2026-10-16: measured spreads vs the cost model
+
+Sampled SIP quotes for 40 symbols (the 10 most liquid and 30 spread across the rest of the
+universe), one-minute windows at 10:00, 12:30 and 15:00 ET on 8 full sessions (6 to 15 Oct),
+960 windows. Half-spread in bps, median (25th to 75th percentile):
+
+| | Measured half-spread | Model, per side (half-spread + slippage) |
+|---|---|---|
+| Top 10 ("mega") | 0.95 (0.57 to 1.61) | 1.5 |
+| The rest ("large") | 1.89 (1.08 to 3.25) | 3.0 |
+| By time: 10:00 / 12:30 / 15:00 | 2.45 / 1.36 / 1.25 | |
+
+The model is about 0.55 bps (mega) and 1.1 bps (large) above the measured half-spread, which
+is the slippage allowance, so it is **conservative on average and not wildly so**. Two limits:
+spreads at 10:00 are about twice those at 15:00, and the opening bars (09:30 to 09:40), where
+the opening-range breakout and gap fade enter, were not sampled and are wider still; and quotes
+are not fills, so this ignores impact. The model is therefore kept as is. It is not loosened:
+no config change, no new fingerprint. None of the four verdicts depends on it, since gross
+return was about zero before costs.
