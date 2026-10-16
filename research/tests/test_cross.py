@@ -90,3 +90,10 @@ def test_score_uses_the_same_forward_window_and_baseline_shape_as_measure(monkey
     r = rows[0]
     i = p.close.index.get_loc(r.date)
     assert r.fwd == pytest.approx(p.close[r.ticker].iloc[i + 2] / p.close[r.ticker].iloc[i] - 1)
+
+
+def test_losers_selects_the_bottom_of_the_cross_section_not_the_top(monkeypatch):
+    monkeypatch.setattr(cross, "MIN_NAMES", 2)
+    p = panel_of({"A": [10, 10, 10, 5], "B": [10, 10, 10, 20]})  # A halves, B doubles
+    lead = cross.leaders(p, cross.CrossConfig(lookback=1, rank_min=0.5, losers=True))
+    assert bool(lead["A"].iloc[3]) and not bool(lead["B"].iloc[3])

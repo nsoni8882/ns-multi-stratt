@@ -31,6 +31,7 @@ class CrossConfig:
     lookback: int = 5  # bars of momentum ("7-day" on daily bars is a trading week)
     skip: int = 0  # bars excluded at the near end of the momentum window
     rank_min: float = 0.95  # percentile of the cross-section that counts as a leader
+    losers: bool = False  # select the bottom (1 - rank_min) instead: the reversal reading
     on_entry: bool = True  # fire when a name *enters* the leaders, not every day it leads
     require_price_rising: bool = False  # close above its own 50-bar mean
     require_volume_rising: bool = False  # volume at or above its 20-bar median
@@ -73,6 +74,19 @@ VARIANTS = {
     # out-of-sample run says otherwise.
     "posthoc-252d-skip21-top1pct": CrossConfig(lookback=231, skip=21, rank_min=0.99),
     "posthoc-252d-skip21-while-leading": CrossConfig(lookback=231, skip=21, on_entry=False),
+    # --- short-term reversal, declared 2026-10-16 before any of it was run ---
+    # Long only: buy the names that fell most over the window, because the shipped site and the
+    # trader never short. Published reversal returns are long-short, so this is the half of it
+    # we could trade. Four variants, no more: lookback {5, 21} x bottom {5%, 10%}, each scored at
+    # the horizon its lookback names (5 bars for 5d, 20 for 21d: `--horizon`). The mechanism is
+    # compensation for liquidity provision (Nagel), and the repo's own table showed the mirror
+    # image (5-day leaders -0.24%, t by date -1.75). That hint was seen before this grid was
+    # written, so it counts as a reason to look, not as evidence. The bar is rules 1-5 and 7 of
+    # ACCEPTANCE.md unchanged, and net of ~5.5 bps a round trip (what the lab charged per trade).
+    "rev-5d-bottom5": CrossConfig(lookback=5, rank_min=0.95, losers=True),
+    "rev-5d-bottom10": CrossConfig(lookback=5, rank_min=0.90, losers=True),
+    "rev-21d-bottom5": CrossConfig(lookback=21, rank_min=0.95, losers=True),
+    "rev-21d-bottom10": CrossConfig(lookback=21, rank_min=0.90, losers=True),
 }
 
 
@@ -127,7 +141,8 @@ def leaders(panel: Panel, cfg: CrossConfig) -> pd.DataFrame:
     # `.astype(bool)` is load-bearing, not tidiness: a NaN anywhere makes these panels object
     # dtype, and `~` on an object column is bitwise arithmetic on the underlying ints rather
     # than negation. It silently turns False into -1, which is truthy.
-    return (rank >= cfg.rank_min).where(enough, False).fillna(False).astype(bool)
+    picked = rank <= 1.0 - cfg.rank_min if cfg.losers else rank >= cfg.rank_min
+    return picked.where(enough, False).fillna(False).astype(bool)
 
 
 def confirmations(panel: Panel, cfg: CrossConfig) -> pd.DataFrame:
