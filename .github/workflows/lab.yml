@@ -9,7 +9,7 @@ on:
       command:
         description: "What to run"
         type: choice
-        options: [fetch, backtest, export]
+        options: [fetch, backtest, export, spreads]
         default: export
       spec:
         description: "backtest only: path of a spec file, e.g. lab/specs/orb-stocks-in-play.json"
@@ -69,6 +69,7 @@ jobs:
             fetch)    python -m lab.run --data-dir history/lab fetch ;;
             backtest) test -f "$SPEC" || { echo "no such spec: $SPEC"; exit 1; }
                       python -m lab.run --data-dir history/lab backtest "$SPEC" ;;
+            spreads)  python -m lab.run --data-dir history/lab spreads ;;
             export)   ;;
             *)        echo "unknown command: $COMMAND"; exit 1 ;;
           esac

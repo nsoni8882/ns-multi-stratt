@@ -140,6 +140,23 @@ def cmd_backtest(args) -> int:
     return 0
 
 
+def cmd_spreads(args) -> int:
+    """Sample real quoted spreads (read-only) and write them next to the ledger."""
+    from lab import spreads
+    membership = _membership()
+    ranked = membership[max(k for k in membership if k <= datetime.now(timezone.utc).year)]
+    client = _client()
+    end = datetime.now(timezone.utc).date()
+    cal = client.calendar((end - timedelta(days=45)).isoformat(), (end - timedelta(days=1)).isoformat())
+    sessions = [d["date"] for d in cal if d["close"] == "16:00"][-8:]  # full sessions only
+    rows = spreads.sample(client, spreads.stratify(ranked, mega=10, others=30), sessions)
+    summary = spreads.summarize(rows)
+    out = (Path(args.data_dir) if args.data_dir else HERE) / "spreads.json"
+    out.write_text(json.dumps({"sessions": sessions, "summary": summary, "rows": rows}))
+    print(json.dumps(summary, indent=2))
+    return 0
+
+
 def cmd_export(args) -> int:
     reg, ledger = Registry().all(), Ledger().read()
     results = {}
@@ -169,6 +186,7 @@ def main(argv=None) -> int:
     b = sub.add_parser("backtest", help="run a spec through the gate")
     b.add_argument("spec")
     b.set_defaults(fn=cmd_backtest)
+    sub.add_parser("spreads", help="measure real quoted spreads").set_defaults(fn=cmd_spreads)
     e = sub.add_parser("export", help="write lab.json")
     e.add_argument("--out", default="lab.json")
     e.set_defaults(fn=cmd_export)
