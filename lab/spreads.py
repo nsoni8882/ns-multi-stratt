@@ -10,6 +10,8 @@ import statistics
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
+from trader.alpaca import AlpacaError
+
 ET = ZoneInfo("America/New_York")
 TIMES = ((10, 0), (12, 30), (15, 0))  # ET, one-minute windows
 MAX_SANE_BPS = 500  # a crossed or stale quote, not a spread
@@ -34,14 +36,22 @@ def stratify(ranked: "list[str]", mega: int, others: int) -> "dict[str, list[str
 
 
 def sample(client, tiers: "dict[str, list[str]]", sessions: "list[str]") -> "list[dict]":
-    rows = []
+    rows, rejected = [], set()
     for tier, symbols in tiers.items():
         for symbol in symbols:
             for day in sessions:
+                if symbol in rejected:
+                    break
                 for hour, minute in TIMES:
                     start = datetime.fromisoformat(f"{day}T{hour:02d}:{minute:02d}:00").replace(tzinfo=ET)
-                    q = client.quotes(symbol, start.astimezone(timezone.utc),
-                                      (start + timedelta(minutes=1)).astimezone(timezone.utc))
+                    try:
+                        q = client.quotes(symbol, start.astimezone(timezone.utc),
+                                          (start + timedelta(minutes=1)).astimezone(timezone.utc))
+                    except AlpacaError as e:
+                        if e.status != 400:  # a symbol Alpaca will not quote is skipped, anything else is real
+                            raise
+                        rejected.add(symbol)
+                        break
                     spreads = half_spread_bps(q)
                     if spreads:
                         rows.append({"tier": tier, "symbol": symbol, "day": day, "time": f"{hour}:{minute:02d}",

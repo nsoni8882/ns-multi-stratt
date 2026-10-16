@@ -152,7 +152,8 @@ def cmd_spreads(args) -> int:
     end = datetime.now(timezone.utc).date()
     cal = client.calendar((end - timedelta(days=45)).isoformat(), (end - timedelta(days=1)).isoformat())
     sessions = [d["date"] for d in cal if d["close"] == "16:00"][-8:]  # full sessions only
-    rows = spreads.sample(client, spreads.stratify(ranked, mega=10, others=30), sessions)
+    tiers = {k: [s.replace("-", ".") for s in v] for k, v in spreads.stratify(ranked, mega=10, others=30).items()}
+    rows = spreads.sample(client, tiers, sessions)
     summary = spreads.summarize(rows)
     out = (Path(args.data_dir) if args.data_dir else HERE) / "spreads.json"
     out.write_text(json.dumps({"sessions": sessions, "summary": summary, "rows": rows}))

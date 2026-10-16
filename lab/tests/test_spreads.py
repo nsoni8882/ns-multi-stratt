@@ -24,3 +24,16 @@ def test_sample_and_summary_by_tier_and_time():
     s = spreads.summarize(rows)
     assert s["by_tier"]["mega"]["median"] < s["by_tier"]["large"]["median"]
     assert list(s["by_time"]) == ["10:00", "12:30", "15:00"]
+
+
+def test_one_rejected_symbol_is_skipped_not_fatal():
+    from trader.alpaca import AlpacaError
+
+    class C:
+        def quotes(self, symbol, start, end, limit=500):
+            if symbol == "BAD":
+                raise AlpacaError(400, '{"message":"invalid symbol"}', "GET", "/v2/stocks/quotes")
+            return [{"bp": 99.99, "ap": 100.01}]
+
+    rows = spreads.sample(C(), {"mega": ["BAD", "GOOD"]}, ["2026-10-14"])
+    assert {r["symbol"] for r in rows} == {"GOOD"}
