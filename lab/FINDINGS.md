@@ -99,3 +99,35 @@ gate stricter. The three earlier verdicts stand (all rejected, none passed the o
 The fingerprint now covers the list of checks, so adding or removing one cannot happen without a
 `HISTORY` entry. Older ledger rows carry the earlier rules version; the Lab tab shows the new
 check as "not measured then" for them rather than as a pass.
+
+## 2026-10-16: Intraday RSI(2) reversion, 15-minute bars  (cb2cfd0510ae) — REJECTED
+
+Hypothesis (written before the run): the daily RSI(2) overshoot (+117 to +150 bps a trade on
+AMZN and AAPL) is partly given back on 15-minute bars too, bought only above a two-day average.
+Spec: RSI(2) below 5, trend average 52 bars, enter before bar 22, stop 0.8%, target 1.0%, max
+hold 8 bars. Same universe, 1,754 trading days, 13,597 trades. Trial 4, the first under rules
+1.2.0; holdout not opened.
+
+| | |
+|---|---|
+| Net per day | -2.4 bps, t = -2.89 (the bar was t >= 2.50) |
+| Per trade | gross **+0.3 bps**, costs 5.5 bps, net -5.1 bps; win rate 46% |
+| Both halves | -3.0 / -1.8 bps; without 2020: -3.1 bps |
+| Doubled costs | -10.6 bps |
+| Exits | time 6,429 (+2), stop 2,861 (-85), target 1,741 (+95), session 2,566 (-1) |
+
+## Where four ideas leave the lab (4 tried, 0 passed)
+
+| Idea | Gross per trade | Net per trade |
+|---|---|---|
+| Opening-range breakout, stocks in play | -0.0 bps | -5.5 |
+| Gap-down fade | -1.1 | -6.3 |
+| VWAP reversion, deep stretches | -0.7 | -6.0 |
+| Intraday RSI(2), 15-minute | +0.3 | -5.1 |
+
+**Gross return is zero for all four**, from four different mechanisms. That matters more than
+the net figures: the cost model is a placeholder, but no cost assumption rescues a gross edge of
+about zero. Even free trading would leave these at roughly break-even, nowhere near t >= 2.5.
+The daily RSI(2) edge does not carry down to intraday bars in these names. The evidence so far
+favours "no tradeable edge in liquid large caps at 5- and 15-minute resolution for simple rules."
+Not re-proposed: any threshold change to these four.
