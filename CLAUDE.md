@@ -42,7 +42,10 @@ lacks the deps. `scanner/tests/test_smoke_network.py` is skipped by default; it 
   backtester, a trial-count-deflated gate with a sealed holdout (`ACCEPTANCE.md` is the bar,
   `trials.jsonl` the append-only record of every idea tried). Nothing in it places orders. Do not
   edit `config.py`, `gate.py`, `costs.py` or `ACCEPTANCE.md` to make a strategy pass; a new
-  gate number goes in `config.params()` or the fingerprint test fails.
+  gate number goes in `config.params()` or the fingerprint test fails. State lives on the `data`
+  branch (`lab/`), written by the manual `lab.yml` workflow, which also publishes `lab.json`.
+  `python -m lab.review --data-dir <lab/ from data>` prints the status; `/lab` (a project skill in
+  `.claude/skills/lab/`) is the periodic review. `FINDINGS.md` records every idea tried.
 - `web/` — Vite + React + TypeScript, reads the JSON the scanner writes. The Lab tab (`pages/LabPage.tsx`,
   `components/lab/`) renders `lab.json`; `src/lab-fixture.ts` is a test-only stand-in, never published,
   and `lib/labStats.ts` mirrors a few `lab/config.py` numbers for display only.
