@@ -98,3 +98,4 @@
 {"event": "push", "gate": "success", "gate_said_run": "true", "run_id": "38896015971", "scan": "success", "sha": "32510a5697cf", "url": "https://github.com/nsoni8882/ns-multi-stratt/actions/runs/38896015971"}
 {"event": "push", "gate": "success", "gate_said_run": "true", "run_id": "38896179950", "scan": "success", "sha": "a5ced84edc12", "url": "https://github.com/nsoni8882/ns-multi-stratt/actions/runs/38896179950"}
 {"event": "push", "gate": "success", "gate_said_run": "true", "run_id": "38896867855", "scan": "success", "sha": "81acfdc3e4cf", "url": "https://github.com/nsoni8882/ns-multi-stratt/actions/runs/38896867855"}
+{"event": "workflow_dispatch", "gate": "success", "gate_said_run": "true", "run_id": "38897928547", "scan": "success", "sha": "81acfdc3e4cf", "url": "https://github.com/nsoni8882/ns-multi-stratt/actions/runs/38897928547"}
