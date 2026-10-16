@@ -15,10 +15,11 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from research import cross
+from research import cross, pit
 from research.measure import RESULTS_DIR, fetch_history, independent, pick_tickers, stats
 
 log = logging.getLogger("measure_cross")
+COST = 0.00055  # round trip, what the lab charged per trade
 
 
 def summarise(rows: "list[cross.CrossRow]", horizon: int) -> dict:
@@ -104,6 +105,20 @@ def to_markdown(results: dict, meta: dict) -> str:
     for label, r in results.items():
         cells = [f"{r['by_year'][y]:+.2%}" if y in r["by_year"] else "" for y in years]
         lines.append(f"| {label} | " + " | ".join(cells) + " |")
+    if "coverage" in meta:
+        lines += ["", "## Point-in-time coverage", "",
+                  f"{meta['tickers']} of {meta['asked']} symbols that were ever members had prices. "
+                  "Share of member-days with a price, by year (the rest are names Yahoo no longer "
+                  "serves, mostly acquired or bankrupt, which is the bias still left in):", "",
+                  "| year | " + " | ".join(str(y) for y in meta["coverage"]) + " |",
+                  "|---|" + "---:|" * len(meta["coverage"]),
+                  "| coverage | " + " | ".join(f"{v:.0%}" for v in meta["coverage"].values()) + " |"]
+        lines += ["", "## Net of cost (5.5 bps a round trip)", "",
+                  "| variant | alpha by date | net | 1st half net | 2nd half net |", "|---|---:|---:|---:|---:|"]
+        for label, r in results.items():
+            f = lambda x: f"{x - COST:+.2%}"
+            lines.append(f"| {label} | {r['all']['alpha_by_date']:+.2%} | {f(r['all']['alpha_by_date'])} | "
+                         f"{f(r['first_half']['alpha_by_date'])} | {f(r['second_half']['alpha_by_date'])} |")
     return "\n".join(lines) + "\n"
 
 
@@ -113,6 +128,8 @@ def main() -> int:
     parser.add_argument("--years", type=int, default=12)
     parser.add_argument("--horizon", type=int, default=20)
     parser.add_argument("--variants", nargs="*", default=None)
+    parser.add_argument("--pit", action="store_true",
+                        help="rank only names that were S&P 500 members on each date (research/pit.py)")
     parser.add_argument("--out", type=Path, default=RESULTS_DIR)
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -123,18 +140,23 @@ def main() -> int:
         parser.error(f"unknown variants {unknown}; available: {list(cross.VARIANTS)}")
 
     now = pd.Timestamp.now(tz="UTC")
-    bars = fetch_history(pick_tickers(args.tickers), args.years, now)
+    member = pit.load() if args.pit else None
+    tickers = sorted(member.columns) if args.pit else pick_tickers(args.tickers)
+    bars = fetch_history(tickers, args.years, now)
     usable = {t: df for t, df in bars.items() if len(df) > cross.WARMUP + args.horizon}
     log.info("%d tickers, %d usable", len(bars), len(usable))
     if not usable:
         log.error("no usable history")
         return 1
 
-    panel = cross.build_panel(usable)
+    panel = cross.build_panel(usable, member)
     log.info("panel %d dates x %d tickers", len(panel.close), len(panel.close.columns))
     results = measure(panel, labels, args.horizon)
     meta = {"tickers": len(usable), "years": args.years, "horizon": args.horizon,
             "generated": now.strftime("%Y-%m-%d")}
+    if args.pit:
+        meta["coverage"] = pit.coverage(panel.member, panel.close)
+        meta["asked"] = len(tickers)
 
     args.out.mkdir(parents=True, exist_ok=True)
     (args.out / "relative_strength.md").write_text(to_markdown(results, meta))

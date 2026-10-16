@@ -87,6 +87,15 @@ VARIANTS = {
     "rev-5d-bottom10": CrossConfig(lookback=5, rank_min=0.90, losers=True),
     "rev-21d-bottom5": CrossConfig(lookback=21, rank_min=0.95, losers=True),
     "rev-21d-bottom10": CrossConfig(lookback=21, rank_min=0.90, losers=True),
+    # --- weekly reversal on a point-in-time universe, declared 2026-10-16 before it was run ---
+    # Same two weekly configs, ranked only among the names in the S&P 500 on that date
+    # (`research/pit.py`; run with `--pit`). Not new variants: a re-measurement of the two that
+    # stayed open, on the universe whose survivorship the first run flagged. Pass bar, written
+    # now: ACCEPTANCE rules 1-5 and 7 unchanged (t by date >= 2.5, both halves positive, positive
+    # without the best year) AND alpha by date above 5.5 bps of round-trip cost in both halves.
+    # Names Yahoo no longer serves are missing and cannot be recovered; coverage is printed.
+    "pit-rev-5d-bottom5": CrossConfig(lookback=5, rank_min=0.95, losers=True),
+    "pit-rev-5d-bottom10": CrossConfig(lookback=5, rank_min=0.90, losers=True),
 }
 
 
@@ -94,6 +103,7 @@ VARIANTS = {
 class Panel:
     close: pd.DataFrame  # dates x tickers
     volume: pd.DataFrame
+    member: "pd.DataFrame | None" = None  # point-in-time membership; None ranks every name with data
 
 
 @dataclass(frozen=True)
@@ -110,7 +120,7 @@ class CrossRow:
     baseline: float
 
 
-def build_panel(bars: "dict[str, pd.DataFrame]") -> Panel:
+def build_panel(bars: "dict[str, pd.DataFrame]", member: "pd.DataFrame | None" = None) -> Panel:
     """Align every ticker's closes and volumes onto one date index.
 
     Names list and de-list, so the panel is ragged: a cell is NaN where that name had no bar
@@ -119,7 +129,9 @@ def build_panel(bars: "dict[str, pd.DataFrame]") -> Panel:
     """
     close = pd.DataFrame({t: df["close"] for t, df in bars.items()}).sort_index()
     volume = pd.DataFrame({t: df["volume"] for t, df in bars.items()}).reindex(close.index)
-    return Panel(close=close, volume=volume)
+    if member is not None:
+        member = member.reindex(index=close.index, columns=close.columns).fillna(False).astype(bool)
+    return Panel(close=close, volume=volume, member=member)
 
 
 def momentum(close: pd.DataFrame, lookback: int, skip: int) -> pd.DataFrame:
@@ -136,6 +148,8 @@ def leaders(panel: Panel, cfg: CrossConfig) -> pd.DataFrame:
     than MIN_NAMES are dropped rather than ranked.
     """
     mom = momentum(panel.close, cfg.lookback, cfg.skip)
+    if panel.member is not None:
+        mom = mom.where(panel.member)  # a name outside the index that day is not in the cross-section
     enough = mom.notna().sum(axis=1) >= MIN_NAMES
     rank = mom.rank(axis=1, pct=True, na_option="keep")
     # `.astype(bool)` is load-bearing, not tidiness: a NaN anywhere makes these panels object

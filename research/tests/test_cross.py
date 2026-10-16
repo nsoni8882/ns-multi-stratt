@@ -97,3 +97,14 @@ def test_losers_selects_the_bottom_of_the_cross_section_not_the_top(monkeypatch)
     p = panel_of({"A": [10, 10, 10, 5], "B": [10, 10, 10, 20]})  # A halves, B doubles
     lead = cross.leaders(p, cross.CrossConfig(lookback=1, rank_min=0.5, losers=True))
     assert bool(lead["A"].iloc[3]) and not bool(lead["B"].iloc[3])
+
+
+def test_a_name_outside_the_index_that_day_is_not_ranked(monkeypatch):
+    monkeypatch.setattr(cross, "MIN_NAMES", 2)
+    close = {"A": [10, 10, 10, 5], "B": [10, 10, 10, 20], "C": [10, 10, 10, 1]}
+    p = panel_of(close)
+    member = pd.DataFrame(True, index=p.close.index, columns=p.close.columns)
+    member["C"] = False  # C halves most, but it was not in the index
+    gated = cross.Panel(close=p.close, volume=p.volume, member=member)
+    lead = cross.leaders(gated, cross.CrossConfig(lookback=1, rank_min=0.5, losers=True))
+    assert bool(lead["A"].iloc[3]) and not bool(lead["C"].iloc[3])
