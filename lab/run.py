@@ -50,6 +50,9 @@ class Paced:
     def calendar(self, *a):
         return self._go(self._c.calendar, *a)
 
+    def quotes(self, *a):
+        return self._go(self._c.quotes, *a)
+
 
 def _client():
     from trader.alpaca import Alpaca

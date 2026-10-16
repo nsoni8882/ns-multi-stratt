@@ -99,3 +99,15 @@ def test_data_dir_moves_every_piece_of_state(tmp_path, monkeypatch):
     assert lifecycle.Registry().path == tmp_path / "lab" / "registry.json"
     assert trials.Ledger().path == tmp_path / "lab" / "trials.jsonl"
     assert run.RESULTS == tmp_path / "lab" / "results" and run.MEMBERSHIP == tmp_path / "lab" / "membership.json"
+
+
+def test_paced_client_forwards_every_call_the_lab_makes():
+    """The spread run failed in CI because Paced had no `quotes`; every method the lab calls on
+    the client must exist on the wrapper."""
+    class C:
+        def bars(self, *a): return "b"
+        def calendar(self, *a): return "c"
+        def quotes(self, *a): return "q"
+
+    p = run.Paced(C(), pace=0, sleep=lambda s: None)
+    assert (p.bars(), p.calendar(), p.quotes()) == ("b", "c", "q")
