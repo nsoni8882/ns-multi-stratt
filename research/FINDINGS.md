@@ -509,6 +509,29 @@ only as a weak lead: the weekly reversal, where the sign is stable and the size 
 re-proposed: a different threshold on these four. A follow-up needs a new reason, a
 point-in-time universe, and a bar that accounts for the four trials already spent here.
 
+### ...and on a point-in-time universe the weekly edge is gone (2026-10-16)
+
+The two weekly variants were re-measured with each date ranked only against the names that were
+in the S&P 500 that day (`research/pit.py`, `--pit`, membership from fja05680/sp500; declared in
+`cross.py` before the run). 730 of the 1,209 symbols that were ever members had prices, but that is
+97 to 100% of member-days from 2015 on (88% in 2014), so the hole is small for this window. Results:
+`research/results/reversal-pit`.
+
+| variant | n dates | alpha by date | t by date | 1st half | 2nd half | net of 5.5 bps |
+|---|---:|---:|---:|---:|---:|---:|
+| pit-rev-5d-bottom5 | 2,685 | +0.07% | +0.84 | +0.10% | +0.03% | +0.01% |
+| pit-rev-5d-bottom10 | 2,685 | +0.06% | +0.86 | +0.11% | +0.01% | +0.01% |
+
+**Rejected.** Alpha fell from +0.19% to +0.07% and t from 1.87-2.32 to 0.84-0.86; without 2020 it is
++0.03% (t 0.41); the second half is zero and net of cost both variants are roughly nil. So most of
+the earlier weekly alpha was the survivor universe, as flagged. (`t indep` stays high, 3.2-3.9, and is
+the number the date-collapse rule exists to overrule: the signals are many names on the same days.)
+Remaining bias is the ~500 names without prices, so the true figure is if anything lower.
+
+Closed: long-only short-term reversal in S&P 500 names at 5 and 21 days, on this data and these
+costs. Not re-proposed. The literature's reversal is long-short and in less liquid names; neither is
+available here.
+
 ## Standing guards
 
 Two things from these runs should stay regardless of what is tested next: score the
