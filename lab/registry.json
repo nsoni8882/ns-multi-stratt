@@ -40,6 +40,46 @@
     },
     "stage": "rejected"
   },
+  "943231f1400b": {
+    "approved_by": null,
+    "failure_rules": null,
+    "history": [
+      {
+        "reason": "registered",
+        "stage": "proposed",
+        "when": "2026-10-16T06:20:10Z"
+      },
+      {
+        "reason": "gate evaluated",
+        "stage": "backtested",
+        "when": "2026-10-16T06:20:10Z"
+      },
+      {
+        "reason": "failed: deflated_t, cost_stress",
+        "stage": "rejected",
+        "when": "2026-10-16T06:20:10Z"
+      }
+    ],
+    "spec": {
+      "family": "vwap_reversion",
+      "hypothesis": "Execution desks benchmarked to VWAP buy when a stock trades well under it, pulling price back toward VWAP later in the day. Costs are fixed in bps, so only a deep (1.2%) stretch below VWAP, after the first hour, leaves enough expected reversion to clear them; shallow stretches (the usual setting) cannot. The target is about the size of the stretch. Written before any run. Expected to fail if a stock far below VWAP is mostly a stock with news, which trends rather than reverts.",
+      "name": "VWAP reversion, deep stretches only",
+      "params": {
+        "dev_pct": 0.012,
+        "last_entry_bar": 60,
+        "min_bar": 12
+      },
+      "risk": {
+        "max_concurrent": 5,
+        "max_hold_bars": 36,
+        "size_pct": 0.1,
+        "stop_pct": 0.02,
+        "target_pct": 0.01
+      },
+      "timeframe": "5Min"
+    },
+    "stage": "rejected"
+  },
   "e0370326ed39": {
     "approved_by": null,
     "failure_rules": null,
