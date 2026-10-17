@@ -40,6 +40,45 @@
     },
     "stage": "rejected"
   },
+  "758cd45e4cb6": {
+    "approved_by": null,
+    "failure_rules": null,
+    "history": [
+      {
+        "reason": "registered",
+        "stage": "proposed",
+        "when": "2026-10-17T13:46:55Z"
+      },
+      {
+        "reason": "gate evaluated",
+        "stage": "backtested",
+        "when": "2026-10-17T13:46:55Z"
+      },
+      {
+        "reason": "failed: positive_per_trade, deflated_t, both_halves, drop_best_year, cost_stress",
+        "stage": "rejected",
+        "when": "2026-10-17T13:46:55Z"
+      }
+    ],
+    "spec": {
+      "family": "gap_fade",
+      "hypothesis": "A 3%+ overnight gap down in a top-50 dollar-volume name is mostly forced selling and thin pre-market liquidity, and part of it is bought back through the day as deeper liquidity arrives. At 3% the recoverable move is several times the 5-6 bps round-trip cost, and the trade is rare. The earlier 1% gap fade had gross -1.1 bps, so this is a bet that only the extreme tail overreacts. Written before any run. Expected to fail if 3% gaps in large caps are almost all news (earnings, guidance), which drifts further down: the stop at 3% then dominates.",
+      "name": "Large gap-down, hold to close",
+      "params": {
+        "entry_bar": 1,
+        "gap_pct": 0.03
+      },
+      "risk": {
+        "max_concurrent": 5,
+        "max_hold_bars": 26,
+        "size_pct": 0.1,
+        "stop_pct": 0.03,
+        "target_pct": 0.06
+      },
+      "timeframe": "15Min"
+    },
+    "stage": "rejected"
+  },
   "7baf247790f4": {
     "approved_by": null,
     "failure_rules": null,
