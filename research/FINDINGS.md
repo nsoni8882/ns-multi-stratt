@@ -630,6 +630,31 @@ Closed: a single-average daily trend rule on major crypto at these costs. Not re
 average length. What is left unmeasured is anything that needs data this repo does not have
 (fundamentals, order flow, options).
 
+## Insider open-market purchases in the S&P 500: nothing (2026-10-17)
+
+`research/insider_events.py`, bar declared before it ran. Free SEC Insider Transactions Data Sets
+(Form 4, 2015 to Q1 2026, 151,531 officer/director open-market purchases), entry at the close of the
+first trading day after the filing date, alpha net of the name's own drift and 5.5 bps, S&P 500 members
+on the signal date, t clustered by calendar month. Four variants: one insider buying $100k+ or two
+insiders buying $25k+ each within 30 days, at 20 and 60 trading days.
+
+| variant | signals | alpha | clustered t | 1st / 2nd half | without best year |
+|---|---:|---:|---:|---:|---:|
+| single-20 | 2,151 | -0.15% | -0.26 | -0.32% / +0.02% | -0.45% (2016 out) |
+| single-60 | 1,881 | +0.66% | +0.65 | +0.93% / +0.39% | -0.36% (2020 out) |
+| cluster-20 | 685 | +0.65% | +0.90 | -0.67% / +1.94% | +0.12% (2020 out) |
+| cluster-60 | 628 | +2.23% | +1.24 | +1.38% / +3.07% | +0.21% (2020 out) |
+
+**Rejected: none passes, the best t is 1.24 against 2.5.** The two 60-day variants look positive and
+both are one event: 2020 carries them (+8.7% and +16.3% that year) and without it alpha is -0.36% and
++0.21%. The clustered buys have the right sign and the right shape (insiders buying together before a
+rebound) but 628 signals with a 16% year in the middle do not clear a t of 2.5.
+
+Scope, so this is not over-read: it is S&P 500 large caps only, where insider purchases are rare and
+the literature finds the signal is weak; the published effect lives mostly in small caps, which this
+test does not cover (prices for the full filer universe, and its costs, are a separate build). Not
+re-proposed for large caps: other dollar or cluster thresholds.
+
 ## Standing guards
 
 Two things from these runs should stay regardless of what is tested next: score the
