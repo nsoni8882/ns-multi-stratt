@@ -577,6 +577,32 @@ What this rules out: RSI(2) mean reversion as a source of alpha over the drift i
 2014. What it leaves: a modest edge in AMZN and SPY over 2000 to 2026 that sits largely before 2014.
 Not re-proposed: IBS and other close-location variants of the same mechanism.
 
+## Trend on asset-class ETFs: a drawdown overlay, not an edge (2026-10-17)
+
+`research/trend_etf.py`, bar declared before it ran: long while close > SMA(200) (yesterday's
+close), else cash, 5 bps a switch, on SPY QQQ IWM EFA EEM TLT GLD DBC, equal weight, 2007 to 2026,
+against buying and holding the same basket. The claim in the literature is similar return for a much
+smaller drawdown, so the bar was risk-adjusted: Sharpe at least equal, max drawdown at least 30%
+smaller, beta-adjusted alpha positive in both halves, and all of it still true without 2008.
+
+| | trend | hold | alpha (t) |
+|---|---:|---:|---:|
+| all: Sharpe / max DD / return | 0.72 / -12.3% / 6.1% | 0.64 / -40.5% / 9.4% | +2.7%/yr (1.98) |
+| first half | 0.49 / -12.3% | 0.44 / -40.5% | +2.1%/yr (1.04) |
+| second half | 0.97 / -10.4% | 0.89 / -24.4% | +2.6%/yr (1.47) |
+| **without 2008** | **0.77** / -12.3% | **0.84** / -24.4% | +1.4%/yr (1.10) |
+
+**Does not pass as declared: rule 4 fails, as flagged in advance.** With 2008 removed the Sharpe falls
+below buy-and-hold (0.77 vs 0.84). The drawdown benefit survives (-12.3% against -24.4%, half) and
+alpha stays positive, but it is small and not significant (t 1.1 to 2.0). What the rule does: sits at
+beta 0.37, gives up about 3 points of return a year (6.1% against 9.4%) and cuts the worst drawdown by
+70%. Per asset it helps SPY (Sharpe 0.76 vs 0.63) and DBC, is neutral on QQQ and EFA, and hurts TLT, GLD,
+IWM and EEM.
+
+So it is insurance against a crash, priced at the return it forgoes in calm years, not a source of
+alpha. Worth knowing for sizing a portfolio; not a strategy to publish as an edge. Not re-proposed: a
+different average length on the same basket.
+
 ## Standing guards
 
 Two things from these runs should stay regardless of what is tested next: score the
