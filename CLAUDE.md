@@ -131,6 +131,15 @@ per symbol, and `test_rule_matches_pine.py` pins the live rule to the Pine strat
 trade (AMZN 199, AAPL 214). Change the rule and both must still pass, or the chart and the bot
 have quietly diverged.
 
+**The edge search has been run and mostly closed (2026-10).** Ten ideas across the intraday lab,
+cross-sectional reversal (survivor and point-in-time), RSI(2) across the S&P 500, trend on ETFs and
+crypto trend all came back as drift or decayed; `research/FINDINGS.md` and `lab/FINDINGS.md` record
+each with its numbers, so check them before proposing anything. Two things it taught that apply to
+any new test: the RSI(2) backtest once double-counted the rebound bar (fixed; the trader's expected
+bps are the corrected +112 AMZN / +78 AAPL, and AAPL fails its own randomization test), and a
+mean of weekly means weights a quiet week like a crash week, so use trade-weighted figures with
+errors clustered by week. A point-in-time universe is `research/pit.py`.
+
 **Conviction tiers** (`base.py`) are `high`/`standard`/`low`, sorted strongest-first by
 `CONVICTION_RANK`. They encode measured edge, not enthusiasm.
 
