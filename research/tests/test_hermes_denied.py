@@ -11,7 +11,7 @@ def row(**kw):
 
 def test_a_stop_hit_before_the_pivot_crossed_is_not_a_trade():
     ret, end = hd.outcome(row(stop_hit_date="2026-06-23"))
-    assert end == "open" and ret == 0.03  # the earlier stop belonged to a position that never existed
+    assert end == "open" and abs(ret - 0.03) < 1e-9  # the earlier stop belonged to a position that never existed
 
 
 def test_the_first_event_after_the_cross_wins_and_a_same_day_tie_goes_to_the_stop():
