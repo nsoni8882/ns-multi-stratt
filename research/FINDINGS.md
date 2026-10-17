@@ -676,6 +676,39 @@ definitions (ROE, margins, Piotroski) are the same family and would need a reaso
 result. Untested and the more plausible home for these factors: small and mid caps, which need a
 wider price universe and a cost model for thin names.
 
+## Hermes funnel, denied setups: the first answer was a recording artifact (2026-10-17)
+
+Hermes logs every setup its gates blocked, on the day, with entry, stop and first target. Two
+analyses, in order; the first is superseded and kept here as the reason the second exists.
+
+**1. Scoring Hermes's recorded hit dates (`hermes_denied.py`): +6.1% a setup, t 6.2. Not believed.**
+It counted only setups with a recorded pivot cross (the 594 stop hits that happened before any cross
+are trades that never existed, which also retracts my earlier claim that stops outnumbered targets
+three to one). But 44 of the 106 target hits fall on the cross day itself, a +16% day that cannot be
+filled at the pivot, and a daily record cannot order a stop and a target inside one day.
+
+**2. Re-simulated on independent Yahoo daily bars (`hermes_resim.py`), Hermes's levels only,
+conservative fills: gap-ups pay the gap, a bar touching stop and target is a stop, 11 bps cost.**
+
+| | triggered | mean return | t (clustered by week) |
+|---|---:|---:|---:|
+| all denied setups | 1,380 | -1.70% | -2.20 |
+| breakout gate | 842 | -2.45% | -2.64 |
+| RSI(2) extended gate | 172 | +0.73% | +1.09 |
+| stage-4 floor | 319 | -0.83% | -0.99 |
+| composite top third vs bottom third | 463 / 471 | -1.15% vs -1.71% | difference +0.58%, t +0.63 |
+
+Outcomes: 863 stops, 384 first targets, 64 time exits, 69 open. With a -6.5% stop and a +16% target,
+a 30% target rate is about break-even before gap slippage and cost, so losing is what that structure
+does to setups that behave like a coin flip. This agrees with Hermes's own live record (-0.97% a
+trade over 30 closed). The composite score does not rank outcomes (t 0.63), so the gates are not
+selecting for edge in this window; denying a setup did not cost Hermes money. One regime, June to
+October 2026, 195 tickers: a diagnosis of one funnel in one window, not a result about momentum
+breakouts in general.
+
+The lesson that applies here: a counterfactual log is only as good as its resolution. Recorded
+hit dates looked like an edge until the fills were made honest.
+
 ## Standing guards
 
 Two things from these runs should stay regardless of what is tested next: score the
