@@ -655,6 +655,27 @@ the literature finds the signal is weak; the published effect lives mostly in sm
 test does not cover (prices for the full filer universe, and its costs, are a separate build). Not
 re-proposed for large caps: other dollar or cluster thresholds.
 
+## Quality factors from free SEC filings: nothing in the S&P 500 (2026-10-17)
+
+`research/quality_factors.py`, bar declared before it ran. Point-in-time fundamentals from the SEC
+companyfacts API (first-reported 10-K values, usable the day after filing), 689 of 764 priced symbols
+parseable, monthly rebalance, long-only top quintile of the point-in-time S&P 500, excess over the
+equal-weight universe, net of 11 bps on measured turnover, 142 months (2014-12 to 2026-09).
+
+| factor | names | excess | NW t | 1st / 2nd half |
+|---|---:|---:|---:|---:|
+| gross profit / assets (high) | ~216 | -2.2%/yr | -1.38 | -0.4% / -3.7% |
+| accruals (low) | ~338 | +0.9%/yr | +0.94 | +0.6% / +1.2% |
+
+**Rejected, both.** Profitability has the wrong sign and gets worse (the long-short spread is -0.6%/yr);
+accruals is positive in both halves but +0.9%/yr is inside the noise (t 0.94). Neither is close to
+t 2.5. Consistent with the literature that quality and accruals premia are weak or gone in large caps
+after publication, and a long-only top quintile of a 500-name universe has little room to differ from
+the equal-weight average it is measured against. Not re-proposed for the S&P 500: other quality
+definitions (ROE, margins, Piotroski) are the same family and would need a reason that is not this
+result. Untested and the more plausible home for these factors: small and mid caps, which need a
+wider price universe and a cost model for thin names.
+
 ## Standing guards
 
 Two things from these runs should stay regardless of what is tested next: score the
