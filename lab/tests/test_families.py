@@ -9,6 +9,7 @@ PERMISSIVE = {
     "vwap_reversion": {"dev_pct": 0.001, "min_bar": 1},
     "rsi2_intraday": {"buy_below": 40.0, "trend_len": 10},
     "gap_fade": {"gap_pct": 0.002, "entry_bar": 1},
+    "gap_fade_idio": {"gap_pct": 0.002, "entry_bar": 1},
 }
 
 
@@ -69,3 +70,14 @@ def test_rsi2_requires_price_above_trend():
     falling = sessions(make_days(["2024-03-04"], drift=-0.05))  # one unbroken decline
     sig = rsi2_intraday.signal(falling, {**rsi2_intraday.DEFAULTS, "trend_len": 20, "buy_below": 40.0})
     assert not sig.any()  # a steady decline never closes above its own average
+
+
+def test_idiosyncratic_gap_fade_skips_days_the_market_gapped():
+    from lab.families import gap_fade_idio
+    day1 = make_days(["2024-03-04"], base=100)
+    dn = make_days(["2024-03-05"], base=95)
+    df = sessions(pd.concat([day1, dn]))
+    p = {"gap_pct": 0.01, "entry_bar": 1, "market_gap_max": 0.003}
+    assert gap_fade_idio.signal(df.assign(mkt_gap=0.0), p).any()
+    assert not gap_fade_idio.signal(df.assign(mkt_gap=-0.05), p).any()
+    assert gap_fade_idio.signal(df, p).any()  # no market column: treated as a flat market

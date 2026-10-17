@@ -105,3 +105,11 @@ def test_before_and_after_partition_the_trades():
 def test_empty_result_does_not_divide_by_zero():
     res = backtest.run(spec(), {"A": sessions(make_days(["2024-03-04"]))}, {"A": "large"})
     assert res.trades == [] and res.daily_mean().empty and res.equity_curve().empty
+
+
+def test_market_gap_is_the_median_across_symbols_and_needs_no_later_bar():
+    d1, d2 = ["2024-03-04"], ["2024-03-05"]
+    frames = {s: sessions(pd.concat([make_days(d1, base=100), make_days(d2, base=100 * (1 + g))]))
+              for s, g in (("A", -0.05), ("B", 0.0), ("C", 0.001))}
+    gaps = backtest.market_gap(frames)
+    assert gaps.loc[frames["A"]["day"].iloc[-1]] == pytest.approx(0.0, abs=1e-9)

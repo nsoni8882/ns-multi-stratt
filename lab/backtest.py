@@ -90,10 +90,20 @@ class BacktestResult:
         return BacktestResult([t for t in self.trades if t.entry_time >= ts], self.size_pct)
 
 
+def market_gap(frames) -> pd.Series:
+    """Median open-vs-prior-close gap across the universe, per day. Needs only bar 0 and the
+    prior close, so it is known before any entry the day can produce."""
+    from lab.families.gap_fade_idio import day_gaps
+    return pd.concat([day_gaps(df) for df in frames.values()]).groupby(level=0).median()
+
+
 def run(spec, frames, tiers, *, cost_mult=1.0, allowed=None) -> BacktestResult:
     family = REGISTRY[spec.family]
     every = []
+    mkt_gap = market_gap(frames) if getattr(family, "USES_MARKET_GAP", False) else None
     for symbol, df in frames.items():
+        if mkt_gap is not None:
+            df = df.assign(mkt_gap=df["day"].map(mkt_gap))
         sig = family.signal(df, spec.params)
         if allowed is not None:
             years = allowed.get(symbol, set())
