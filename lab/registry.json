@@ -239,5 +239,45 @@
       "timeframe": "5Min"
     },
     "stage": "rejected"
+  },
+  "f12355f39271": {
+    "approved_by": null,
+    "failure_rules": null,
+    "history": [
+      {
+        "reason": "registered",
+        "stage": "proposed",
+        "when": "2026-10-17T17:09:43Z"
+      },
+      {
+        "reason": "gate evaluated",
+        "stage": "backtested",
+        "when": "2026-10-17T17:09:43Z"
+      },
+      {
+        "reason": "failed: positive_expectancy, positive_per_trade, deflated_t, both_halves, drop_best_year, cost_stress",
+        "stage": "rejected",
+        "when": "2026-10-17T17:09:43Z"
+      }
+    ],
+    "spec": {
+      "family": "gap_fade_idio",
+      "hypothesis": "The 1% gap fade (gross -1.1 bps) and the deep VWAP stretch (losses concentrated on market-wide down days, where many names fall together) failed because a gap in many stocks at once is macro news that keeps going. A 1.5% gap in one large cap while the universe's median gap is within 0.3% is more likely an overnight order imbalance in a thin pre-market than information, so the retracement as regular-session liquidity arrives should be larger and independent across names. Written before any run. Expected to fail if single-name gaps of that size are mostly earnings and guidance, which drift on rather than revert; then the 1.5% stop dominates, as before.",
+      "name": "Idiosyncratic gap-down fade, flat market days",
+      "params": {
+        "entry_bar": 1,
+        "gap_pct": 0.015,
+        "market_gap_max": 0.003
+      },
+      "risk": {
+        "max_concurrent": 5,
+        "max_hold_bars": 24,
+        "size_pct": 0.1,
+        "stop_pct": 0.015,
+        "target_pct": 0.015
+      },
+      "timeframe": "5Min"
+    },
+    "stage": "rejected"
   }
 }
