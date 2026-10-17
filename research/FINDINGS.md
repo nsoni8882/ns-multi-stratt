@@ -603,6 +603,33 @@ So it is insurance against a crash, priced at the return it forgoes in calm year
 alpha. Worth knowing for sizing a portfolio; not a strategy to publish as an edge. Not re-proposed: a
 different average length on the same basket.
 
+## Daily trend on major crypto: it worked until about 2021 and has not since (2026-10-17)
+
+`research/trend_crypto.py`, bar declared before it ran: long while close > SMA(50), else cash, 25 bps
+a switch, on BTC ETH XRP LTC BCH ADA XLM TRX (top-ten names in early 2018 that still trade; the dead
+ones are absent, which flatters buy-and-hold), equal weight, 2018 to 2026, 365-day year.
+
+| | trend | hold | alpha (t) |
+|---|---:|---:|---:|
+| all: Sharpe / max DD / return | 0.77 / -61.9% / 35% | 0.55 / -85.0% / 41% | +16.9%/yr (1.56) |
+| first half | 1.07 / -52.2% | 0.44 / -85.0% | +41.1%/yr (2.28) |
+| second half | 0.35 / -46.1% | 0.75 / -61.9% | **-7.9%/yr (-0.70)** |
+| 2020 removed | 0.53 / -61.9% | 0.35 / -85.0% | +11.9%/yr (1.06) |
+| double cost | 0.64 / -65.5% | 0.55 / -85.0% | +11.0%/yr (1.00) |
+| BTC alone | 1.08 / -58.7% | 0.68 / -76.6% | +25.8%/yr (2.42) |
+
+**Rejected: fails 3 of 5.** Alpha t is 1.56 (bar 2.5), the drawdown is 27% smaller (bar 30%), and the
+second half is negative. It passes only the Sharpe and the without-best-year checks. Alpha by year:
++20% 2019, +50% 2020, +37% 2021, then -42% 2022, -19% 2023, -2% 2024, -12% 2025. The rule earned its
+return in the 2019 to 2021 trends and has lost to holding since, the same shape as every other
+published effect here (first half strong, second half gone). BTC alone looks better (t 2.42) and is
+the one series where survivorship does not apply, but it is one asset, the first half carries it,
+and it is not what the declared bar tested.
+
+Closed: a single-average daily trend rule on major crypto at these costs. Not re-proposed: another
+average length. What is left unmeasured is anything that needs data this repo does not have
+(fundamentals, order flow, options).
+
 ## Standing guards
 
 Two things from these runs should stay regardless of what is tested next: score the
