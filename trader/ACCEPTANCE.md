@@ -27,6 +27,27 @@ well below their lifetime average in the most recent years — AMZN +38.3 bps (2
 (2025), AAPL +60.8 (2025) and +35.6 (2026). Still positive, roughly a third the magnitude.
 This may be decay or may be two quiet years. The live record is how we find out.
 
+## Correction, 2026-10-17: the table above was inflated by a backtest bug
+
+`rsi2_edge_backtest.py` re-entered on the bar it exited, booking the rebound day's return twice as
+a phantom one-bar trade. Fixed, and the backtest now agrees trade for trade with the live rule.
+Same data and costs, corrected:
+
+| | trades | bps/trade | win % | t | p vs random | max DD | positive years |
+|---|---|---|---|---|---|---|---|
+| AMZN | 199 | +112.1 | 72.4% | 3.95 | 0.043 | −27.7% | 17/24 |
+| AAPL | 216 | +78.2 | 72.2% | 3.23 | **0.313** | −32.4% | 23/26 |
+
+**AAPL fails this document's own randomization test**: entering on random days for the same hold
+earns about +60 bps, so its +78 is not distinguishable from being long. AMZN passes narrowly. Since
+2014-10 neither name beats its own drift (alpha about 0), and across the point-in-time S&P 500
+the rule earns the drift and nothing more; see `research/FINDINGS.md`. The rule and its fingerprint
+are unchanged and the bot keeps trading paper money, but the expectations are now: **AMZN about
++110 bps and AAPL about +80 bps a trade on the long history, and plausibly zero in recent data.**
+The change-forcing row below reads against these, not +150 / +117. A live record that matches
+the corrected numbers confirms the corrected backtest, not an edge: a record near zero or at
+the drift is what the 2014+ evidence predicts, and what would argue for retiring the rule.
+
 ## How many trades a verdict needs
 
 Exposure is ~12–15% of sessions per name, so the two together fire roughly **20 round trips a
@@ -40,7 +61,7 @@ before.
 
 | Observation, over 30+ round trips | What changes |
 |---|---|
-| Realised bps/trade more than one standard error below +150 (AMZN) / +117 (AAPL) | Revisit the rule, starting from the 2024–26 decay above. Measure in `research/` first. |
+| Realised bps/trade more than one standard error below +112 (AMZN) / +78 (AAPL) | Revisit the rule, starting from the 2024–26 decay above. Measure in `research/` first. |
 | Decision-vs-fill slippage worse than 15 bps per round trip | Move the run later, or change order type. **Not** a reason to touch the rule. |
 | Realised drawdown beyond −27.7% (AMZN) / −32.4% (AAPL) | Revisit sizing, not the thresholds. |
 | Win rate holding but bps/trade collapsing | The left tail is widening. Revisit the no-stop decision — and measure it, since a stop cut returns in the original research. |

@@ -11,15 +11,17 @@ reporting a verdict sooner would be reading noise. See trader/ACCEPTANCE.md.
 """
 from trader import params
 
-# Measured 2026-10-10 with research/rsi2/rsi2_edge_backtest.py: Yahoo adjusted daily closes,
-# 2000-01-01 onward, 5 bps per round trip, randomization test over 2,000 matched
-# random-entry simulations. Recorded here so the page can show live against expected.
+# Re-measured 2026-10-17 with research/rsi2/rsi2_edge_backtest.py after fixing a bug that
+# re-entered on the exit bar and double-counted the rebound day (the first measurement, 2026-10-10,
+# read AMZN +150.1 / AAPL +117.5 bps, t above 5; see research/FINDINGS.md). Yahoo adjusted daily
+# closes, 2000-01-01 onward, 5 bps per round trip, 2,000 matched random-entry simulations.
+# Recorded here so the page can show live against expected.
 BACKTEST = {
-    "AMZN": {"trades": 232, "bps_per_trade": 150.1, "win_rate": 75.9, "t_stat": 5.53,
-             "p_vs_random": 0.002, "max_dd_pct": -27.7, "mean_bars_held": 3.68,
-             "positive_years": "19/24", "worst_trade_pct": -16.9},
-    "AAPL": {"trades": 245, "bps_per_trade": 117.5, "win_rate": 75.1, "t_stat": 5.10,
-             "p_vs_random": 0.010, "max_dd_pct": -32.4, "mean_bars_held": 4.16,
+    "AMZN": {"trades": 199, "bps_per_trade": 112.1, "win_rate": 72.4, "t_stat": 3.95,
+             "p_vs_random": 0.043, "max_dd_pct": -27.7, "mean_bars_held": 4.09,
+             "positive_years": "17/24", "worst_trade_pct": -16.9},
+    "AAPL": {"trades": 216, "bps_per_trade": 78.2, "win_rate": 72.2, "t_stat": 3.23,
+             "p_vs_random": 0.313, "max_dd_pct": -32.4, "mean_bars_held": 4.56,
              "positive_years": "23/26", "worst_trade_pct": -18.6},
 }
 
