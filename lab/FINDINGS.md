@@ -151,3 +151,23 @@ the opening-range breakout and gap fade enter, were not sampled and are wider st
 are not fills, so this ignores impact. The model is therefore kept as is. It is not loosened:
 no config change, no new fingerprint. None of the four verdicts depends on it, since gross
 return was about zero before costs.
+
+## 2026-10-17: two structural changes, both rejected (6 tried, 0 passed)
+
+Both were written as fewer, larger moves held to the close, to answer "gross about zero, costs
+eat the rest". Gross turned slightly positive but too small and too noisy to matter.
+
+| Idea | Trades | Gross per trade | Net per trade | t (bar 2.50) |
+|---|---|---|---|---|
+| ORB trend day, 15-min, rvol >= 3, hold to close (`07d675ae0386`) | 502 | +6.6 bps | +0.9 | 0.36 |
+| Large gap-down (>= 3%), hold to close (`758cd45e4cb6`) | 1,292 | +4.6 bps | -0.6 | 0.15 |
+
+Both failed deflated_t, both_halves, drop_best_year and cost_stress; the gap idea also failed
+positive_per_trade. Exits: most trades ride to the session close (+59 and +47 bps), stops cost
+-205 and -305 bps, the target is almost never hit (3 and 67 trades). So the result is a small
+long drift with fat left-tail stops, not a mechanism. Holdout untouched (0 looks).
+
+Rules out: holding large-cap breakouts or 3% gap-downs to the close, at these stops. Not
+re-proposed: any stop/target/threshold change to either. Six different ideas have now had gross
+return within about +-7 bps a trade against ~5.5 bps costs: the evidence favours "no tradeable
+intraday edge in the top-50 large caps with simple long-only rules".
