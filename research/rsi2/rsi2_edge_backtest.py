@@ -34,12 +34,14 @@ def backtest(close, cost_bps=COST_BPS, max_hold=MAX_HOLD):
     trades, pos = [], np.zeros(len(close))
     in_pos, hold, tret, start = False, 0, 0.0, 0
     for i in range(1, len(close)):
+        was_in = in_pos  # a position closed on this bar must not re-enter on it: the entry would
+        # re-count this bar's return (the rebound day) as a phantom one-bar trade
         if in_pos:
             tret += ret[i]; pos[i] = 1; hold += 1
             if exit_[i] or hold >= max_hold:
                 in_pos = False
                 trades.append((close.index[start], close.index[i], hold, tret - cost_bps / 1e4))
-        if not in_pos and entry[i - 1] and not np.isnan(ret[i]):
+        if not was_in and not in_pos and entry[i - 1] and not np.isnan(ret[i]):
             in_pos, hold, tret, start = True, 1, ret[i], i
             pos[i] = 1
             if exit_[i] or hold >= max_hold:

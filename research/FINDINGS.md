@@ -532,6 +532,51 @@ Closed: long-only short-term reversal in S&P 500 names at 5 and 21 days, on this
 costs. Not re-proposed. The literature's reversal is long-short and in less liquid names; neither is
 available here.
 
+## The RSI(2) rule, tested beyond AMZN and AAPL, and a bug in its backtest (2026-10-17)
+
+`research/rsi2_universe.py`, declared before it ran: the live rule on every name in the
+point-in-time S&P 500 (764 symbols with prices, 2014-10 to 2026-10), a trade counting only if the
+name was a member on its signal day, alpha against the name's own drift over the same hold.
+Two variants: the live rule (`rsi2`) and an IBS cousin (`ibs`).
+
+**1. The backtest that justifies the trader double-counted a bar.** `rsi2_edge_backtest.backtest`
+re-entered on the bar it exited whenever the prior bar also signalled. An exit on RSI(2) > 65 is a
+big rebound day, so the phantom entry booked that day's return a second time as a one-bar trade:
+AMZN 29 such trades averaging +283 bps, AAPL 18 averaging +352 bps (2014+). Without them the same
+backtest averages +30 and +21 bps. The fix (`was_in`) makes it agree trade for trade with the
+live rule (`test_rsi2_universe.py`), and with the Pine strategy's AMZN trade count (199).
+
+| 2000 to 2026, one position at a time | old backtest | corrected | drift over the hold | alpha, t |
+|---|---:|---:|---:|---:|
+| AMZN | 232 trades, +150 bps | 199 trades, +112 bps | 43 bps | +68 bps, t 2.30 |
+| SPY | 214 trades, +61 bps | 187 trades, +50 bps | 15 bps | +35 bps, t 2.61 |
+
+(AAPL could not be re-pulled; Yahoo rate-limited. The 2014+ cache gives AAPL +46 bps against a 51 bps
+drift over the hold.) So the edge is real-looking but about half the documented size and t about
+2.3, not above 5. `trader/ACCEPTANCE.md` still carries the old +150 / +117 bps bar and the
+"t above 5" in the research notes. That is the owner's to revisit; nothing in `trader/` was changed.
+
+**2. Since 2014, across the universe, the rule earns the drift and nothing more.** Excluding
+AMZN and AAPL (576 names, 30,760 trades): trade-weighted alpha **+0.04%, t +0.40** (cluster-robust by
+week); +0.13%, t +1.27 against the uptrend-conditional drift; first half +0.00%, second half +0.08%.
+Capacity-capped portfolios (2, 5 or 10 open names, random pick on busy days) give +0.03%, +0.01% and
+0.00%. Net +32 bps a trade is the name's drift over a 4.5-bar hold, which is what any long position
+in these names earned. AMZN and AAPL rank 185 and 215 of 576 by mean net trade: not outliers, and
+their own alpha over drift since 2014 is about 0 (-0 and -5 bps). IBS is worse (alpha +0.10%, t 1.8,
+second half -0.01%).
+
+**3. A flaw in my own pre-declared bar.** The bar named `t by week` (alpha averaged within each
+week, then a t across weeks) as decisive, and by it `rsi2` passed everything (alpha +0.36%, t +4.79,
+both halves 3.3+, 572 weeks). That statistic weights a quiet week with three trades the same as a
+crash week with 200, and the crash weeks are where the rule loses (2015, 2018, 2020, 2022 all negative
+per trade). The trade-weighted number above is the one a portfolio earns. The declared bar was wrong,
+the pass is an artifact, and it is recorded as one rather than quietly replaced. A weekly-mean t is
+not used again for a signal that clusters in selloffs.
+
+What this rules out: RSI(2) mean reversion as a source of alpha over the drift in S&P 500 names since
+2014. What it leaves: a modest edge in AMZN and SPY over 2000 to 2026 that sits largely before 2014.
+Not re-proposed: IBS and other close-location variants of the same mechanism.
+
 ## Standing guards
 
 Two things from these runs should stay regardless of what is tested next: score the

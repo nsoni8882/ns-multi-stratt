@@ -36,3 +36,10 @@ Each cost real work and is easy to get wrong on a second pass.
   bias. Everything reported afterwards is out-of-sample or a different asset.
 - **It does not exist in FX.** GBP/USD measured 11 bps/trade gross -- negative after a 10 bps
   round trip. Measured and killed; do not re-propose it.
+
+## Correction (2026-10-17)
+
+`rsi2_edge_backtest.py` re-entered on the bar it exited, double-counting the rebound day as a
+phantom one-bar trade. Fixed (`was_in`); the figures this README and `trader/ACCEPTANCE.md` quote
+(+150 / +117 bps, t above 5) came from the buggy version. Corrected on 2000 to 2026: AMZN +112 bps
+(t 2.3 against its own drift), SPY +50 bps (t 2.6). See `research/FINDINGS.md`.

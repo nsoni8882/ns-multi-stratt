@@ -12,22 +12,20 @@ def frame(close):
     return pd.DataFrame({"open": c, "high": c * 1.01, "low": c * 0.99, "close": c})
 
 
-def test_trade_loop_matches_the_reference_backtest_until_its_re_entry_quirk():
-    """The reference re-enters on the bar it exits when the prior bar also signalled, counting
-    that bar's return twice and shifting every later trade; this loop does not. So the two agree
-    trade for trade up to the first such case, and the prefix must be a real stretch of trades."""
+def test_trade_loop_matches_the_reference_backtest_trade_for_trade():
+    """Both must be the live rule: one position at a time, a trade closed on a bar cannot re-enter
+    on it. (The reference used to, which double-counted the rebound bar as a phantom one-bar
+    trade and inflated every headline number; see FINDINGS.md.)"""
     rng = np.random.default_rng(3)
     close = 100 * np.cumprod(1 + rng.normal(0.0004, 0.02, 1500))
     df = frame(close)
     mine = ru.trades("X", df, "rsi2")
     ref, _, _ = ru._edge.backtest(df["close"], cost_bps=5.5)
+    ref = ref[ref["exit"] < df.index[-1]]
     nxt = {d: df.index[i + 1] for i, d in enumerate(df.index[:-1])}
-    agree = 0
+    assert len(mine) == len(ref) > 10
     for m, r in zip(mine.itertuples(), ref.itertuples()):
-        if nxt[m.signal] != r.entry or m.bars != r.bars or not np.isclose(m.net, r.ret):
-            break
-        agree += 1
-    assert agree >= 8
+        assert nxt[m.signal] == r.entry and m.bars == r.bars and np.isclose(m.net, r.ret)
 
 
 def test_a_trade_open_at_the_end_of_data_is_not_scored():
