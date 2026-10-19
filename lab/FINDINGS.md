@@ -171,3 +171,20 @@ Rules out: holding large-cap breakouts or 3% gap-downs to the close, at these st
 re-proposed: any stop/target/threshold change to either. Six different ideas have now had gross
 return within about +-7 bps a trade against ~5.5 bps costs: the evidence favours "no tradeable
 intraday edge in the top-50 large caps with simple long-only rules".
+
+## 2026-10-19: order-flow imbalance vs the next 5 minutes (killed, AAPL probe)
+
+Read-only probe (`lab.orderflow_probe`, run 39261823929): AAPL, the last 20 sessions, two
+windows a day (10:00 and 14:00 ET), 70 one-minute bars per window, 560 observations. Signal:
+trade-sign order-flow imbalance in each window. Target: forward return over the next 5 minutes.
+
+| Measure | Value |
+|---|---|
+| Spearman | 0.027 |
+| t | 0.63 (bar 2.50) |
+| Top fifth, next 5 min | +0.31 bps |
+| Bottom fifth, next 5 min | -1.25 bps |
+
+No significant relationship, and the top-to-bottom spread of about 1.6 bps is below the ~5.5 bps
+round-trip cost model. Killed. Not re-proposed: imbalance as a 5-minute predictor for AAPL at
+these windows. This was a probe, not a gate trial, so no `trials.jsonl` entry.
