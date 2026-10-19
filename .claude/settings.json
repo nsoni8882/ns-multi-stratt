@@ -3,13 +3,7 @@
   "permissions": {
     "allow": [
       "Bash(.venv/bin/python -m pytest:*)",
-      "Bash(npm test:*)"
-    ]
-  }
-}
-{
-  "permissions": {
-    "allow": [
+      "Bash(npm test:*)",
       "Bash(git checkout:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
