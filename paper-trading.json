@@ -9,7 +9,7 @@
   "total_pl_pct": 0.0,
   "unrealised_pl": 0
  },
- "as_of": "intraday",
+ "as_of": "close",
  "equity_curve": [
   {
    "date": "2026-10-09",
@@ -553,6 +553,6 @@
   "AAPL"
  ],
  "trades": [],
- "updated_at": "2026-10-19T22:58:19+00:00",
+ "updated_at": "2026-10-19T23:46:50+00:00",
  "version": "1.1.0"
 }
