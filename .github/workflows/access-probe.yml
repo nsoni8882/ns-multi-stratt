@@ -1,0 +1,38 @@
+name: access-probe
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Probe SIP trades and quotes
+        env:
+          ALPACA_KEY_ID: ${{ secrets.ALPACA_KEY_ID }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+        run: |
+          python - <<'PY'
+          import os
+          from datetime import datetime, timedelta, timezone
+          from trader.alpaca import Alpaca, AlpacaError, DATA, FEED
+          c = Alpaca(os.environ["ALPACA_KEY_ID"], os.environ["ALPACA_SECRET_KEY"])
+          d = datetime.now(timezone.utc) - timedelta(days=3)
+          while d.weekday() > 4:
+              d -= timedelta(days=1)
+          s = d.replace(hour=15, minute=0, second=0, microsecond=0)
+          e = s + timedelta(minutes=1)
+          q = {"symbols": "AAPL", "start": s.strftime("%Y-%m-%dT%H:%M:%SZ"),
+               "end": e.strftime("%Y-%m-%dT%H:%M:%SZ"), "feed": FEED, "limit": 1000}
+          print("feed", FEED, "window", s.isoformat())
+          for name, path in (("trades", "/v2/stocks/trades"), ("quotes", "/v2/stocks/quotes")):
+              try:
+                  rows = (c._call(DATA, path, q).get(name) or {}).get("AAPL", [])
+                  print(name, "OK rows", len(rows), "fields", sorted(rows[0]) if rows else "-")
+              except AlpacaError as ex:
+                  print(name, "FAIL status", ex.status)
+          PY
