@@ -184,3 +184,31 @@ errors clustered by calendar week (trades cluster in crashes):
 5. **Skipped n >= 200** and kept n >= 500, so it is neither a handful of events nor a no-op.
 
 Fail is recorded in `FINDINGS.md` as measured-and-rejected; no retry with other cut-offs.
+
+## Rule 10, for time series momentum on a wide ETF basket (written 2026-10-20, before it was measured)
+
+Source: `davidalmeida90/quant-models` (`time-series-momentum`, Moskowitz-Ooi-Pedersen). The repo
+sweeps 34 lookbacks x 36 holding periods and picks the best in-sample cell, which is a
+1,224-trial search; a best cell from that is expected to look good by luck. So the claim is
+tested two ways, and the *declared* cell, not the best one, carries the verdict.
+
+Declared cell, fixed now: sign of the past 252-day return, held 21 days as overlapping books,
+positions scaled to 10% annualised vol per ETF (60-day ex-ante), 2 bps per unit turnover, equal
+weight across the ETFs live on the day. Basket: the repo's 45 ETFs with at least 3,200 days of
+history. Compared with the equal-weight buy-and-hold of the same ETFs.
+
+Adopted only if **all six** hold:
+
+1. Net Sharpe of the declared cell is **>= 0.5** on the full sample.
+2. Alpha against buy-and-hold is positive with **|t| >= 2.5** (Newey-West, 21 lags).
+3. Alpha positive in **both halves** of the sample.
+4. Drop the best calendar year (2008 expected): alpha stays positive.
+5. **Sweep honesty:** across all 1,224 cells, the **median out-of-sample Sharpe** (second half,
+   cells not chosen on it) is positive, and the in-sample-best cell's out-of-sample Sharpe
+   is >= 0.5. If the sweep's winner does not hold out of sample, the surface is noise.
+6. Not just a short-vol or beta bet: **beta to buy-and-hold < 0.5**, else it is the basket
+   with a leash and not a separate return stream.
+
+Fail is recorded as measured-and-rejected. ETF trend was already found to be a drawdown overlay
+rather than an alpha (FINDINGS, 2026-10-17); this tests whether the wider basket and
+vol-scaling change that.
