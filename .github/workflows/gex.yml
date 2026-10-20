@@ -1,0 +1,57 @@
+name: GEX snapshot
+
+# Records one SPX option-chain snapshot a day for the GEX test (research/ACCEPTANCE.md, Rule 11).
+# Read-only toward markets: it places no orders. It never deploys; the snapshots sit on the `data`
+# branch under gex/ and nothing publishes them. 21:45 UTC is after the close in both EDT and EST,
+# and the feed is ~15 minutes delayed, so it sees the final prints. A holiday re-serves the last
+# session, which the recorder detects by file name and skips.
+on:
+  schedule:
+    - cron: "45 21 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write # the snapshots live on the `data` branch
+
+concurrency:
+  group: gex # the branch is append-only; one writer at a time
+  cancel-in-progress: false
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Check out the data branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git clone --quiet --branch data --single-branch --depth 1 "$REMOTE" history
+          mkdir -p history/gex
+
+      - name: Test before recording
+        run: pip install -q pytest && python -m pytest research/tests/test_gex_record.py -q
+
+      - name: Record the snapshot
+        run: python -m research.gex.record_cboe --out history/gex
+
+      - name: Save to the data branch
+        run: |
+          cd history
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A gex
+          if git diff --cached --quiet; then echo "nothing new to save"; exit 0; fi
+          git commit --quiet -m "gex: snapshot $(date -u +%F)"
+          for attempt in 1 2 3; do
+            if git push --quiet origin HEAD:data; then exit 0; fi
+            git pull --quiet --rebase origin data || true
+            sleep $(( attempt * 3 ))
+          done
+          echo "could not push the snapshot to the data branch"; exit 1
