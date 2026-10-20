@@ -212,3 +212,32 @@ Adopted only if **all six** hold:
 Fail is recorded as measured-and-rejected. ETF trend was already found to be a drawdown overlay
 rather than an alpha (FINDINGS, 2026-10-17); this tests whether the wider basket and
 vol-scaling change that.
+
+## Rule 11, for same-day SPX gamma (GEX) as a signal (written 2026-10-20, before any data was recorded)
+
+Source: `davidalmeida90/quant-models` (`gex-0dte`). The idea: dealers hedge options, so net gamma
+by strike steers the index. Positive net gamma damps moves, negative amplifies them; the "gamma
+flip" strike separates the two. No history exists on a free feed, so `research/gex/record.py`
+snapshots the SPX chain daily from IB Gateway (delayed data, which carries gamma and open
+interest: confirmed 2026-10-20) and the test waits for the sample.
+
+Two claims, tested separately, each on **end-of-day snapshots predicting the next session**:
+
+- **Volatility claim:** the next day's absolute SPX return (and range) is lower when net GEX > 0 than
+  when GEX < 0, controlling for VIX level (regress |return| on GEX sign and VIX).
+- **Direction claim:** next-day return sign conditional on spot relative to the flip strike. This
+  one is the strategy; the volatility claim alone is a risk filter, not an edge.
+
+Nothing is read before **250 recorded trading days** and no earlier. Looking early is a free
+extra trial each time. Adopted only if **all hold**:
+
+1. n >= 250 days, **at most 5 missed days**, no gap over 3 consecutive days.
+2. Vol claim: GEX sign coefficient has **|t| >= 2.5** (Newey-West) after the VIX control.
+3. Direction claim, if it is to be traded: mean next-day return differs by flip side with
+   **t >= 2.5**, same sign in both halves, and positive without the best 5 days.
+4. Costed: SPX-futures or SPY round trip of 1.5 bps, no intraday fill assumptions.
+5. The GEX sign is not just VIX: partial correlation with VIX level < 0.7, else report as VIX.
+
+A volatility-only pass is recorded as a risk filter and not a strategy. Fail goes in
+`FINDINGS.md`; no retry with other strike windows or expiry sets. The recorder's contract set
+(next 6 expiries, strikes within 3% of spot) is fixed now and is not to be tuned to the result.
