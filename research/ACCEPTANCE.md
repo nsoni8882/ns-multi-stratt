@@ -139,3 +139,26 @@ particular:
   the pinned universe is the check: if the second-half result that justified this does not
   hold up as live signals accumulate, 1.7.0 is reverted to the price-only rule rather than
   defended.
+
+## Rule 8, for an allocation method (written 2026-10-20, before HRP was measured)
+
+Source: `davidalmeida90/quant-models` (hierarchical risk parity, risk-based allocation). These
+methods do not pick entries; they split money across names already held. The question is
+whether any beats equal weight (EW) on the same universe, after costs. Universe: S&P names
+in `research/.cache` with full 12y history (survivorship-biased; it flatters every method
+equally, so the comparison, not the level, is what counts). Monthly rebalance, 252-day
+lookback, 10 bps per side on turnover. Candidates: IVP, HRP, HCAA, min-variance, vs EW. Five
+candidates against one baseline, so the bar is set for multiple testing.
+
+A method is adopted only if **all five** hold, measured on monthly net return *difference* vs EW:
+
+1. **Sharpe higher than EW** net of costs, and the difference has **|t| >= 2.5** (monthly
+   differences, 12y, n about 140).
+2. **Positive difference in both halves** of the sample.
+3. **No single year carries it**: drop the best year, difference stays positive.
+4. **Max drawdown no worse than EW.**
+5. **Turnover cost below half the gross improvement.**
+
+Fail goes in `research/FINDINGS.md` as measured-and-rejected, not retried with another
+lookback or linkage. A low-vol tilt that only beats EW by holding less beta is not an
+edge: report beta to EW alongside, and discount accordingly.
