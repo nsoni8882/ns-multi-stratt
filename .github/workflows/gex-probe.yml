@@ -1,0 +1,28 @@
+name: GEX feed probe
+
+# Manual only, read-only. Does Cboe's free delayed SPX chain answer from a GitHub runner, and does it
+# carry gamma and open interest? Prints to the run log; writes nothing to the repo or Pages.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fetch the SPX chain
+        run: |
+          code=$(curl -sL -m 60 -A "Mozilla/5.0" -o spx.json -w "%{http_code}" \
+            https://cdn.cboe.com/api/global/delayed_quotes/options/_SPX.json)
+          echo "HTTP $code, $(wc -c < spx.json) bytes"
+          python3 - <<'PY'
+          import json
+          d = json.load(open("spx.json"))["data"]
+          o = d["options"]
+          print("spot", d.get("current_price"), "| options", len(o))
+          print("fields", sorted(o[0].keys()))
+          print(o[0])
+          PY
