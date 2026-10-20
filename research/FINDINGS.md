@@ -758,3 +758,26 @@ when the market is frightened, so gating out fear removes the best entries. C ha
 both halves but t=0.72, and goes negative without 2020. AMZN+AAPL alone (178 trades) agrees in
 direction (C +98 bps, t=+1.15) and is far too small to decide anything. Nothing here is a reason
 to touch the trader's `params()`. Not retried with other cut-offs.
+
+## 2026-10-20: time series momentum on 45 ETFs (Moskowitz-Ooi-Pedersen) — REJECTED
+
+Source: `davidalmeida90/quant-models`. Bar: ACCEPTANCE.md Rule 10, written first, with one declared
+cell so the 990-cell sweep cannot pick its own winner (the bar said 1,224; duplicate rounded grid
+values leave 990). `python -m research.tsmom`. 45 ETFs with 3,200+ days, 2005-2026, 2 bps turnover.
+
+Declared cell (252-day sign, 21-day hold, 10% vol-scaled): Sharpe **0.47** against 0.53 for buying
+and holding the basket; return 2.5% vs 6.7%; beta 0.07; alpha +2.0%/yr, **Newey-West t = 1.81**.
+
+| bar rule | result |
+|---|---|
+| 1. Sharpe >= 0.5 | **fail** (0.47) |
+| 2. alpha t >= 2.5 | **fail** (1.81) |
+| 3. positive in both halves | pass, but fading: +2.8% (t 1.82) then +1.0% (t 0.65) |
+| 4. positive without best year | pass (2012 removed: +1.9%, t 1.68) |
+| 5. sweep honesty | **fail**: IS-best cell (5-day lookback, 83-day hold) goes IS 0.70 to OOS 0.19; median OOS 0.33 |
+| 6. beta < 0.5 | pass (0.07) |
+
+Reading: a genuine but small diversifier, uncorrelated to the basket (beta 0.07), with +2%/yr alpha that
+is not statistically distinguishable from zero and halves in the second half. Alpha was negative in 2016,
+2018, 2020, 2021 and 2026. It does not clear the bar as an edge; the 2026-10-17 verdict (a drawdown
+overlay, not an alpha) stands. Not retried with other lookbacks.
