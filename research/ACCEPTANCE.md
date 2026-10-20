@@ -162,3 +162,25 @@ A method is adopted only if **all five** hold, measured on monthly net return *d
 Fail goes in `research/FINDINGS.md` as measured-and-rejected, not retried with another
 lookback or linkage. A low-vol tilt that only beats EW by holding less beta is not an
 edge: report beta to EW alongside, and discount accordingly.
+
+## Rule 9, for a volatility gate on the RSI(2) rule (written 2026-10-20, before it was measured)
+
+Source: `davidalmeida90/quant-models` (`volatility-and-option-models`, GJR-GARCH vs VIX). Not a new
+strategy: a filter that would skip some RSI(2) entries on the trader's rule (RSI(2) < 10, close >
+SMA200, exit RSI(2) > 65 or 10 bars, 5 bps). Decided at the signal bar's close, no lookahead.
+Gates tried (three, no others): (A) VIX close > 25 skips; (B) VIX 5-day change > +20% skips;
+(C) GJR-GARCH(SPY) 21-day forecast annualised above VIX skips (refit yearly on data to the prior
+year-end). Pool: liquid cached S&P names 2015-2026 for power, because AMZN + AAPL alone is ~400
+trades; AMZN/AAPL reported separately.
+
+A gate is adopted only if **all five** hold, comparing trades it keeps against trades it skips,
+errors clustered by calendar week (trades cluster in crashes):
+
+1. Kept-trade mean return is **higher than the ungated mean** and kept-minus-skipped has **t >= 2.5**
+   (three gates tried, so not 2.0).
+2. **Skipped trades lose or are flat** (mean <= 0): a gate that only trims winners is not a risk filter.
+3. Kept minus skipped is **positive in both halves** of the sample.
+4. **Drop the best year** (2020 is the usual suspect): difference stays positive.
+5. **Skipped n >= 200** and kept n >= 500, so it is neither a handful of events nor a no-op.
+
+Fail is recorded in `FINDINGS.md` as measured-and-rejected; no retry with other cut-offs.
