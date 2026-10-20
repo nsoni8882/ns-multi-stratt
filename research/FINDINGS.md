@@ -714,3 +714,28 @@ hit dates looked like an edge until the fills were made honest.
 Two things from these runs should stay regardless of what is tested next: score the
 independent (non-overlapping) sample, and look at the per-year table before believing any
 t-stat. Both are built into `measure.py`, and `ACCEPTANCE.md` holds the bar.
+
+## 2026-10-20: allocation methods vs equal weight (HRP, HCAA, IVP, min-variance) — REJECTED
+
+Source: `davidalmeida90/quant-models`. Bar: ACCEPTANCE.md Rule 8, written first. `python -m research.allocation`
+(needs scipy). 100 cached S&P names, 2015-04 to 2026-10, monthly rebalance, 252d lookback, 10 bps/side.
+Survivor-biased universe; that flatters every method equally.
+
+| method | Sharpe | ann ret | maxDD | beta to EW | diff vs EW, t | halves (ann) | turnover/mo |
+|---|---:|---:|---:|---:|---:|---|---:|
+| EW | 0.95 | 18.8% | -40.9% | 1.00 | — | — | 0.01 |
+| IVP | 0.88 | 15.3% | -38.9% | 0.85 | **-2.75** | -4.1 / -2.8 | 0.06 |
+| HRP | 0.86 | 14.4% | -37.8% | 0.82 | **-2.94** | -4.4 / -4.2 | 0.24 |
+| HCAA | 1.14 | 29.9% | -39.2% | 1.10 | +1.55 | +15.2 / +9.8 | 0.56 |
+| MinVar | 0.70 | 10.3% | -34.5% | 0.57 | **-2.60** | -11.1 / -5.8 | 0.34 |
+
+Verdict: none adopted. IVP, HRP and min-variance are significantly *worse* than equal weight, in
+both halves, and the shortfall is mostly lower beta (0.57–0.85) in a bull market, not better
+allocation. HCAA is the only positive, but t=1.55 misses 2.5, and its edge is concentration: the
+latest portfolio is 25% one stock (CNC), top 3 = 44%, effective N about 10 of 100, picked on a
+list of current survivors. Not retried with other lookbacks or linkages.
+
+First run was wrong and is worth remembering: the cache holds funds (SDS, an inverse S&P ETF; ECH;
+MMI) and stale delisted names. Min-variance simply held SDS, showing beta 0.02 and a -4.8% drawdown.
+`load_returns` now drops funds and names with 1%+ zero-return days. Check the universe before
+believing a risk-based allocator.
