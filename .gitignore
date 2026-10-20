@@ -18,3 +18,6 @@ trader/.cache/
 # lab: intraday bar cache and generated results
 lab/.cache/
 lab/results/
+
+# GEX recorder snapshots (local until published to the data branch)
+research/gex/data/
