@@ -739,3 +739,22 @@ First run was wrong and is worth remembering: the cache holds funds (SDS, an inv
 MMI) and stale delisted names. Min-variance simply held SDS, showing beta 0.02 and a -4.8% drawdown.
 `load_returns` now drops funds and names with 1%+ zero-return days. Check the universe before
 believing a risk-based allocator.
+
+## 2026-10-20: volatility gates on RSI(2) (VIX level, VIX jump, GARCH vs VIX) — REJECTED
+
+Source: `davidalmeida90/quant-models` (GJR-GARCH vs VIX). Bar: ACCEPTANCE.md Rule 9, written first.
+`python -m research.vol_gate` (needs scipy, arch, yfinance). Trader's RSI(2) rule, 100 cached S&P
+names 2015-2026 (7,461 trades, ungated +45 bps), signals gated at the signal close, errors
+clustered by week. GARCH params refit each Jan 1 on prior data only.
+
+| gate (skips when) | kept | skipped | kept minus skipped | t | halves | ex-2020 |
+|---|---:|---:|---:|---:|---|---:|
+| A: VIX > 25 | +41 bps (6,555) | **+75** (906) | -35 | -0.57 | -2 / -69 | -113 |
+| B: VIX 5d change > +20% | +43 (5,700) | **+52** (1,761) | -9 | -0.25 | +30 / -62 | -40 |
+| C: GARCH forecast > VIX | +50 (6,300) | +17 (1,161) | +33 | +0.72 | +33 / +22 | -7 |
+
+None clears t >= 2.5. A and B skip trades that do *better* than the ones kept: RSI(2) pays most
+when the market is frightened, so gating out fear removes the best entries. C has the right sign in
+both halves but t=0.72, and goes negative without 2020. AMZN+AAPL alone (178 trades) agrees in
+direction (C +98 bps, t=+1.15) and is far too small to decide anything. Nothing here is a reason
+to touch the trader's `params()`. Not retried with other cut-offs.
