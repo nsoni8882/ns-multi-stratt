@@ -781,3 +781,20 @@ Reading: a genuine but small diversifier, uncorrelated to the basket (beta 0.07)
 is not statistically distinguishable from zero and halves in the second half. Alpha was negative in 2016,
 2018, 2020, 2021 and 2026. It does not clear the bar as an edge; the 2026-10-17 verdict (a drawdown
 overlay, not an alpha) stands. Not retried with other lookbacks.
+
+## 2026-10-21: two Nautilus Trader example rules (EMA 10/20 cross, Donchian 20/10) — REJECTED
+
+`research/nautilus_ideas.py`, bar declared and committed before it ran. Long/flat per name on the
+point-in-time S&P 500 (`pit.py`), equal weight, 5.5 bps a round trip, against the equal-weight hold
+of the same members, 2015-07 to 2026-08. Price coverage of member-days is 71% in 2015 rising to 94%,
+so the survivorship hole still flatters anything long.
+
+| rule | alpha (t) | beta | Sharpe vs hold | max DD vs hold | halves | without 2020 |
+|---|---:|---:|---:|---:|---|---:|
+| EMA 10/20 cross | +0.7%/yr (0.37) | 0.34 | 0.62 vs 0.73 | -13% vs -40% | +1.0 / -0.0 | -0.5% |
+| Donchian 20/10 | +0.2%/yr (0.12) | 0.24 | 0.52 vs 0.73 | -10% vs -40% | +0.3 / -0.2 | -0.1% |
+
+Both fail all four checks. Alpha is indistinguishable from zero, it is gone in the second half, and
+the little there is comes from 2020. What the rules do is hold 24-34% of the market's exposure, which
+cuts the drawdown and the return together and lowers Sharpe. Same result as the ETF and crypto trend
+tests. Not re-proposed: other moving-average lengths or channel widths on stocks.
