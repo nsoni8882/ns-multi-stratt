@@ -36,7 +36,7 @@ from research import pit
 from research.measure import RESULTS_DIR, fetch_history
 
 log = logging.getLogger("rsi2_universe")
-COST = 0.00055  # round trip, what the lab charged per trade
+COST = 0.00055  # round trip, the cost assumed per trade
 MAX_HOLD = 10
 SELECTED = ("AMZN", "AAPL")
 

@@ -8,15 +8,12 @@ account. No real money anywhere.
 ## Commands
 
 ```bash
-.venv/bin/python -m pytest scanner/tests research/tests trader/tests lab/tests -q   # Python tests (~50s)
+.venv/bin/python -m pytest scanner/tests research/tests trader/tests -q   # Python tests (~50s)
 cd web && npm test -- --run                                  # web tests (~2s)
 .venv/bin/python -m scanner.run --out web/public/data --db signals.db   # full scan (network)
 .venv/bin/python -m research.measure                         # backtest variants (network, cached)
 .venv/bin/python -m research.news_judgment --dry-run         # news state for live signals, no API call
 ALPACA_KEY_ID=... ALPACA_SECRET_KEY=... .venv/bin/python -m trader.run --dry-run  # decide, place nothing
-ALPACA_KEY_ID=... ALPACA_SECRET_KEY=... .venv/bin/python -m lab.run fetch              # freeze universe, cache 5-min bars
-ALPACA_KEY_ID=... ALPACA_SECRET_KEY=... .venv/bin/python -m lab.run backtest spec.json # gate a strategy spec (appends a trial)
-.venv/bin/python -m lab.run export --out lab.json                                       # the Lab tab's data
 ```
 
 Always use `.venv/bin/python` — there is no activated environment, and the system Python
@@ -38,17 +35,7 @@ lacks the deps. `scanner/tests/test_smoke_network.py` is skipped by default; it 
   the paper endpoint, its own `trade.yml` workflow on a 15:25 ET cron. `params.py` holds every
   threshold and fingerprints them, `ACCEPTANCE.md` holds the bar, `evaluate.py` compares the
   live record to the backtest. `research/rsi2/` is the research it came from.
-- `lab/` — the intraday lab: declarative strategy specs over a fixed family registry, a costed
-  backtester, a trial-count-deflated gate with a sealed holdout (`ACCEPTANCE.md` is the bar,
-  `trials.jsonl` the append-only record of every idea tried). Nothing in it places orders. Do not
-  edit `config.py`, `gate.py`, `costs.py` or `ACCEPTANCE.md` to make a strategy pass; a new
-  gate number goes in `config.params()` or the fingerprint test fails. State lives on the `data`
-  branch (`lab/`), written by the manual `lab.yml` workflow, which also publishes `lab.json`.
-  `python -m lab.review --data-dir <lab/ from data>` prints the status; `/lab` (a project skill in
-  `.claude/skills/lab/`) is the periodic review. `FINDINGS.md` records every idea tried.
-- `web/` — Vite + React + TypeScript, reads the JSON the scanner writes. The Lab tab (`pages/LabPage.tsx`,
-  `components/lab/`) renders `lab.json`; `src/lab-fixture.ts` is a test-only stand-in, never published,
-  and `lib/labStats.ts` mirrors a few `lab/config.py` numbers for display only.
+- `web/` — Vite + React + TypeScript, reads the JSON the scanner writes.
 - `docs/superpowers/` — the original dated spec and plan. A record of how the MVP was
   decided, not the current contract: both predate the short legs being dropped. This file
   and `research/FINDINGS.md` are the live documents.
@@ -131,9 +118,8 @@ per symbol, and `test_rule_matches_pine.py` pins the live rule to the Pine strat
 trade (AMZN 199, AAPL 214). Change the rule and both must still pass, or the chart and the bot
 have quietly diverged.
 
-**The edge search has been run and mostly closed (2026-10).** Ten ideas across the intraday lab,
-cross-sectional reversal (survivor and point-in-time), RSI(2) across the S&P 500, trend on ETFs and
-crypto trend all came back as drift or decayed; `research/FINDINGS.md` and `lab/FINDINGS.md` record
+**The edge search has been run and mostly closed (2026-10).** Ideas across cross-sectional reversal (survivor and point-in-time), RSI(2) across the S&P 500, trend on ETFs and
+crypto trend all came back as drift or decayed; `research/FINDINGS.md` records
 each with its numbers, so check them before proposing anything. Two things it taught that apply to
 any new test: the RSI(2) backtest once double-counted the rebound bar (fixed; the trader's expected
 bps are the corrected +112 AMZN / +78 AAPL, and AAPL fails its own randomization test), and a

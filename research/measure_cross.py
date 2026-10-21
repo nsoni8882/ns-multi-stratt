@@ -19,7 +19,7 @@ from research import cross, pit
 from research.measure import RESULTS_DIR, fetch_history, independent, pick_tickers, stats
 
 log = logging.getLogger("measure_cross")
-COST = 0.00055  # round trip, what the lab charged per trade
+COST = 0.00055  # round trip, the cost assumed per trade
 
 
 def summarise(rows: "list[cross.CrossRow]", horizon: int) -> dict:

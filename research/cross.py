@@ -82,7 +82,7 @@ VARIANTS = {
     # compensation for liquidity provision (Nagel), and the repo's own table showed the mirror
     # image (5-day leaders -0.24%, t by date -1.75). That hint was seen before this grid was
     # written, so it counts as a reason to look, not as evidence. The bar is rules 1-5 and 7 of
-    # ACCEPTANCE.md unchanged, and net of ~5.5 bps a round trip (what the lab charged per trade).
+    # ACCEPTANCE.md unchanged, and net of ~5.5 bps a round trip (the cost assumed per trade).
     "rev-5d-bottom5": CrossConfig(lookback=5, rank_min=0.95, losers=True),
     "rev-5d-bottom10": CrossConfig(lookback=5, rank_min=0.90, losers=True),
     "rev-21d-bottom5": CrossConfig(lookback=21, rank_min=0.95, losers=True),

@@ -1,8 +1,0 @@
-{
-  "name": "VWAP reversion, deep stretches only",
-  "family": "vwap_reversion",
-  "timeframe": "5Min",
-  "params": {"dev_pct": 0.012, "min_bar": 12, "last_entry_bar": 60},
-  "risk": {"stop_pct": 0.02, "target_pct": 0.01, "max_hold_bars": 36, "size_pct": 0.1, "max_concurrent": 5},
-  "hypothesis": "Execution desks benchmarked to VWAP buy when a stock trades well under it, pulling price back toward VWAP later in the day. Costs are fixed in bps, so only a deep (1.2%) stretch below VWAP, after the first hour, leaves enough expected reversion to clear them; shallow stretches (the usual setting) cannot. The target is about the size of the stretch. Written before any run. Expected to fail if a stock far below VWAP is mostly a stock with news, which trends rather than reverts."
-}

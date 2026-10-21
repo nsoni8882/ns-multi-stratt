@@ -7,7 +7,7 @@ export function TopBar() {
   const { search, hash, pathname } = useLocation(); // keep ?tf= when navigating
   // The paper strategy is daily only, so a 1D/4H switch there would promise something the
   // page cannot do. HashRouter puts the route in the hash; check both to be safe.
-  const onPaper = ["/paper", "/lab"].some((r) => pathname === r || hash.startsWith(`#${r}`));
+  const onPaper = pathname === "/paper" || hash.startsWith("#/paper");
   return (
     <header className="top">
       <NavLink to={{ pathname: "/", search }} className="brand">Multi Strategy</NavLink>
@@ -18,7 +18,6 @@ export function TopBar() {
         ))}
         {/* Not driven by strategies.json: this is a portfolio view, not a signal list. */}
         <NavLink to={{ pathname: "/paper", search }}>RSI(2) Reversion</NavLink>
-        <NavLink to={{ pathname: "/lab", search }}>Lab</NavLink>
       </nav>
       {/* Safe to drop entirely: `.top` is a grid with fixed columns, so the nav stays centred
           whether or not this third child exists. It used to be a flex row with space-between,

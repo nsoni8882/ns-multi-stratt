@@ -126,17 +126,6 @@ jobs:
             echo "no paper-trading.json on the data branch yet; skipping"
           fi
 
-      # Same rule for the lab: its workflow writes lab.json to the data branch and never
-      # deploys. Absent until the first run, which the Lab tab renders as an empty state.
-      - name: Include the lab dashboard, if the lab has written one
-        run: |
-          if [ -f history/lab/lab.json ]; then
-            cp history/lab/lab.json web/public/data/lab.json
-            echo "published lab.json"
-          else
-            echo "no lab.json on the data branch yet; skipping"
-          fi
-
       - run: npm run build
         working-directory: web
       - uses: actions/configure-pages@v5
