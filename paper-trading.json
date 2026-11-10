@@ -9,7 +9,7 @@
   "total_pl_pct": 0.0,
   "unrealised_pl": 0
  },
- "as_of": "close",
+ "as_of": "intraday",
  "equity_curve": [
   {
    "date": "2026-10-09",
@@ -115,6 +115,11 @@
    "date": "2026-11-06",
    "equity": 100000.0,
    "in_position": false
+  },
+  {
+   "date": "2026-11-07",
+   "equity": 100000.0,
+   "in_position": false
   }
  ],
  "evaluation": {
@@ -170,6 +175,48 @@
  "positions": [],
  "rules_version": "f5e0af26ffd9",
  "runs": [
+  {
+   "at": "2026-11-10T02:19:26+00:00",
+   "crashed": false,
+   "date": "2026-11-09",
+   "decisions": {
+    "AAPL": {
+     "action": "wait",
+     "bars_held": 0,
+     "entry_date": null,
+     "held": false,
+     "price": 350.69,
+     "reason": "not oversold",
+     "rsi2": 78.36813949175978,
+     "sma200": 299.052125,
+     "trend_gap_pct": 17.267182100779266
+    },
+    "AMZN": {
+     "action": "wait",
+     "bars_held": 0,
+     "entry_date": null,
+     "held": false,
+     "price": 266.93,
+     "reason": "not oversold",
+     "rsi2": 83.03270036386576,
+     "sma200": 244.079,
+     "trend_gap_pct": 9.36213275210076
+    }
+   },
+   "early": false,
+   "equity": 100000.0,
+   "errors": [],
+   "event": "schedule",
+   "late": false,
+   "mode": "live",
+   "opening_balance": 100000.0,
+   "orders": 0,
+   "rules_version": "f5e0af26ffd9",
+   "run_id": "42741760055",
+   "sha": "13353d17e1ab",
+   "skip_reason": "market closed",
+   "url": "https://github.com/nsoni8882/ns-multi-stratt/actions/runs/42741760055"
+  },
   {
    "at": "2026-11-07T00:09:45+00:00",
    "crashed": false,
@@ -549,80 +596,38 @@
    "sha": "13353d17e1ab",
    "skip_reason": "market closed",
    "url": "https://github.com/nsoni8882/ns-multi-stratt/actions/runs/41566108635"
-  },
-  {
-   "at": "2026-11-03T01:42:00+00:00",
-   "crashed": false,
-   "date": "2026-11-02",
-   "decisions": {
-    "AAPL": {
-     "action": "wait",
-     "bars_held": 0,
-     "entry_date": null,
-     "held": false,
-     "price": 338.32,
-     "reason": "not oversold",
-     "rsi2": 14.466722392627148,
-     "sma200": 296.673425,
-     "trend_gap_pct": 14.03785155343793
-    },
-    "AMZN": {
-     "action": "wait",
-     "bars_held": 0,
-     "entry_date": null,
-     "held": false,
-     "price": 245.63,
-     "reason": "not oversold",
-     "rsi2": 55.84926616343661,
-     "sma200": 243.43785,
-     "trend_gap_pct": 0.9004967797735741
-    }
-   },
-   "early": false,
-   "equity": 100000.0,
-   "errors": [],
-   "event": "schedule",
-   "late": false,
-   "mode": "live",
-   "opening_balance": 100000.0,
-   "orders": 0,
-   "rules_version": "f5e0af26ffd9",
-   "run_id": "41561251349",
-   "sha": "13353d17e1ab",
-   "skip_reason": "market closed",
-   "url": "https://github.com/nsoni8882/ns-multi-stratt/actions/runs/41561251349"
   }
  ],
  "signal_state": [
   {
    "buy_below": 10.0,
-   "price": 259.3,
+   "price": 266.93,
    "reason": "not oversold",
-   "rsi2": 54.046801386467855,
+   "rsi2": 83.03270036386576,
    "sell_above": 65.0,
-   "sma200": 243.94015,
+   "sma200": 244.079,
    "symbol": "AMZN",
-   "trend_gap_pct": 6.296564956609241,
+   "trend_gap_pct": 9.36213275210076,
    "verdict": "Waiting"
   },
   {
    "buy_below": 10.0,
-   "price": 342.37,
+   "price": 350.69,
    "reason": "not oversold",
-   "rsi2": 43.529855036583264,
+   "rsi2": 78.36813949175978,
    "sell_above": 65.0,
-   "sma200": 298.535525,
+   "sma200": 299.052125,
    "symbol": "AAPL",
-   "trend_gap_pct": 14.683168778657073,
+   "trend_gap_pct": 17.267182100779266,
    "verdict": "Waiting"
   }
  ],
- "signal_state_as_of": "2026-11-06",
+ "signal_state_as_of": "2026-11-09",
  "symbols": [
   "AMZN",
   "AAPL"
  ],
  "trades": [],
- "updated_at": "2026-11-07T00:58:48+00:00",
+ "updated_at": "2026-11-10T02:19:28+00:00",
  "version": "1.1.0"
 }
